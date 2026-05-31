@@ -529,9 +529,9 @@ const styles = StyleSheet.create({
   triPillTextActive: { color: '#e0e3e5' },
 
   grid2Col: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between' },
-  gridButton: { width: '48%', paddingVertical: 14, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2a3135', backgroundColor: '#101415' },
+  gridButton: { width: '48%', minHeight: 48, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2a3135', backgroundColor: '#101415' },
   gridButtonActive: { borderColor: '#4e4639', backgroundColor: '#1a1e1f' },
-  gridButtonText: { color: '#5a5f63', fontFamily: 'Montserrat', fontSize: 9, fontWeight: '700', letterSpacing: 0.5, textAlign: 'center' },
+  gridButtonText: { color: '#5a5f63', fontFamily: 'Montserrat', fontSize: 8, fontWeight: '700', letterSpacing: 0.5, textAlign: 'center' },
   gridButtonTextActive: { color: '#e0e3e5' },
 
   lockedOverlayContainer: { },
