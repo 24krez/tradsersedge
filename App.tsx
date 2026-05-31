@@ -41,9 +41,9 @@ function MissionStackNavigator() {
         headerShown: false,
       }}
     >
-      <Stack.Screen name="ReadinessCheck" component={ReadinessCheckScreen} />
-      <Stack.Screen name="MissionSetup" component={MissionSetupScreen} />
       <Stack.Screen name="MissionActive" component={MissionActiveScreen} />
+      <Stack.Screen name="MissionSetup" component={MissionSetupScreen} />
+      <Stack.Screen name="ReadinessCheck" component={ReadinessCheckScreen} />
       <Stack.Screen name="MissionDebrief" component={MissionDebriefScreen} />
       <Stack.Screen name="MissionResults" component={MissionResultsScreen} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} />

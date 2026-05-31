@@ -5,8 +5,9 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 
 import { MissionStackNavigationProp } from '../../App';
-
-import { firebaseAuth, firestore } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
+import { firestore } from '../services/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 type Template = {
   key: string;
@@ -53,10 +54,17 @@ const templates: Template[] = [
 
 export function MissionSetupScreen() {
   const { t } = useTranslation('mission');
+  const { user, userProfile } = useAuth();
   const navigation = useNavigation<MissionStackNavigationProp>();
-  const [selectedObjective, setSelectedObjective] = useState<string>(objectiveKeys[2]);
-  const [selectedThreats, setSelectedThreats] = useState<string[]>(['overtrading', 'enteringEarly', 'lackOfPatience']);
-  const [selectedFocus, setSelectedFocus] = useState<string>('discipline');
+  const [selectedObjective, setSelectedObjective] = useState<string>(
+    userProfile?.missionPreferences?.objective || objectiveKeys[2]
+  );
+  const [selectedThreats, setSelectedThreats] = useState<string[]>(
+    userProfile?.missionPreferences?.threats || ['overtrading', 'enteringEarly', 'lackOfPatience']
+  );
+  const [selectedFocus, setSelectedFocus] = useState<string>(
+    userProfile?.missionPreferences?.coreFocus || 'discipline'
+  );
 
   const timestamp = useMemo(() => {
     return new Intl.DateTimeFormat('en-US', {
@@ -71,25 +79,31 @@ export function MissionSetupScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleBeginMission() {
-    if (isSaving) return;
+    if (isSaving || !user) return;
 
-    const user = firebaseAuth.currentUser;
-    if (!user) {
-      console.error('Error starting mission: User not authenticated');
-      return;
-    }
-    
     try {
       setIsSaving(true);
-      await addDoc(collection(firestore, 'missions'), {
-        userId: user.uid,
+
+      const newPreferences = {
         objective: selectedObjective,
         threats: selectedThreats,
         coreFocus: selectedFocus,
-        status: 'active',
+      };
+
+      // 1. Create the new pending mission
+      await addDoc(collection(firestore, 'missions'), {
+        userId: user.uid,
+        ...newPreferences,
+        status: 'pending',
         createdAt: serverTimestamp(),
       });
-      navigation.navigate('ReadinessCheck');
+
+      // 2. Save preferences to user profile for future defaults
+      await updateDoc(doc(firestore, 'users', user.uid), {
+        missionPreferences: newPreferences,
+      });
+
+      navigation.navigate('MissionActive');
     } catch (error) {
       console.error('Error starting mission:', error);
     } finally {
@@ -258,7 +272,7 @@ export function MissionSetupScreen() {
         ]}
       >
         <Text style={styles.beginButtonText}>
-          {isSaving ? 'Starting...' : 'Begin Mission'}
+          {isSaving ? 'SAVING...' : 'SAVE MISSION'}
         </Text>
       </Pressable>
     </ScrollView>

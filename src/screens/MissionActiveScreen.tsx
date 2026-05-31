@@ -259,7 +259,7 @@ function LiveTimerModule({
 export function MissionActiveScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const { t } = useTranslation('mission');
-  const [missionData, setMissionData] = useState<any>(null);
+  const [missionData, setMissionData] = useState<any>(undefined);
   const [isLive, setIsLive] = useState(false);
   const [currentSession, setCurrentSession] = useState(getCurrentSession());
   const [showCompleteModal, setShowCompleteModal] = useState(false);
@@ -303,7 +303,7 @@ export function MissionActiveScreen() {
     const q = query(
       collection(firestore, 'missions'),
       where('userId', '==', user.uid),
-      where('status', '==', 'active'),
+      where('status', 'in', ['pending', 'active']),
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -318,116 +318,127 @@ export function MissionActiveScreen() {
     return () => unsubscribe();
   }, []);
 
-  const objectiveKey = missionData?.objective;
-  const threats = missionData?.threats || [];
-  const focusKey = missionData?.coreFocus;
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  // Placeholder timestamp
-  const timestamp = 'MAY 29, 2026 | 08:30 EST';
+  useEffect(() => {
+    if (missionData !== undefined) {
+      setHasLoaded(true);
+    }
+  }, [missionData]);
+
+  useEffect(() => {
+    if (hasLoaded && missionData === null) {
+      navigation.replace('MissionSetup');
+    }
+  }, [hasLoaded, missionData, navigation]);
+
+  if (!missionData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={styles.loadingText}>Initializing Mission Data...</Text>
+      </View>
+    );
+  }
+
+  const { objective, coreFocus, threats, status } = missionData;
+  const isPending = status === 'pending';
+  const objectiveKey = objective;
+  const focusKey = coreFocus;
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveDot} />
-            <Text style={styles.eyebrow}>{t('missionActive.liveFeed')}</Text>
-          </View>
-          <Text style={styles.title}>{t('missionActive.briefingTitle')}</Text>
-          <Text style={styles.timestamp}>{timestamp}</Text>
-        </View>
-
-        <View style={styles.objectiveCard}>
-          <View style={styles.objectiveTopRow}>
-            <Text style={styles.objectiveEyebrow}>{t('missionActive.primaryObjective')}</Text>
-            <Text style={styles.targetIcon}>◎</Text>
-          </View>
-          <Text style={styles.objectiveText}>
-            {objectiveKey ? t(`data.objectives.${objectiveKey}.title`).toUpperCase() : '...'}
-          </Text>
-          <View style={styles.goldDivider} />
-          <View style={styles.objectiveBottomRow}>
-            <Text style={styles.priorityText}>{t('missionActive.priorityMax')}</Text>
-            <Text style={styles.stateText}>{t('missionActive.operationalStateReady')}</Text>
-          </View>
-        </View>
-
-        <View style={styles.splitRow}>
-          <View style={styles.threatsCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.threatIcon}>⚠</Text>
-              <Text style={styles.threatsLabel}>{t('missionActive.threatsLabel')}</Text>
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <View style={styles.liveIndicator}>
+              <View style={styles.liveDot} />
+              <Text style={styles.eyebrow}>{isPending ? 'MISSION BRIEFING' : t('missionActive.liveFeed')}</Text>
             </View>
-            <View style={styles.threatList}>
-              {threats.map((threat: string) => (
-                <View key={threat} style={styles.threatItem}>
-                  <View style={styles.threatBullet} />
-                  <Text style={styles.threatText}>{t(`data.threats.${threat}`).toUpperCase()}</Text>
+            <Text style={styles.title}>{t('missionActive.briefingTitle')}</Text>
+          </View>
+
+            <View style={styles.objectiveCard}>
+              <View style={styles.objectiveTopRow}>
+                <Text style={styles.objectiveEyebrow}>{t('missionActive.primaryObjective')}</Text>
+                <Text style={styles.targetIcon}>◎</Text>
+              </View>
+              <Text style={styles.objectiveText}>
+                {objectiveKey ? t(`data.objectives.${objectiveKey}.title`).toUpperCase() : '...'}
+              </Text>
+              <View style={styles.goldDivider} />
+              <View style={styles.objectiveBottomRow}>
+                <Text style={styles.priorityText}>{t('missionActive.priorityMax')}</Text>
+                <Text style={styles.stateText}>{t('missionActive.operationalStateReady')}</Text>
+              </View>
+            </View>
+
+            <View style={styles.splitRow}>
+              <View style={styles.threatsCard}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.threatIcon}>⚠</Text>
+                  <Text style={styles.threatsLabel}>{t('missionActive.threatsLabel')}</Text>
                 </View>
-              ))}
-            </View>
-          </View>
+                <View style={styles.threatList}>
+                  {threats.map((threat: string) => (
+                    <View key={threat} style={styles.threatItem}>
+                      <View style={styles.threatBullet} />
+                      <Text style={styles.threatText}>{t(`data.threats.${threat}`).toUpperCase()}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
 
-          <View style={styles.focusCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.focusIcon}>⍟</Text>
-              <Text style={styles.focusLabel}>{t('missionActive.coreFocusLabel')}</Text>
-            </View>
-            <Text style={styles.focusText}>
-              {focusKey ? t(`data.focusAreas.${focusKey}`).toUpperCase() : '...'}
-            </Text>
-            <Text style={styles.focusSubtext}>{t('missionActive.mindsetLock')}</Text>
-          </View>
-        </View>
-
-        <View style={styles.quoteCard}>
-          <Text style={styles.quoteMark}>❞</Text>
-          <Text style={styles.quoteText}>{t('missionActive.quote')}</Text>
-        </View>
-
-        <View style={styles.footer}>
-          {!isLive ? (
-            <>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setIsLive(true)}
-                style={({ pressed }) => [
-                  styles.startButton,
-                  pressed && styles.startButtonPressed,
-                ]}
-              >
-                <Text style={styles.startButtonText}>
-                  {t('missionActive.startTradingDay')}
+              <View style={styles.focusCard}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.focusIcon}>⍟</Text>
+                  <Text style={styles.focusLabel}>{t('missionActive.coreFocusLabel')}</Text>
+                </View>
+                <Text style={styles.focusText}>
+                  {focusKey ? t(`data.focusAreas.${focusKey}`).toUpperCase() : '...'}
                 </Text>
-                <Text style={styles.startLightning}>ϟ</Text>
+                <Text style={styles.focusSubtext}>{t('missionActive.mindsetLock')}</Text>
+              </View>
+            </View>
+
+            <View style={styles.quoteCard}>
+              <Text style={styles.quoteMark}>❞</Text>
+              <Text style={styles.quoteText}>{t('missionActive.quote')}</Text>
+            </View>
+
+          {isPending ? (
+            <View style={styles.pendingContainer}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.startTradingButton,
+                  pressed && styles.startTradingButtonPressed,
+                ]}
+                onPress={() => navigation.navigate('ReadinessCheck')}
+              >
+                <Text style={styles.startTradingButtonText}>START TRADING</Text>
               </Pressable>
-              <Text style={styles.encryptedText}>{t('missionActive.encryptedLink')}</Text>
-            </>
+            </View>
           ) : (
-            <View style={{ width: '100%' }}>
+            <>
               <LiveTimerModule 
                 focusKey={focusKey} 
                 sessionKey={currentSession.session || 'new_york'} 
               />
               <CompactMindsetModule missionId={missionData?.id} />
               <SessionNotesModule missionId={missionData?.id} />
+              
               <Pressable
-                accessibilityRole="button"
-                onPress={() => setShowCompleteModal(true)}
                 style={({ pressed }) => [
-                  styles.endButton,
-                  pressed && styles.startButtonPressed,
+                  styles.completeButton,
+                  pressed && styles.completeButtonPressed,
                 ]}
+                onPress={() => setShowCompleteModal(true)}
               >
-                <Text style={styles.startButtonText}>
-                  {t('missionActive.missionComplete')}
-                </Text>
-                <Text style={styles.startLightning}>✓</Text>
+                <Text style={styles.completeButtonText}>{t('missionActive.missionComplete')}</Text>
               </Pressable>
-            </View>
+            </>
           )}
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       <Modal
         animationType="fade"
@@ -445,14 +456,12 @@ export function MissionActiveScreen() {
             <Text style={modalStyles.description}>{t('missionActive.endSessionDesc')}</Text>
             <View style={modalStyles.actions}>
               <Pressable
-                accessibilityRole="button"
                 onPress={() => setShowCompleteModal(false)}
                 style={({ pressed }) => [modalStyles.cancelButton, pressed && modalStyles.buttonPressed]}
               >
                 <Text style={modalStyles.cancelText}>{t('missionActive.cancelBtn')}</Text>
               </Pressable>
               <Pressable
-                accessibilityRole="button"
                 disabled={isCompleting}
                 onPress={handleCompleteMission}
                 style={({ pressed }) => [modalStyles.confirmButton, (pressed || isCompleting) && modalStyles.buttonPressed]}
@@ -558,8 +567,70 @@ const timerStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#101415',
     flex: 1,
+    backgroundColor: '#101415',
+  },
+  container: {
+    flex: 1,
+    padding: 24,
+  },
+  loadingText: {
+    color: '#e0e3e5',
+    fontFamily: 'Montserrat',
+    fontSize: 16,
+  },
+  pendingContainer: {
+    marginTop: 24,
+    width: '100%',
+  },
+  startTradingButton: {
+    backgroundColor: '#e9c176',
+    paddingVertical: 18,
+    borderRadius: 8,
+    alignItems: 'center',
+    shadowColor: '#e9c176',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  startTradingButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  startTradingButtonText: {
+    color: '#412d00',
+    fontFamily: 'Montserrat',
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 40,
+  },
+  completeButton: {
+    backgroundColor: '#e9c176',
+    paddingVertical: 18,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 32,
+    shadowColor: '#e9c176',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  completeButtonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  completeButtonText: {
+    color: '#412d00',
+    fontFamily: 'Montserrat',
+    fontWeight: '700',
+    fontSize: 16,
+    letterSpacing: 1,
   },
   content: {
     flexGrow: 1,

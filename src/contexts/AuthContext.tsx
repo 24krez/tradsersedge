@@ -11,6 +11,11 @@ export interface UserProfile {
   motto: string;
   subscriptionTier: SubscriptionTier;
   onboardingStatus: string;
+  missionPreferences?: {
+    objective: string;
+    threats: string[];
+    coreFocus: string;
+  };
   uid: string;
   [key: string]: any;
 }

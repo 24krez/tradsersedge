@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
-
 import { MissionStackNavigationProp } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
+import { useAuth } from '../contexts/AuthContext';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
@@ -46,28 +46,37 @@ export function ReadinessCheckScreen() {
   });
 
   const [missionData, setMissionData] = useState<any>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
-    const user = firebaseAuth.currentUser;
     if (!user) return;
 
     const q = query(
       collection(firestore, 'missions'),
       where('userId', '==', user.uid),
-      where('status', '==', 'active')
+      where('status', '==', 'pending')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const docSnap = snapshot.docs[0];
-        setMissionData({ id: docSnap.id, ...docSnap.data() });
-      } else {
-        setMissionData(null);
+    const unsubscribe = onSnapshot(
+      q, 
+      (snapshot) => {
+        console.log('ReadinessCheckScreen onSnapshot fired. Docs count:', snapshot.size);
+        if (!snapshot.empty) {
+          const docSnap = snapshot.docs[0];
+          console.log('Found active mission:', docSnap.id);
+          setMissionData({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          console.log('No active missions found for user:', user.uid);
+          setMissionData(null);
+        }
+      },
+      (error) => {
+        console.error('onSnapshot error in ReadinessCheckScreen:', error);
       }
-    });
+    );
 
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   const isLockedIn = useMemo(() => {
     return Object.values(ratings).every((rating) => rating !== 'Low');
@@ -84,13 +93,16 @@ export function ReadinessCheckScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleBeginSession() {
-    if (isSaving || !missionData || !firebaseAuth.currentUser) return;
+    if (isSaving || !missionData || !user) {
+      console.log('Cannot begin session:', { isSaving, hasMissionData: !!missionData, hasUser: !!user });
+      return;
+    }
 
     try {
       setIsSaving(true);
       await addDoc(collection(firestore, 'mindset_checkins'), {
         missionId: missionData.id,
-        userId: firebaseAuth.currentUser.uid,
+        userId: user.uid,
         type: 'pre_session',
         confidence: ratings.executionConfidence,
         patience: ratings.patienceReserve,
@@ -98,7 +110,13 @@ export function ReadinessCheckScreen() {
         missionStatus: isLockedIn ? 'Locked In' : 'Review Required',
         createdAt: serverTimestamp(),
       });
-      navigation.navigate('MissionActive');
+
+      // Update the mission document to mark it as active
+      await updateDoc(doc(firestore, 'missions', missionData.id), {
+        status: 'active',
+      });
+
+      navigation.goBack();
     } catch (error) {
       console.error('Error saving readiness check-in:', error);
     } finally {
