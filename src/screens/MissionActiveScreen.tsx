@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -13,6 +13,7 @@ import {
   TradingSession,
 } from '../logic/sessionEngine';
 import { firebaseAuth, firestore } from '../services/firebase';
+import { calculateMissionStatus } from '../logic/missionStatus';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
@@ -39,6 +40,33 @@ function CompactMindsetModule({ missionId }: { missionId: string }) {
     if (!firebaseAuth.currentUser || !missionId) return;
     setIsSaving(true);
     try {
+      const q = query(
+        collection(firestore, 'mindset_checkins'),
+        where('missionId', '==', missionId),
+        where('userId', '==', firebaseAuth.currentUser.uid),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      
+      let previousCheckin = undefined;
+      if (!snap.empty) {
+        previousCheckin = snap.docs[0].data();
+      }
+
+      const newStatusResult = calculateMissionStatus(
+        {
+          confidence: ratings.executionConfidence,
+          patience: ratings.patienceReserve,
+          focus: ratings.marketFocus,
+        },
+        previousCheckin ? {
+          confidence: previousCheckin.confidence,
+          patience: previousCheckin.patience,
+          focus: previousCheckin.focus,
+        } : undefined
+      );
+
       await addDoc(collection(firestore, 'mindset_checkins'), {
         missionId,
         userId: firebaseAuth.currentUser.uid,
@@ -46,8 +74,15 @@ function CompactMindsetModule({ missionId }: { missionId: string }) {
         confidence: ratings.executionConfidence,
         patience: ratings.patienceReserve,
         focus: ratings.marketFocus,
+        missionStatus: newStatusResult.status,
         createdAt: serverTimestamp(),
       });
+      
+      await updateDoc(doc(firestore, 'missions', missionId), {
+        missionStatus: newStatusResult.status,
+        lastMindsetScore: newStatusResult.score,
+      });
+
       // Collapse after successful save
       setIsExpanded(false);
     } catch (e) {
