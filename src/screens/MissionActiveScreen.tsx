@@ -357,6 +357,29 @@ export function MissionActiveScreen() {
     }
   }
 
+  const [isRestarting, setIsRestarting] = useState(false);
+
+  const handleRestartMission = async () => {
+    if (!firebaseAuth.currentUser || !missionData || isRestarting) return;
+    setIsRestarting(true);
+    try {
+      await addDoc(collection(firestore, 'missions'), {
+        userId: firebaseAuth.currentUser.uid,
+        objective: missionData.objective,
+        coreFocus: missionData.coreFocus,
+        threats: missionData.threats,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        lastMindsetScore: 100,
+      });
+      // The onSnapshot listener will automatically pick up the new mission and switch the UI to pending.
+    } catch (error) {
+      console.error('Error restarting mission:', error);
+    } finally {
+      setIsRestarting(false);
+    }
+  };
+
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentSession(getCurrentSession());
@@ -372,16 +395,36 @@ export function MissionActiveScreen() {
     const q = query(
       collection(firestore, 'missions'),
       where('userId', '==', user.uid),
-      where('status', 'in', ['pending', 'active']),
+      orderBy('createdAt', 'desc'),
+      limit(1)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
         const docSnap = snapshot.docs[0];
-        setMissionData({ id: docSnap.id, ...docSnap.data() });
+        const data = docSnap.data();
+        
+        // Check if mission is from today
+        const isToday = (date: Date) => {
+          const today = new Date();
+          return date.getDate() === today.getDate() &&
+            date.getMonth() === today.getMonth() &&
+            date.getFullYear() === today.getFullYear();
+        };
+
+        const createdAtDate = data.createdAt ? data.createdAt.toDate() : new Date();
+        
+        if (data.status === 'completed' && !isToday(createdAtDate)) {
+          // If it's a completed mission from a previous day, ignore it so they can create a new one
+          setMissionData(null);
+        } else {
+          setMissionData({ id: docSnap.id, ...data });
+        }
       } else {
         setMissionData(null);
       }
+    }, (error) => {
+      console.error("Firestore Error:", error);
     });
 
     return () => unsubscribe();
@@ -411,6 +454,7 @@ export function MissionActiveScreen() {
 
   const { objective, coreFocus, threats, status } = missionData;
   const isPending = status === 'pending';
+  const isCompleted = status === 'completed';
   const objectiveKey = objective;
   const focusKey = coreFocus;
 
@@ -420,8 +464,10 @@ export function MissionActiveScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <View style={styles.liveIndicator}>
-              <View style={styles.liveDot} />
-              <Text style={styles.eyebrow}>{isPending ? 'MISSION BRIEFING' : t('missionActive.liveFeed')}</Text>
+              <View style={[styles.liveDot, isCompleted && { backgroundColor: '#8a8f93', shadowColor: 'transparent' }]} />
+              <Text style={styles.eyebrow}>
+                {isCompleted ? 'MISSION ARCHIVE' : isPending ? 'MISSION BRIEFING' : t('missionActive.liveFeed')}
+              </Text>
             </View>
             <Text style={styles.title}>{t('missionActive.briefingTitle')}</Text>
           </View>
@@ -496,6 +542,33 @@ export function MissionActiveScreen() {
                 onPress={() => navigation.navigate('ReadinessCheck')}
               >
                 <Text style={styles.startTradingButtonText}>START TRADING</Text>
+              </Pressable>
+            </View>
+          ) : isCompleted ? (
+            <View style={styles.completedContainer}>
+              <Text style={styles.completedTitle}>MISSION ACCOMPLISHED</Text>
+              <Text style={styles.completedSubtitle}>Review your debrief and stats for this session.</Text>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.startTradingButton,
+                  pressed && styles.startTradingButtonPressed,
+                ]}
+                onPress={() => navigation.navigate('MissionDebrief')}
+              >
+                <Text style={styles.startTradingButtonText}>VIEW DEBRIEF</Text>
+              </Pressable>
+              
+              <Pressable
+                style={({ pressed }) => [
+                  styles.discouragedButton,
+                  pressed && { opacity: 0.6 },
+                ]}
+                onPress={handleRestartMission}
+                disabled={isRestarting}
+              >
+                <Text style={styles.discouragedButtonText}>
+                  {isRestarting ? 'STARTING...' : 'START ANOTHER MISSION'}
+                </Text>
               </Pressable>
             </View>
           ) : (
@@ -664,6 +737,31 @@ const styles = StyleSheet.create({
     marginTop: 24,
     width: '100%',
   },
+  completedContainer: {
+    marginTop: 24,
+    width: '100%',
+    alignItems: 'center',
+    backgroundColor: '#1a1e1f',
+    padding: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#4e4639',
+  },
+  completedTitle: {
+    color: '#e9c176',
+    fontFamily: 'Montserrat',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  completedSubtitle: {
+    color: '#8a8f93',
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 18,
+  },
   startTradingButton: {
     backgroundColor: '#e9c176',
     paddingVertical: 18,
@@ -685,6 +783,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 1,
+  },
+  discouragedButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  discouragedButtonText: {
+    color: '#5a5f63', // Dim gray to make it blend into the background
+    fontFamily: 'Montserrat',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1,
+    textDecorationLine: 'underline',
   },
   scrollContent: {
     flexGrow: 1,
