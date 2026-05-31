@@ -1,29 +1,26 @@
 import { signInAnonymously } from 'firebase/auth';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { firebaseAuth } from '../services/firebase';
 import { createUserProfile } from '../services/userProfile';
 
 export function WelcomeScreen() {
-  const [status, setStatus] = useState('Ready to connect Firebase.');
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleStart() {
     setIsLoading(true);
-    setStatus('Connecting...');
+    setError(null);
 
     try {
       const credential = await signInAnonymously(firebaseAuth);
-
       await createUserProfile({ user: credential.user });
-      setStatus(`Connected as ${credential.user.uid.slice(0, 8)}.`);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Firebase connection failed.';
-
-      setStatus(message);
-    } finally {
-      setIsLoading(false);
+      // Navigation is automatically handled by AuthProvider when user state changes
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Authentication failed.';
+      setError(message);
+      setIsLoading(false); // Only set false on error, on success we navigate away
     }
   }
 
@@ -32,7 +29,8 @@ export function WelcomeScreen() {
       <View style={styles.content}>
         <Text style={styles.eyebrow}>TRADER'S EDGE</Text>
         <Text style={styles.title}>Welcome</Text>
-        <Text style={styles.subtitle}>{status}</Text>
+        <Text style={styles.subtitle}>A discipline and mindset operating system for traders.</Text>
+        {error && <Text style={styles.errorText}>{error}</Text>}
       </View>
 
       <Pressable
@@ -45,7 +43,11 @@ export function WelcomeScreen() {
           isLoading && styles.buttonDisabled,
         ]}
       >
-        <Text style={styles.buttonLabel}>{isLoading ? 'Connecting' : 'Start Mission'}</Text>
+        {isLoading ? (
+          <ActivityIndicator color="#101415" />
+        ) : (
+          <Text style={styles.buttonLabel}>CONNECT VIA FIREBASE</Text>
+        )}
       </Pressable>
     </View>
   );
@@ -78,6 +80,11 @@ const styles = StyleSheet.create({
     color: '#d1c5b4',
     fontSize: 16,
     lineHeight: 24,
+  },
+  errorText: {
+    color: '#ff6b6b',
+    fontSize: 14,
+    marginTop: 16,
   },
   button: {
     alignItems: 'center',

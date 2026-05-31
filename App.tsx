@@ -1,8 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { NavigationContainer, NavigationProp } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
 import './src/i18n';
@@ -16,6 +16,8 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReadinessCheckScreen } from './src/screens/ReadinessCheckScreen';
 import { VaultScreen } from './src/screens/VaultScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { ProUpsellScreen } from './src/screens/ProUpsellScreen';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
 type RootStackParamList = {
@@ -25,9 +27,10 @@ type RootStackParamList = {
   MissionDebrief: undefined;
   MissionResults: undefined;
   Welcome: undefined;
+  ProUpsell: undefined;
 };
 
-export type MissionStackNavigationProp = NavigationProp<RootStackParamList>;
+export type MissionStackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -44,13 +47,23 @@ function MissionStackNavigator() {
       <Stack.Screen name="MissionDebrief" component={MissionDebriefScreen} />
       <Stack.Screen name="MissionResults" component={MissionResultsScreen} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="ProUpsell" component={ProUpsellScreen} />
     </Stack.Navigator>
   );
 }
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+function AppContent() {
   const { t } = useTranslation('common');
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
+  const { user, isLoading } = useAuth();
 
   const tabs: Array<{ key: TabKey; label: string }> = [
     { key: 'mission', label: t('tabs.mission', 'Mission') },
@@ -58,6 +71,23 @@ export default function App() {
     { key: 'vault', label: t('tabs.vault', 'Vault') },
     { key: 'profile', label: t('tabs.profile', 'Profile') },
   ];
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar style="light" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <WelcomeScreen />
+        <StatusBar style="light" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>

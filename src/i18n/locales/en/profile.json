@@ -1,1 +1,16 @@
-{}
+{
+  "title": "OPERATOR PROFILE",
+  "callsignLabel": "CALLSIGN",
+  "callsignPlaceholder": "Enter callsign...",
+  "mottoLabel": "OPERATOR MOTTO",
+  "mottoPlaceholder": "Enter your trading motto...",
+  "rankLabel": "CURRENT RANK",
+  "classificationLabel": "CLASSIFICATION",
+  "saveBtn": "SAVE DOSSIER",
+  "signOutBtn": "SIGN OUT",
+  "saving": "SAVING...",
+  "defaultClassification": "Evaluating",
+  "defaultRank": "Recruit",
+  "subscriptionLabel": "CLEARANCE LEVEL",
+  "founderBadge": "FOUNDER"
+}

@@ -14,6 +14,7 @@ import {
 } from '../logic/sessionEngine';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { calculateMissionStatus } from '../logic/missionStatus';
+import { useIsPro } from '../contexts/AuthContext';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
@@ -263,6 +264,7 @@ export function MissionActiveScreen() {
   const [currentSession, setCurrentSession] = useState(getCurrentSession());
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
+  const isPro = useIsPro();
 
   async function handleCompleteMission() {
     if (!missionData?.id || isCompleting) return;
@@ -274,7 +276,12 @@ export function MissionActiveScreen() {
       });
       // TODO: Close iOS Live Activity
       setShowCompleteModal(false);
-      navigation.replace('MissionDebrief');
+      
+      if (isPro) {
+        navigation.replace('MissionDebrief');
+      } else {
+        navigation.replace('ProUpsell');
+      }
     } catch (e) {
       console.error('Error completing mission:', e);
       setIsCompleting(false);

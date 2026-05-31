@@ -13,9 +13,12 @@ export async function createUserProfile({ user }: CreateUserProfileParams) {
   await setDoc(
     userRef,
     {
+      callsign: '',
       createdAt: serverTimestamp(),
       lastSeenAt: serverTimestamp(),
+      motto: '',
       onboardingStatus: 'welcome_started',
+      subscriptionTier: 'founder',
       uid: user.uid,
     },
     { merge: true },
