@@ -32,7 +32,7 @@ const missionScreens = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
-  const ActiveMissionScreen = missionScreens[0];
+  const ActiveMissionScreen = missionScreens[1];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -76,29 +76,32 @@ const styles = StyleSheet.create({
   },
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: '#15191a',
-    borderTopColor: '#2d3436',
+    backgroundColor: '#0b0f10',
+    borderTopColor: '#202426',
     borderTopWidth: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 7,
   },
   tabItem: {
     alignItems: 'center',
+    borderTopColor: 'transparent',
+    borderTopWidth: 1,
     flex: 1,
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: 43,
+    paddingTop: 7,
   },
   activeTabItem: {
-    borderBottomColor: '#e9c176',
-    borderBottomWidth: 2,
+    borderTopColor: '#e9c176',
   },
   tabLabel: {
-    color: '#8d9698',
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#f8fafc',
+    fontSize: 7,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   activeTabLabel: {
-    color: '#f8fafc',
+    color: '#e9c176',
   },
 });
