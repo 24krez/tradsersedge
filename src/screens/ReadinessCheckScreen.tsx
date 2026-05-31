@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
+import { MissionStackNavigationProp } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
@@ -34,11 +36,8 @@ const assessmentItems: AssessmentItem[] = [
 
 const levels: ReadinessLevel[] = ['Low', 'Medium', 'High'];
 
-type ReadinessCheckScreenProps = {
-  onNavigateToSetup?: () => void;
-};
-
-export function ReadinessCheckScreen({ onNavigateToSetup }: ReadinessCheckScreenProps) {
+export function ReadinessCheckScreen() {
+  const navigation = useNavigation<MissionStackNavigationProp>();
   const [ratings, setRatings] = useState<Record<AssessmentKey, ReadinessLevel>>({
     executionConfidence: 'High',
     patienceReserve: 'Medium',
@@ -191,7 +190,7 @@ export function ReadinessCheckScreen({ onNavigateToSetup }: ReadinessCheckScreen
         </Pressable>
 
         <Pressable accessibilityRole="button" style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}>
-          <Text style={styles.startButtonText}>Start Mission</Text>
+          <Text style={styles.startButtonText}>Begin Session</Text>
           <Text style={styles.startButtonArrow}>ϟ</Text>
         </Pressable>
       </ScrollView>
@@ -224,7 +223,7 @@ export function ReadinessCheckScreen({ onNavigateToSetup }: ReadinessCheckScreen
                 accessibilityRole="button"
                 onPress={() => {
                   setShowEditModal(false);
-                  onNavigateToSetup?.();
+                  navigation.navigate('MissionSetup');
                 }}
                 style={({ pressed }) => [styles.modalConfirmButton, pressed && styles.modalButtonPressed]}
               >
@@ -567,29 +566,15 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
-  setupButton: {
-    alignItems: 'center',
-    backgroundColor: '#0b0f10',
-    borderColor: 'rgba(233, 193, 118, 0.55)',
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 14,
-    justifyContent: 'center',
-    marginHorizontal: 16,
-    marginTop: 16,
-    minHeight: 52,
+  editMissionLink: {
+    marginTop: 18,
   },
-  setupButtonText: {
+  editMissionText: {
     color: '#e9c176',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 3,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-  },
-  setupButtonIcon: {
-    color: '#e9c176',
-    fontSize: 20,
-    fontWeight: '900',
   },
   summaryCardPressed: {
     opacity: 0.85,

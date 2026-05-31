@@ -1,6 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { NavigationContainer, NavigationProp } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 import { MissionActiveScreen } from './src/screens/MissionActiveScreen';
 import { MissionDebriefScreen } from './src/screens/MissionDebriefScreen';
@@ -13,6 +15,18 @@ import { VaultScreen } from './src/screens/VaultScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
+type RootStackParamList = {
+  ReadinessCheck: undefined;
+  MissionSetup: undefined;
+  MissionActive: undefined;
+  MissionDebrief: undefined;
+  MissionResults: undefined;
+  Welcome: undefined;
+};
+
+export type MissionStackNavigationProp = NavigationProp<RootStackParamList>;
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'mission', label: 'Mission' },
@@ -21,28 +35,33 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: 'profile', label: 'Profile' },
 ];
 
-const missionScreens = [
-  WelcomeScreen,
-  MissionSetupScreen,
-  ReadinessCheckScreen,
-  MissionActiveScreen,
-  MissionDebriefScreen,
-  MissionResultsScreen,
-];
+function MissionStackNavigator() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+      }}
+    >
+      <Stack.Screen name="ReadinessCheck" component={ReadinessCheckScreen} />
+      <Stack.Screen name="MissionSetup" component={MissionSetupScreen} />
+      <Stack.Screen name="MissionActive" component={MissionActiveScreen} />
+      <Stack.Screen name="MissionDebrief" component={MissionDebriefScreen} />
+      <Stack.Screen name="MissionResults" component={MissionResultsScreen} />
+      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+    </Stack.Navigator>
+  );
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
-  const [missionScreenIndex, setMissionScreenIndex] = useState(2);
-  const ActiveMissionScreen = missionScreens[missionScreenIndex];
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
         {activeTab === 'mission' && (
-          <ActiveMissionScreen
-            onNavigateToSetup={() => setMissionScreenIndex(1)}
-            onNavigateToReadiness={() => setMissionScreenIndex(2)}
-          />
+          <NavigationContainer>
+            <MissionStackNavigator />
+          </NavigationContainer>
         )}
         {activeTab === 'progress' && <ProgressScreen />}
         {activeTab === 'vault' && <VaultScreen />}
