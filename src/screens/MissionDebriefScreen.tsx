@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { MissionStackNavigationProp } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc, setDoc } from 'firebase/firestore';
 import { firestore } from '../services/firebase';
+import { calculateDisciplineScore, DebriefInput, YesMostlyNo } from '../logic/disciplineScore';
 
 type MissionData = {
   id: string;
@@ -25,13 +26,6 @@ const EMOTIONS = [
   { id: 'stress', icon: '😰', label: 'Stress' },
 ] as const;
 
-const GRADES = [
-  { id: 'elite', label: 'ELITE' },
-  { id: 'strong', label: 'STRONG' },
-  { id: 'average', label: 'AVERAGE' },
-  { id: 'needs_work', label: 'NEEDS WORK' },
-] as const;
-
 const NO_TRADE_REASONS = [
   'NO VALID SETUPS',
   'OBSERVATION DAY',
@@ -41,31 +35,39 @@ const NO_TRADE_REASONS = [
   'OTHER'
 ];
 
-type PillValue = 'yes' | 'mostly' | 'no' | null;
-
 export function MissionDebriefScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const { t } = useTranslation('mission');
   const { user } = useAuth();
+  
+  // Mock Pro Status (To be replaced with RevenueCat later)
+  const isPro = false; 
+
   const [missionData, setMissionData] = useState<MissionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Form State
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [traded, setTraded] = useState<boolean | null>(null); // true = YES, false = NO TRADE
+  // Gateway
+  const [traded, setTraded] = useState<boolean | null>(null); 
   
-  // Execution Integrity (5 questions)
-  const [followedPlan, setFollowedPlan] = useState<PillValue>(null);
-  const [respectedStop, setRespectedStop] = useState<PillValue>(null);
-  const [avoidedFomo, setAvoidedFomo] = useState<PillValue>(null);
-  const [avoidedRevenge, setAvoidedRevenge] = useState<PillValue>(null);
-  const [stoppedInTime, setStoppedInTime] = useState<PillValue>(null);
-
+  // Traded State
+  const [followedPlan, setFollowedPlan] = useState<YesMostlyNo | null>(null);
+  const [respectedStop, setRespectedStop] = useState<YesMostlyNo | null>(null);
+  const [stoppedAppropriately, setStoppedAppropriately] = useState<YesMostlyNo | null>(null);
+  const [avoidedFomo, setAvoidedFomo] = useState<YesMostlyNo | null>(null);
+  const [avoidedRevenge, setAvoidedRevenge] = useState<YesMostlyNo | null>(null);
+  
+  // No Trade State
+  const [avoidedForcingTrades, setAvoidedForcingTrades] = useState<YesMostlyNo | null>(null);
+  const [remainedPatient, setRemainedPatient] = useState<YesMostlyNo | null>(null);
+  const [protectedCapital, setProtectedCapital] = useState<YesMostlyNo | null>(null);
+  const [followedMissionObjective, setFollowedMissionObjective] = useState<YesMostlyNo | null>(null);
+  
   const [whyNotTradeReason, setWhyNotTradeReason] = useState<string | null>(null);
-  const [pulseScore, setPulseScore] = useState<number>(50); // 0-100 placeholder
+  
+  // Pro / General State
+  const [pulseScore, setPulseScore] = useState<number>(50); 
   const [emotion, setEmotion] = useState<typeof EMOTIONS[number]['id'] | null>(null);
   const [notes, setNotes] = useState('');
-  const [disciplineGrade, setDisciplineGrade] = useState<typeof GRADES[number]['id'] | null>(null);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,52 +93,185 @@ export function MissionDebriefScreen() {
     return () => unsubscribe();
   }, [user]);
 
-  const handleSubmit = async () => {
-    if (!user || !missionData || isSubmitting) return;
+  // Live Score Calculation
+  const currentDisciplineScore = useMemo(() => {
+    if (traded === null) return null;
     
-    // Validate minimum required fields
-    if (traded === null || !emotion) return;
+    // Only calculate if the required base fields for the active flow are filled
+    if (traded === true) {
+      if (!followedPlan || !respectedStop || !stoppedAppropriately || !avoidedFomo || !avoidedRevenge) return null;
+      
+      const input: DebriefInput = {
+        didTrade: true,
+        followedPlan,
+        respectedStop,
+        stoppedAppropriately,
+        avoidedFomo,
+        avoidedRevenge,
+        emotionalControlValue: pulseScore,
+        emotionalState: emotion || '',
+        biggestLesson: notes,
+        selfAssessment: ''
+      };
+      return calculateDisciplineScore(input, { objective: missionData?.objective });
+    } else {
+      if (!avoidedForcingTrades || !remainedPatient || !protectedCapital || !followedMissionObjective) return null;
+      
+      const input: DebriefInput = {
+        didTrade: false,
+        avoidedForcingTrades,
+        remainedPatient,
+        protectedCapital,
+        followedMissionObjective,
+        emotionalState: emotion || '',
+        biggestLesson: notes,
+        selfAssessment: ''
+      };
+      return calculateDisciplineScore(input, { objective: missionData?.objective });
+    }
+  }, [traded, followedPlan, respectedStop, stoppedAppropriately, avoidedFomo, avoidedRevenge, avoidedForcingTrades, remainedPatient, protectedCapital, followedMissionObjective, pulseScore, emotion, notes, missionData]);
+
+  const handleSubmit = async () => {
+    if (!user || !missionData || isSubmitting || !currentDisciplineScore) return;
+    
+    // If No Trade, they must pick a reason
+    if (traded === false && !whyNotTradeReason) return;
+    
+    // If Pro, they must pick an emotion (just enforcing basic validation for mock)
+    if (isPro && (!emotion || !notes)) return;
 
     setIsSubmitting(true);
     try {
-      await addDoc(collection(firestore, 'mission_debriefs'), {
+      const now = new Date();
+      
+      // 1. Save massive debrief document
+      const debriefRef = await addDoc(collection(firestore, 'mission_debriefs'), {
         userId: user.uid,
         missionId: missionData.id,
-        date: new Date().toISOString().split('T')[0],
-        traded,
-        executionIntegrity: {
-          followedPlan,
-          respectedStop,
-          avoidedFomo,
-          avoidedRevenge,
-          stoppedInTime
+        date: now.toISOString().split('T')[0],
+        session: 'new_york',
+        missionSnapshot: {
+          objective: missionData.objective,
+          threatsIdentified: missionData.threats || [],
+          coreFocus: missionData.coreFocus
         },
-        whyNotTradeReason: traded === false ? whyNotTradeReason : null,
-        pulseScore,
-        emotion,
-        notes,
-        disciplineGrade,
+        execution: traded ? {
+          tradeStatus: 'traded',
+          followedPlan,
+          respectedStopLoss: respectedStop,
+          avoidedFomo,
+          avoidedRevengeTrading: avoidedRevenge,
+          stoppedWhenShouldHave: stoppedAppropriately
+        } : {
+          tradeStatus: 'no_trade',
+          avoidedForcingTrades,
+          remainedPatient,
+          protectedCapital,
+          followedMissionObjective
+        },
+        noTradeReason: traded === false ? {
+          selected: true,
+          label: whyNotTradeReason
+        } : { selected: false, label: null },
+        psychology: {
+          stateScore: pulseScore,
+          stateLabel: pulseScore > 75 ? 'ELITE' : pulseScore > 50 ? 'FOCUSED' : 'FRANTIC',
+          emotions: emotion ? [emotion] : []
+        },
+        lesson: { text: notes },
+        summary: {
+          sessionLengthMinutes: 120, // Mock
+          missionStart: missionData.createdAt?.toDate().toISOString() || now.toISOString(),
+          missionStatus: traded ? 'TRADED' : 'NO TRADE DAY'
+        },
+        discipline: {
+          score: currentDisciplineScore.finalScore,
+          grade: currentDisciplineScore.finalGrade,
+          breakdown: {
+            executionIntegrity: currentDisciplineScore.executionIntegrity,
+            riskDiscipline: currentDisciplineScore.riskDiscipline,
+            emotionalControl: currentDisciplineScore.emotionalControl,
+            missionAdherence: currentDisciplineScore.missionAdherence,
+            selfAwareness: currentDisciplineScore.selfAwareness
+          }
+        },
+        archive: {
+          readyForArchive: true,
+          includedInStats: true,
+          includedInWeeklyReview: isPro
+        },
+        access: {
+          isProFeature: false,
+          createdWhilePro: isPro
+        },
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
       });
+
+      // 2. Update existing Mission doc
+      await updateDoc(doc(firestore, 'missions', missionData.id), {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        debriefId: debriefRef.id,
+        disciplineScore: currentDisciplineScore.finalScore,
+        missionStatus: traded ? 'TRADED' : 'NO TRADE DAY'
+      });
+
+      // 3. Update User Stats
+      const statsRef = doc(firestore, 'user_stats', user.uid);
+      const statsDoc = await getDoc(statsRef);
       
-      // Navigate back to Active Mission so they can see the completed archive block
-      navigation.replace('MissionActive');
+      const newScore = currentDisciplineScore.finalScore;
+      
+      if (statsDoc.exists()) {
+        const data = statsDoc.data();
+        const prevTotal = data.totalDebriefs || 0;
+        const prevAvg = data.averageDisciplineScore || 0;
+        const newAvg = ((prevAvg * prevTotal) + newScore) / (prevTotal + 1);
+
+        await updateDoc(statsRef, {
+          totalMissionsCompleted: increment(1),
+          totalDebriefs: increment(1),
+          noTradeDays: increment(traded ? 0 : 1),
+          tradeDays: increment(traded ? 1 : 0),
+          averageDisciplineScore: newAvg,
+          lastCompletedDate: now.toISOString(),
+          updatedAt: serverTimestamp()
+        });
+      } else {
+        await setDoc(statsRef, {
+          totalMissionsCompleted: 1,
+          totalDebriefs: 1,
+          noTradeDays: traded ? 0 : 1,
+          tradeDays: traded ? 1 : 0,
+          averageDisciplineScore: newScore,
+          currentStreak: 1,
+          longestStreak: 1,
+          lastCompletedDate: now.toISOString(),
+          updatedAt: serverTimestamp()
+        });
+      }
+      
+      // Navigate to results
+      navigation.replace('MissionResults');
+      Alert.alert("Debrief Archived", "Discipline score updated.");
+
     } catch (e) {
       console.error('Error saving debrief:', e);
       setIsSubmitting(false);
     }
   };
 
-  const renderTriPill = (value: PillValue, setter: (val: PillValue) => void) => (
+  const renderTriPill = (value: YesMostlyNo | null, setter: (val: YesMostlyNo) => void) => (
     <View style={styles.triPillContainer}>
-      <Pressable style={[styles.triPill, value === 'yes' && styles.triPillActive]} onPress={() => setter('yes')}>
-        <Text style={[styles.triPillText, value === 'yes' && styles.triPillTextActive]}>YES</Text>
+      <Pressable style={[styles.triPill, value === 'Yes' && styles.triPillActive]} onPress={() => setter('Yes')}>
+        <Text style={[styles.triPillText, value === 'Yes' && styles.triPillTextActive]}>YES</Text>
       </Pressable>
-      <Pressable style={[styles.triPill, value === 'mostly' && styles.triPillActive]} onPress={() => setter('mostly')}>
-        <Text style={[styles.triPillText, value === 'mostly' && styles.triPillTextActive]}>MOSTLY</Text>
+      <Pressable style={[styles.triPill, value === 'Mostly' && styles.triPillActive]} onPress={() => setter('Mostly')}>
+        <Text style={[styles.triPillText, value === 'Mostly' && styles.triPillTextActive]}>MOSTLY</Text>
       </Pressable>
-      <Pressable style={[styles.triPill, value === 'no' && styles.triPillActive]} onPress={() => setter('no')}>
-        <Text style={[styles.triPillText, value === 'no' && styles.triPillTextActive]}>NO</Text>
+      <Pressable style={[styles.triPill, value === 'No' && styles.triPillActive]} onPress={() => setter('No')}>
+        <Text style={[styles.triPillText, value === 'No' && styles.triPillTextActive]}>NO</Text>
       </Pressable>
     </View>
   );
@@ -197,178 +332,140 @@ export function MissionDebriefScreen() {
 
           <Text style={styles.sectionHeader}>EXECUTION INTEGRITY</Text>
 
-          {/* Gateway Question (Pill Layout) */}
+          {/* Gateway Question */}
           <View style={styles.card}>
             <Text style={styles.questionTextBold}>Operational Check: Did you trade today?</Text>
             <View style={styles.pillContainer}>
-              <Pressable
-                style={[styles.gatewayPill, traded === true && styles.gatewayPillActive]}
-                onPress={() => setTraded(true)}
-              >
+              <Pressable style={[styles.gatewayPill, traded === true && styles.gatewayPillActive]} onPress={() => setTraded(true)}>
                 <Text style={[styles.gatewayPillText, traded === true && styles.gatewayPillTextActive]}>YES, TRADED</Text>
               </Pressable>
-              <Pressable
-                style={[styles.gatewayPill, traded === false && styles.gatewayPillActive]}
-                onPress={() => setTraded(false)}
-              >
-                <Text style={[styles.gatewayPillText, traded === false && styles.gatewayPillTextActive]}>NO TRADE (OBSERVATION)</Text>
+              <Pressable style={[styles.gatewayPill, traded === false && styles.gatewayPillActive]} onPress={() => setTraded(false)}>
+                <Text style={[styles.gatewayPillText, traded === false && styles.gatewayPillTextActive]}>NO TRADE</Text>
               </Pressable>
             </View>
           </View>
 
-          {/* Execution Questions (Always visible in UI mock, but we'll show them once gateway is picked) */}
-          {traded !== null && (
+          {traded === true && (
             <>
-              <View style={styles.card}>
-                <Text style={styles.questionTextBold}>DID YOU FOLLOW YOUR TRADING PLAN?</Text>
-                {renderTriPill(followedPlan, setFollowedPlan)}
-              </View>
-              <View style={styles.card}>
-                <Text style={styles.questionTextBold}>DID YOU RESPECT YOUR STOP LOSS?</Text>
-                {renderTriPill(respectedStop, setRespectedStop)}
-              </View>
-              <View style={styles.card}>
-                <Text style={styles.questionTextBold}>DID YOU AVOID FOMO?</Text>
-                {renderTriPill(avoidedFomo, setAvoidedFomo)}
-              </View>
-              <View style={styles.card}>
-                <Text style={styles.questionTextBold}>DID YOU AVOID REVENGE TRADING?</Text>
-                {renderTriPill(avoidedRevenge, setAvoidedRevenge)}
-              </View>
-              <View style={styles.card}>
-                <Text style={styles.questionTextBold}>DID YOU STOP WHEN YOU SHOULD HAVE?</Text>
-                {renderTriPill(stoppedInTime, setStoppedInTime)}
-              </View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU FOLLOW YOUR TRADING PLAN?</Text>{renderTriPill(followedPlan, setFollowedPlan)}</View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU RESPECT YOUR STOP LOSS?</Text>{renderTriPill(respectedStop, setRespectedStop)}</View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU AVOID FOMO?</Text>{renderTriPill(avoidedFomo, setAvoidedFomo)}</View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU AVOID REVENGE TRADING?</Text>{renderTriPill(avoidedRevenge, setAvoidedRevenge)}</View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU STOP WHEN YOU SHOULD HAVE?</Text>{renderTriPill(stoppedAppropriately, setStoppedAppropriately)}</View>
+            </>
+          )}
 
-              {/* Why did you not trade grid (Only if NO TRADE) */}
-              {traded === false && (
-                <View style={styles.card}>
-                  <Text style={styles.questionTextBold}>Why did you not trade?</Text>
-                  <View style={styles.grid2Col}>
-                    {NO_TRADE_REASONS.map(reason => (
-                      <Pressable 
-                        key={reason} 
-                        style={[styles.gridButton, whyNotTradeReason === reason && styles.gridButtonActive]}
-                        onPress={() => setWhyNotTradeReason(reason)}
-                      >
-                        <Text style={[styles.gridButtonText, whyNotTradeReason === reason && styles.gridButtonTextActive]}>
-                          {reason}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Psychological State */}
+          {traded === false && (
+            <>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU AVOID FORCING TRADES?</Text>{renderTriPill(avoidedForcingTrades, setAvoidedForcingTrades)}</View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU REMAIN PATIENT?</Text>{renderTriPill(remainedPatient, setRemainedPatient)}</View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU PROTECT CAPITAL?</Text>{renderTriPill(protectedCapital, setProtectedCapital)}</View>
+              <View style={styles.card}><Text style={styles.questionTextBold}>DID YOU FOLLOW MISSION OBJECTIVE?</Text>{renderTriPill(followedMissionObjective, setFollowedMissionObjective)}</View>
+              
               <View style={styles.card}>
-                <View style={styles.pulseHeader}>
-                  <Text style={styles.questionTextBold}>Psychological State</Text>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.dynamicPulseLabel}>DYNAMIC PULSE</Text>
-                    <Text style={styles.dynamicPulseValue}>FOCUSED</Text>
-                  </View>
-                </View>
-                
-                {/* Custom Slider Mock */}
-                <View style={styles.sliderTrack}>
-                  <View style={[styles.sliderThumb, { left: '60%' }]} />
-                </View>
-                <View style={styles.sliderLabels}>
-                  <Text style={styles.sliderLabelText}>FRANTIC</Text>
-                  <Text style={styles.sliderLabelText}>ELITE</Text>
-                </View>
-
-                <Text style={styles.todayIFeltLabel}>TODAY I FELT</Text>
-                <View style={styles.emojiGrid}>
-                  {EMOTIONS.map(e => (
-                    <Pressable 
-                      key={e.id}
-                      style={[styles.emojiButton, emotion === e.id && styles.emojiButtonActive]}
-                      onPress={() => setEmotion(e.id)}
-                    >
-                      <Text style={[styles.emojiButtonText, emotion === e.id && styles.emojiButtonTextActive]}>
-                        {e.icon} {e.label}
-                      </Text>
+                <Text style={styles.questionTextBold}>Why did you not trade?</Text>
+                <View style={styles.grid2Col}>
+                  {NO_TRADE_REASONS.map(reason => (
+                    <Pressable key={reason} style={[styles.gridButton, whyNotTradeReason === reason && styles.gridButtonActive]} onPress={() => setWhyNotTradeReason(reason)}>
+                      <Text style={[styles.gridButtonText, whyNotTradeReason === reason && styles.gridButtonTextActive]}>{reason}</Text>
                     </Pressable>
                   ))}
                 </View>
               </View>
+            </>
+          )}
 
-              {/* Operational Intelligence */}
-              <View style={styles.card}>
-                <Text style={styles.questionTextBold}>OPERATIONAL INTELLIGENCE / LESSONS</Text>
+          {traded !== null && (
+            <View style={styles.card}>
+              <View style={styles.pulseHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.questionTextBold}>Psychological State</Text>
+                  {!isPro && <Text style={styles.proLockIcon}> 🔒</Text>}
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.dynamicPulseLabel}>DYNAMIC PULSE</Text>
+                  <Text style={[styles.dynamicPulseValue, !isPro && { color: '#5a5f63' }]}>FOCUSED</Text>
+                </View>
+              </View>
+              
+              <View style={[styles.lockedOverlayContainer, !isPro && { opacity: 0.5 }]} pointerEvents={isPro ? 'auto' : 'none'}>
+                <View style={styles.sliderTrack}><View style={[styles.sliderThumb, { left: '60%' }]} /></View>
+                <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>FRANTIC</Text><Text style={styles.sliderLabelText}>ELITE</Text></View>
+                <Text style={styles.todayIFeltLabel}>TODAY I FELT</Text>
+                <View style={styles.emojiGrid}>
+                  {EMOTIONS.map(e => (
+                    <Pressable key={e.id} style={[styles.emojiButton, emotion === e.id && styles.emojiButtonActive]} onPress={() => setEmotion(e.id)}>
+                      <Text style={[styles.emojiButtonText, emotion === e.id && styles.emojiButtonTextActive]}>{e.icon} {e.label}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {traded !== null && (
+            <View style={styles.card}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={[styles.questionTextBold, { marginBottom: 0 }]}>OPERATIONAL INTELLIGENCE</Text>
+                {!isPro && <Text style={styles.proLockIcon}> 🔒</Text>}
+              </View>
+              <View pointerEvents={isPro ? 'auto' : 'none'}>
                 <TextInput
-                  style={styles.notesInput}
-                  placeholder="Deconstruct your qualitative findings here..."
+                  style={[styles.notesInput, !isPro && { opacity: 0.5 }]}
+                  placeholder={isPro ? "Deconstruct your qualitative findings here..." : "Upgrade to Pro to unlock session notes and journaling."}
                   placeholderTextColor="#5a5f63"
                   multiline
                   value={notes}
                   onChangeText={setNotes}
+                  editable={isPro}
                 />
               </View>
+            </View>
+          )}
 
-              {/* Mission Summary Display */}
-              <View style={styles.missionSummaryCard}>
-                <View style={styles.missionSummaryRow}>
-                  <View style={styles.goldDot} />
-                  <Text style={styles.missionSummaryTitle}>MISSION SUMMARY</Text>
-                </View>
-                <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>SESSION LENGTH</Text><Text style={styles.summaryItemValue}>--:--</Text></View>
-                <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>MISSION START</Text><Text style={styles.summaryItemValue}>--:--</Text></View>
-                <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>OBJECTIVE</Text><Text style={styles.summaryItemValue}>{t(`data.objectives.${missionData.objective}.title`, missionData.objective.replace(/_/g, ' ')).toUpperCase()}</Text></View>
-                <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>CORE FOCUS</Text><Text style={[styles.summaryItemValue, {color: '#e9c176'}]}>{t(`data.focusAreas.${missionData.coreFocus}`, missionData.coreFocus.replace(/_/g, ' ')).toUpperCase()}</Text></View>
-                <View style={[styles.summaryItemRow, { marginTop: 12 }]}>
-                  <Text style={styles.summaryItemLabel}>MISSION STATUS</Text>
-                  <View style={styles.statusChip}>
-                    <Text style={styles.statusChipText}>{traded ? 'TRADED' : 'NO TRADE DAY'}</Text>
-                  </View>
-                </View>
-
-                {/* Discipline Grading */}
-                <Text style={styles.disciplineGradingLabel}>DISCIPLINE GRADING</Text>
-                <View style={styles.grid2Col}>
-                  {GRADES.map(grade => (
-                    <Pressable 
-                      key={grade.id} 
-                      style={[styles.gradeButton, disciplineGrade === grade.id && styles.gradeButtonActive]}
-                      onPress={() => setDisciplineGrade(grade.id)}
-                    >
-                      <Text style={[styles.gradeButtonText, disciplineGrade === grade.id && styles.gradeButtonTextActive]}>
-                        {grade.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-
-                {/* Archive Ready Box */}
-                <View style={styles.archiveBox}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                    <Text style={styles.archiveIcon}>📁</Text>
-                    <Text style={styles.archiveBoxTitle}>MISSION READY FOR ARCHIVE</Text>
-                  </View>
-                  <Text style={styles.archiveBullet}>• DISCIPLINE SCORE INTEGRATION</Text>
-                  <Text style={styles.archiveBullet}>• PROGRESS ANALYTICS SYNC</Text>
-                  <Text style={styles.archiveBullet}>• VAULT INTELLIGENCE UPDATE</Text>
-                  <Text style={styles.archiveBullet}>• BEHAVIORAL REPORT GENERATION</Text>
-                </View>
-                
-                {/* Complete Button */}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.submitButton,
-                    (!emotion) && styles.submitButtonDisabled, // Basic validation
-                    pressed && { opacity: 0.8 },
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={!emotion || isSubmitting}
-                >
-                  <Text style={styles.submitButtonText}>
-                    {isSubmitting ? 'SAVING...' : 'COMPLETE DEBRIEF'}
-                  </Text>
-                </Pressable>
+          {traded !== null && currentDisciplineScore && (
+            <View style={styles.missionSummaryCard}>
+              <View style={styles.missionSummaryRow}>
+                <View style={styles.goldDot} />
+                <Text style={styles.missionSummaryTitle}>MISSION SUMMARY</Text>
               </View>
-            </>
+              <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>SESSION LENGTH</Text><Text style={styles.summaryItemValue}>--:--</Text></View>
+              <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>OBJECTIVE</Text><Text style={styles.summaryItemValue}>{t(`data.objectives.${missionData.objective}.title`, missionData.objective.replace(/_/g, ' ')).toUpperCase()}</Text></View>
+              <View style={[styles.summaryItemRow, { marginTop: 12 }]}><Text style={styles.summaryItemLabel}>MISSION STATUS</Text>
+                <View style={styles.statusChip}><Text style={styles.statusChipText}>{traded ? 'TRADED' : 'NO TRADE DAY'}</Text></View>
+              </View>
+
+              <Text style={styles.disciplineGradingLabel}>DISCIPLINE GRADE</Text>
+              <View style={styles.gradeDisplayContainer}>
+                <Text style={styles.gradeDisplayScore}>{currentDisciplineScore.finalScore} / 100</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12 }}>
+                  <Text style={styles.gradeDisplayLetter}>{currentDisciplineScore.finalGrade}</Text>
+                  <Text style={styles.gradeDisplayTier}>
+                    {['S', 'A+', 'A', 'A-'].includes(currentDisciplineScore.finalGrade) ? 'ELITE' : 
+                     ['B+', 'B'].includes(currentDisciplineScore.finalGrade) ? 'STRONG' : 
+                     currentDisciplineScore.finalGrade === 'C' ? 'AVERAGE' : 'NEEDS WORK'}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.archiveBox}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                  <Text style={styles.archiveIcon}>📁</Text>
+                  <Text style={styles.archiveBoxTitle}>MISSION READY FOR ARCHIVE</Text>
+                </View>
+                <Text style={styles.archiveBullet}>• DISCIPLINE SCORE INTEGRATION</Text>
+                <Text style={styles.archiveBullet}>• PROGRESS ANALYTICS SYNC</Text>
+                {isPro && <Text style={styles.archiveBullet}>• VAULT INTELLIGENCE UPDATE</Text>}
+              </View>
+              
+              <Pressable
+                style={({ pressed }) => [styles.submitButton, (!currentDisciplineScore) && styles.submitButtonDisabled, pressed && { opacity: 0.8 }]}
+                onPress={handleSubmit}
+                disabled={!currentDisciplineScore || isSubmitting || (traded === false && !whyNotTradeReason)}
+              >
+                <Text style={styles.submitButtonText}>{isSubmitting ? 'SAVING...' : 'COMPLETE DEBRIEF'}</Text>
+              </Pressable>
+            </View>
           )}
           
         </ScrollView>
@@ -399,6 +496,7 @@ const styles = StyleSheet.create({
   sectionHeader: { color: '#8a8f93', fontFamily: 'Montserrat', fontSize: 12, fontWeight: '700', letterSpacing: 2, marginBottom: 16 },
   card: { backgroundColor: '#1a1e1f', padding: 20, marginBottom: 16 },
   questionTextBold: { color: '#f8fafc', fontFamily: 'Montserrat', fontSize: 13, fontWeight: '700', marginBottom: 16 },
+  proLockIcon: { fontSize: 12, color: '#8a8f93' },
   
   pillContainer: { flexDirection: 'row', gap: 12 },
   gatewayPill: { flex: 1, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 4, borderWidth: 1, borderColor: '#4e4639', backgroundColor: '#101415' },
@@ -418,6 +516,7 @@ const styles = StyleSheet.create({
   gridButtonText: { color: '#5a5f63', fontFamily: 'Montserrat', fontSize: 9, fontWeight: '700', letterSpacing: 0.5, textAlign: 'center' },
   gridButtonTextActive: { color: '#e0e3e5' },
 
+  lockedOverlayContainer: { },
   pulseHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   dynamicPulseLabel: { color: '#5a5f63', fontFamily: 'Montserrat', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
   dynamicPulseValue: { color: '#e9c176', fontFamily: 'Montserrat', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
@@ -447,10 +546,10 @@ const styles = StyleSheet.create({
   statusChipText: { color: '#8a8f93', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
 
   disciplineGradingLabel: { color: '#e0e3e5', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 32, marginBottom: 16, textAlign: 'center' },
-  gradeButton: { width: '48%', paddingVertical: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2a3135', backgroundColor: '#101415' },
-  gradeButtonActive: { borderColor: '#4e4639', backgroundColor: '#1a1e1f' },
-  gradeButtonText: { color: '#e0e3e5', fontFamily: 'Montserrat', fontSize: 11, fontWeight: '800', letterSpacing: 1 },
-  gradeButtonTextActive: { color: '#e9c176' },
+  gradeDisplayContainer: { alignItems: 'center', justifyContent: 'center', padding: 24, borderWidth: 1, borderColor: '#4e4639', backgroundColor: '#101415' },
+  gradeDisplayScore: { color: '#8a8f93', fontSize: 14, fontWeight: '800', marginBottom: 4 },
+  gradeDisplayLetter: { color: '#e9c176', fontSize: 48, fontWeight: '900', letterSpacing: 2 },
+  gradeDisplayTier: { color: '#e0e3e5', fontSize: 24, fontWeight: '800', letterSpacing: 1 },
 
   archiveBox: { backgroundColor: '#101415', padding: 20, marginTop: 32, marginBottom: 24 },
   archiveIcon: { fontSize: 16, marginRight: 8 },
