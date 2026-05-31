@@ -232,6 +232,10 @@ export function MissionSetupScreen() {
         <Text style={[styles.briefLabel, styles.briefFocusLabel]}>Core Focus</Text>
         <Text style={styles.briefFocus}>{selectedFocus}</Text>
       </View>
+
+      <Pressable accessibilityRole="button" style={({ pressed }) => [styles.beginButton, pressed && styles.beginButtonPressed]}>
+        <Text style={styles.beginButtonText}>Begin Mission</Text>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -260,7 +264,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    paddingBottom: 60,
+    paddingBottom: 28,
   },
   brandBar: {
     borderBottomColor: '#202426',
@@ -367,8 +371,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#241819',
     borderColor: '#5d2f33',
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
   },
   selectedThreatChip: {
     backgroundColor: '#241819',
@@ -376,7 +380,7 @@ const styles = StyleSheet.create({
   },
   threatChipText: {
     color: '#f8fafc',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '800',
     textTransform: 'uppercase',
   },
@@ -579,6 +583,25 @@ const styles = StyleSheet.create({
     color: '#e9c176',
     fontSize: 21,
     fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  beginButton: {
+    alignItems: 'center',
+    backgroundColor: '#c5a059',
+    justifyContent: 'center',
+    marginHorizontal: 16,
+    marginTop: 34,
+    minHeight: 56,
+    paddingHorizontal: 18,
+  },
+  beginButtonPressed: {
+    opacity: 0.82,
+  },
+  beginButtonText: {
+    color: '#101415',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1.6,
     textTransform: 'uppercase',
   },
 });
