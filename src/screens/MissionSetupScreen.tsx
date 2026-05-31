@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
+import { MissionStackNavigationProp } from '../../App';
 
 import { firebaseAuth, firestore } from '../services/firebase';
 
@@ -74,11 +77,8 @@ const templates: Template[] = [
   },
 ];
 
-type MissionSetupScreenProps = {
-  onNavigateToReadiness?: () => void;
-};
-
-export function MissionSetupScreen({ onNavigateToReadiness }: MissionSetupScreenProps) {
+export function MissionSetupScreen() {
+  const navigation = useNavigation<MissionStackNavigationProp>();
   const [selectedObjective, setSelectedObjective] = useState(objectives[2].title);
   const [selectedThreats, setSelectedThreats] = useState(['Overtrading', 'Entering Early', 'Lack of Patience']);
   const [selectedFocus, setSelectedFocus] = useState('Discipline');
@@ -114,7 +114,7 @@ export function MissionSetupScreen({ onNavigateToReadiness }: MissionSetupScreen
         status: 'active',
         createdAt: serverTimestamp(),
       });
-      onNavigateToReadiness?.();
+      navigation.navigate('ReadinessCheck');
     } catch (error) {
       console.error('Error starting mission:', error);
     } finally {

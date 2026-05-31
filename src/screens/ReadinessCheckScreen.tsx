@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
 
 import { MissionStackNavigationProp } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
@@ -58,7 +58,8 @@ export function ReadinessCheckScreen() {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       if (!snapshot.empty) {
-        setMissionData(snapshot.docs[0].data());
+        const docSnap = snapshot.docs[0];
+        setMissionData({ id: docSnap.id, ...docSnap.data() });
       } else {
         setMissionData(null);
       }
@@ -79,6 +80,30 @@ export function ReadinessCheckScreen() {
   }
 
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleBeginSession() {
+    if (isSaving || !missionData || !firebaseAuth.currentUser) return;
+
+    try {
+      setIsSaving(true);
+      await addDoc(collection(firestore, 'mindset_checkins'), {
+        missionId: missionData.id,
+        userId: firebaseAuth.currentUser.uid,
+        type: 'pre_session',
+        confidence: ratings.executionConfidence,
+        patience: ratings.patienceReserve,
+        focus: ratings.marketFocus,
+        missionStatus: isLockedIn ? 'Locked In' : 'Review Required',
+        createdAt: serverTimestamp(),
+      });
+      navigation.navigate('MissionActive');
+    } catch (error) {
+      console.error('Error saving readiness check-in:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
@@ -189,8 +214,13 @@ export function ReadinessCheckScreen() {
           <Text style={styles.tapHint}>Tap to edit mission</Text>
         </Pressable>
 
-        <Pressable accessibilityRole="button" style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}>
-          <Text style={styles.startButtonText}>Begin Session</Text>
+        <Pressable
+          accessibilityRole="button"
+          disabled={isSaving}
+          onPress={handleBeginSession}
+          style={({ pressed }) => [styles.startButton, (pressed || isSaving) && styles.startButtonPressed]}
+        >
+          <Text style={styles.startButtonText}>{isSaving ? 'Deploying...' : 'Begin Session'}</Text>
           <Text style={styles.startButtonArrow}>ϟ</Text>
         </Pressable>
       </ScrollView>
