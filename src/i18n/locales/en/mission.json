@@ -152,6 +152,10 @@
     "updateMindsetBtn": "LOG MINDSET",
     "sessionNotesLabel": "SESSION NOTES",
     "sessionNotesPlaceholder": "Log an observation or emotional trigger...",
-    "saveNoteBtn": "SAVE NOTE"
+    "saveNoteBtn": "SAVE NOTE",
+    "endSessionTitle": "END SESSION?",
+    "endSessionDesc": "Your mission will be closed and you'll begin your debrief.",
+    "cancelBtn": "CANCEL",
+    "completeMissionBtn": "COMPLETE MISSION"
   }
 }

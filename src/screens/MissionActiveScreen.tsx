@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { addDoc, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { MissionStackNavigationProp } from '../../App';
 import {
@@ -261,6 +261,25 @@ export function MissionActiveScreen() {
   const [missionData, setMissionData] = useState<any>(null);
   const [isLive, setIsLive] = useState(false);
   const [currentSession, setCurrentSession] = useState(getCurrentSession());
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
+
+  async function handleCompleteMission() {
+    if (!missionData?.id || isCompleting) return;
+    setIsCompleting(true);
+    try {
+      await updateDoc(doc(firestore, 'missions', missionData.id), {
+        status: 'completed',
+        endedAt: serverTimestamp(),
+      });
+      // TODO: Close iOS Live Activity
+      setShowCompleteModal(false);
+      navigation.replace('MissionDebrief');
+    } catch (e) {
+      console.error('Error completing mission:', e);
+      setIsCompleting(false);
+    }
+  }
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -387,7 +406,7 @@ export function MissionActiveScreen() {
               <SessionNotesModule missionId={missionData?.id} />
               <Pressable
                 accessibilityRole="button"
-                onPress={() => console.log('Mission Complete')}
+                onPress={() => setShowCompleteModal(true)}
                 style={({ pressed }) => [
                   styles.endButton,
                   pressed && styles.startButtonPressed,
@@ -402,6 +421,43 @@ export function MissionActiveScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setShowCompleteModal(false)}
+        transparent
+        visible={showCompleteModal}
+      >
+        <Pressable
+          onPress={() => setShowCompleteModal(false)}
+          style={modalStyles.overlay}
+        >
+          <Pressable style={modalStyles.card}>
+            <View style={modalStyles.accent} />
+            <Text style={modalStyles.title}>{t('missionActive.endSessionTitle')}</Text>
+            <Text style={modalStyles.description}>{t('missionActive.endSessionDesc')}</Text>
+            <View style={modalStyles.actions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowCompleteModal(false)}
+                style={({ pressed }) => [modalStyles.cancelButton, pressed && modalStyles.buttonPressed]}
+              >
+                <Text style={modalStyles.cancelText}>{t('missionActive.cancelBtn')}</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                disabled={isCompleting}
+                onPress={handleCompleteMission}
+                style={({ pressed }) => [modalStyles.confirmButton, (pressed || isCompleting) && modalStyles.buttonPressed]}
+              >
+                <Text style={modalStyles.confirmText}>
+                  {isCompleting ? '...' : t('missionActive.completeMissionBtn')}
+                </Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -739,6 +795,78 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.5,
     marginTop: 24,
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 32,
+  },
+  card: {
+    backgroundColor: '#14181a',
+    borderColor: 'rgba(233, 193, 118, 0.3)',
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: 28,
+    width: '100%',
+  },
+  accent: {
+    backgroundColor: '#e9c176',
+    height: 3,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  title: {
+    color: '#f8fafc',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  description: {
+    color: '#8a8f93',
+    fontSize: 14,
+    fontWeight: '500',
+    lineHeight: 22,
+    marginBottom: 28,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    flex: 1,
+    paddingVertical: 14,
+  },
+  confirmButton: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    flex: 1,
+    paddingVertical: 14,
+  },
+  cancelText: {
+    color: '#8a8f93',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  confirmText: {
+    color: '#101415',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  buttonPressed: {
+    opacity: 0.7,
   },
 });
 
