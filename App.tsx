@@ -32,7 +32,7 @@ const missionScreens = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
-  const ActiveMissionScreen = missionScreens[1];
+  const ActiveMissionScreen = missionScreens[2];
 
   return (
     <SafeAreaView style={styles.safeArea}>
