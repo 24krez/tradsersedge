@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { MissionStackNavigationProp } from '../../App';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
@@ -32,6 +34,7 @@ const assessmentItems: AssessmentItem[] = [
 const levels: ReadinessLevel[] = ['Low', 'Medium', 'High'];
 
 export function ReadinessCheckScreen() {
+  const navigation = useNavigation<MissionStackNavigationProp>();
   const [ratings, setRatings] = useState<Record<AssessmentKey, ReadinessLevel>>({
     executionConfidence: 'High',
     patienceReserve: 'Medium',
@@ -148,16 +151,15 @@ export function ReadinessCheckScreen() {
             <Text style={styles.summaryLabel}>Core Focus</Text>
             <Text style={styles.summaryFocus}>Patience</Text>
           </View>
+
+          <Pressable accessibilityRole="button" style={styles.editMissionLink} onPress={() => navigation.navigate('MissionSetup')}>
+            <Text style={styles.editMissionText}>Edit Mission</Text>
+          </Pressable>
         </View>
 
         <Pressable accessibilityRole="button" style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}>
-          <Text style={styles.startButtonText}>Start Mission</Text>
+          <Text style={styles.startButtonText}>Begin Session</Text>
           <Text style={styles.startButtonArrow}>ϟ</Text>
-        </Pressable>
-
-        <Pressable accessibilityRole="button" style={({ pressed }) => [styles.setupButton, pressed && styles.startButtonPressed]}>
-          <Text style={styles.setupButtonText}>Mission Setup</Text>
-          <Text style={styles.setupButtonIcon}>⚙</Text>
         </Pressable>
       </ScrollView>
     </View>
@@ -493,28 +495,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
   },
-  setupButton: {
-    alignItems: 'center',
-    backgroundColor: '#0b0f10',
-    borderColor: 'rgba(233, 193, 118, 0.55)',
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 14,
-    justifyContent: 'center',
-    marginHorizontal: 16,
-    marginTop: 16,
-    minHeight: 52,
+  editMissionLink: {
+    marginTop: 18,
   },
-  setupButtonText: {
+  editMissionText: {
     color: '#e9c176',
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 3,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-  },
-  setupButtonIcon: {
-    color: '#e9c176',
-    fontSize: 20,
-    fontWeight: '900',
   },
 });
