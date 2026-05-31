@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { MissionStackNavigationProp } from '../../App';
+import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc, setDoc } from 'firebase/firestore';
 import { firestore } from '../services/firebase';
@@ -38,8 +38,12 @@ const NO_TRADE_REASONS = [
 
 export function MissionDebriefScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'MissionDebrief'>>();
   const { t } = useTranslation('mission');
   const { user, isPro } = useAuth(); 
+
+  const isReadOnly = route.params?.readOnly || false;
+  const routeMissionId = route.params?.missionId;
 
   const [missionData, setMissionData] = useState<MissionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,25 +84,69 @@ export function MissionDebriefScreen() {
 
   useEffect(() => {
     if (!user) return;
-    const q = query(
-      collection(firestore, 'missions'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(1)
-    );
+    
+    // Load Mission Data
+    let q;
+    if (routeMissionId) {
+      // We can't query 'id' field if it's the doc id, so we just use the doc ref, 
+      // but if we want to use onSnapshot it's easier to just use doc ref.
+      const unsubscribe = onSnapshot(doc(firestore, 'missions', routeMissionId), async (docSnap) => {
+        if (docSnap.exists()) {
+          setMissionData({ id: docSnap.id, ...docSnap.data() } as MissionData);
+          
+          // If readOnly, load the debrief data
+          if (isReadOnly) {
+             const { getDocs } = await import('firebase/firestore');
+             const debriefQuery = query(collection(firestore, 'mission_debriefs'), where('missionId', '==', routeMissionId), limit(1));
+             const debriefSnap = await getDocs(debriefQuery);
+             if (!debriefSnap.empty) {
+               const data = debriefSnap.docs[0].data();
+               const isTraded = data.execution?.tradeStatus === 'traded';
+               setTraded(isTraded);
+               if (isTraded) {
+                 setFollowedPlan(data.execution?.followedPlan);
+                 setRespectedStop(data.execution?.respectedStop);
+                 setStoppedAppropriately(data.execution?.stoppedAppropriately);
+                 setAvoidedFomo(data.psychology?.avoidedFomo);
+                 setAvoidedRevenge(data.psychology?.avoidedRevenge);
+               } else {
+                 setAvoidedForcingTrades(data.execution?.avoidedForcingTrades);
+                 setRemainedPatient(data.psychology?.remainedPatient);
+                 setProtectedCapital(data.execution?.protectedCapital);
+                 setFollowedMissionObjective(data.execution?.followedMissionObjective);
+                 setWhyNotTradeReason(data.execution?.whyNotTradeReason || null);
+               }
+               setPulseScore(data.psychology?.stateScore || 50);
+               setEmotion(data.psychology?.emotions?.[0] || null);
+               setNotes(data.lesson?.text || '');
+             }
+          }
+        } else {
+          setMissionData(null);
+        }
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
+    } else {
+      q = query(
+        collection(firestore, 'missions'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        const docSnap = snapshot.docs[0];
-        setMissionData({ id: docSnap.id, ...docSnap.data() } as MissionData);
-      } else {
-        setMissionData(null);
-      }
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [user]);
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        if (!snapshot.empty) {
+          const docSnap = snapshot.docs[0];
+          setMissionData({ id: docSnap.id, ...docSnap.data() } as MissionData);
+        } else {
+          setMissionData(null);
+        }
+        setIsLoading(false);
+      });
+      return () => unsubscribe();
+    }
+  }, [user, routeMissionId, isReadOnly]);
 
   // Live Score Calculation
   const currentDisciplineScore = useMemo(() => {
@@ -353,7 +401,8 @@ export function MissionDebriefScreen() {
             </View>
           </View>
 
-          <Text style={styles.sectionHeader}>EXECUTION INTEGRITY</Text>
+          <View pointerEvents={isReadOnly ? 'none' : 'auto'}>
+            <Text style={styles.sectionHeader}>EXECUTION INTEGRITY</Text>
 
           {/* Gateway Question */}
           <View style={styles.card}>
@@ -422,7 +471,7 @@ export function MissionDebriefScreen() {
                   minimumTrackTintColor="#e9c176"
                   maximumTrackTintColor="#2a3135"
                   thumbTintColor="#e9c176"
-                  disabled={!isPro}
+                  disabled={!isPro || isReadOnly}
                 />
                 <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>FRANTIC</Text><Text style={styles.sliderLabelText}>ELITE</Text></View>
                 <Text style={styles.todayIFeltLabel}>TODAY I FELT</Text>
@@ -451,11 +500,12 @@ export function MissionDebriefScreen() {
                   multiline
                   value={notes}
                   onChangeText={setNotes}
-                  editable={isPro}
+                  editable={isPro && !isReadOnly}
                 />
               </View>
             </View>
           )}
+          </View>
 
           {traded !== null && currentDisciplineScore && (
             <View style={styles.missionSummaryCard}>
@@ -474,36 +524,58 @@ export function MissionDebriefScreen() {
                 <View style={styles.gradeDisplayAccent} />
                 <View style={styles.gradeDisplayContent}>
                   <View style={styles.gradeDisplayLeft}>
-                    <Text style={styles.gradeDisplayTier}>
-                      {['S', 'A+', 'A', 'A-'].includes(currentDisciplineScore.finalGrade) ? 'ELITE' : 
-                       ['B+', 'B'].includes(currentDisciplineScore.finalGrade) ? 'STRONG' : 
-                       currentDisciplineScore.finalGrade === 'C' ? 'AVERAGE' : 'NEEDS WORK'}
-                    </Text>
+                    {(() => {
+                      const tierName = ['S', 'A+', 'A', 'A-'].includes(currentDisciplineScore.finalGrade) ? 'ELITE' : 
+                                     ['B+', 'B'].includes(currentDisciplineScore.finalGrade) ? 'STRONG' : 
+                                     currentDisciplineScore.finalGrade === 'C' ? 'AVERAGE' : 'RECOVERY REQUIRED';
+                      return (
+                        <Text 
+                          style={[styles.gradeDisplayTier, tierName.length > 10 && { fontSize: 14 }]}
+                          adjustsFontSizeToFit
+                          numberOfLines={1}
+                        >
+                          {tierName}
+                        </Text>
+                      );
+                    })()}
                     <Text style={styles.gradeDisplayScore}>{currentDisciplineScore.finalScore} / 100 PTS</Text>
                   </View>
                   <View style={styles.gradeDisplayRight}>
-                    <Text style={styles.gradeDisplayLetter}>{currentDisciplineScore.finalGrade}</Text>
+                    <Text style={styles.gradeDisplayLetter}>
+                      {currentDisciplineScore.finalGrade === 'Recovery Required' ? 'F' : currentDisciplineScore.finalGrade}
+                    </Text>
                   </View>
                 </View>
               </View>
 
-              <View style={styles.archiveBox}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                  <Text style={styles.archiveIcon}>📁</Text>
-                  <Text style={styles.archiveBoxTitle}>MISSION READY FOR ARCHIVE</Text>
-                </View>
-                <Text style={styles.archiveBullet}>• DISCIPLINE SCORE INTEGRATION</Text>
-                <Text style={styles.archiveBullet}>• PROGRESS ANALYTICS SYNC</Text>
-                {isPro && <Text style={styles.archiveBullet}>• VAULT INTELLIGENCE UPDATE</Text>}
-              </View>
-              
-              <Pressable
-                style={({ pressed }) => [styles.submitButton, (!currentDisciplineScore) && styles.submitButtonDisabled, pressed && { opacity: 0.8 }]}
-                onPress={handleSubmit}
-                disabled={!currentDisciplineScore || isSubmitting || (traded === false && !whyNotTradeReason)}
-              >
-                <Text style={styles.submitButtonText}>{isSubmitting ? 'SAVING...' : 'COMPLETE DEBRIEF'}</Text>
-              </Pressable>
+              {!isReadOnly ? (
+                <>
+                  <View style={styles.archiveBox}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={styles.archiveIcon}>📁</Text>
+                      <Text style={styles.archiveBoxTitle}>MISSION READY FOR ARCHIVE</Text>
+                    </View>
+                    <Text style={styles.archiveBullet}>• DISCIPLINE SCORE INTEGRATION</Text>
+                    <Text style={styles.archiveBullet}>• PROGRESS ANALYTICS SYNC</Text>
+                    {isPro && <Text style={styles.archiveBullet}>• VAULT INTELLIGENCE UPDATE</Text>}
+                  </View>
+                  
+                  <Pressable
+                    style={({ pressed }) => [styles.submitButton, (!currentDisciplineScore) && styles.submitButtonDisabled, pressed && { opacity: 0.8 }]}
+                    onPress={handleSubmit}
+                    disabled={!currentDisciplineScore || isSubmitting || (traded === false && !whyNotTradeReason)}
+                  >
+                    <Text style={styles.submitButtonText}>{isSubmitting ? 'SAVING...' : 'COMPLETE DEBRIEF'}</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <Pressable
+                  style={[styles.submitButton, styles.submitButtonDisabled, { marginTop: 32 }]}
+                  disabled={true}
+                >
+                  <Text style={styles.submitButtonText}>DEBRIEF ARCHIVED</Text>
+                </Pressable>
+              )}
             </View>
           )}
           

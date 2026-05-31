@@ -20,11 +20,11 @@ import { ProUpsellScreen } from './src/screens/ProUpsellScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
-type RootStackParamList = {
+export type RootStackParamList = {
   ReadinessCheck: undefined;
   MissionSetup: undefined;
   MissionActive: undefined;
-  MissionDebrief: undefined;
+  MissionDebrief: { missionId?: string; readOnly?: boolean } | undefined;
   MissionResults: undefined;
   Welcome: undefined;
   ProUpsell: undefined;
