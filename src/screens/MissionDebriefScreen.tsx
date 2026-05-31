@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { MissionStackNavigationProp } from '../../App';
@@ -64,6 +65,15 @@ export function MissionDebriefScreen() {
   // Pro / General State
   const [pulseScore, setPulseScore] = useState<number>(50); 
   const [emotion, setEmotion] = useState<typeof EMOTIONS[number]['id'] | null>(null);
+  
+  const getPulseLabel = (score: number) => {
+    if (score >= 80) return 'ELITE';
+    if (score >= 60) return 'FOCUSED';
+    if (score >= 40) return 'NEUTRAL';
+    if (score >= 20) return 'TILTED';
+    return 'FRANTIC';
+  };
+
   const [notes, setNotes] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -188,7 +198,7 @@ export function MissionDebriefScreen() {
         } : { selected: false, label: null },
         psychology: {
           stateScore: pulseScore,
-          stateLabel: pulseScore > 75 ? 'ELITE' : pulseScore > 50 ? 'FOCUSED' : 'FRANTIC',
+          stateLabel: getPulseLabel(pulseScore),
           emotions: emotion ? [emotion] : []
         },
         lesson: { text: notes },
@@ -397,12 +407,23 @@ export function MissionDebriefScreen() {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.dynamicPulseLabel}>DYNAMIC PULSE</Text>
-                  <Text style={[styles.dynamicPulseValue, !isPro && { color: '#5a5f63' }]}>FOCUSED</Text>
+                  <Text style={[styles.dynamicPulseValue, !isPro && { color: '#5a5f63' }]}>{getPulseLabel(pulseScore)}</Text>
                 </View>
               </View>
               
-              <View style={[styles.lockedOverlayContainer, !isPro && { opacity: 0.5 }]} pointerEvents={isPro ? 'auto' : 'none'}>
-                <View style={styles.sliderTrack}><View style={[styles.sliderThumb, { left: '60%' }]} /></View>
+              <View style={[styles.lockedOverlayContainer, !isPro && { opacity: 0.5 }]}>
+                <Slider
+                  style={{ width: '100%', height: 40, marginBottom: 8 }}
+                  minimumValue={0}
+                  maximumValue={100}
+                  step={1}
+                  value={pulseScore}
+                  onValueChange={(val) => setPulseScore(val)}
+                  minimumTrackTintColor="#e9c176"
+                  maximumTrackTintColor="#2a3135"
+                  thumbTintColor="#e9c176"
+                  disabled={!isPro}
+                />
                 <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>FRANTIC</Text><Text style={styles.sliderLabelText}>ELITE</Text></View>
                 <Text style={styles.todayIFeltLabel}>TODAY I FELT</Text>
                 <View style={styles.emojiGrid}>
@@ -539,9 +560,7 @@ const styles = StyleSheet.create({
   dynamicPulseLabel: { color: '#5a5f63', fontFamily: 'Montserrat', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
   dynamicPulseValue: { color: '#e9c176', fontFamily: 'Montserrat', fontSize: 16, fontWeight: '800', letterSpacing: 2 },
   
-  sliderTrack: { height: 4, backgroundColor: '#2a3135', borderRadius: 2, marginBottom: 8, position: 'relative' },
-  sliderThumb: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#e9c176', position: 'absolute', top: -6 },
-  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24, paddingHorizontal: 4 },
   sliderLabelText: { color: '#5a5f63', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   
   todayIFeltLabel: { color: '#5a5f63', fontSize: 10, fontWeight: '600', letterSpacing: 1, marginBottom: 12 },
