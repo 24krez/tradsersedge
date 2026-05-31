@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+
+import { firebaseAuth, firestore } from '../services/firebase';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
@@ -41,6 +44,29 @@ export function ReadinessCheckScreen({ onNavigateToSetup }: ReadinessCheckScreen
     patienceReserve: 'Medium',
     marketFocus: 'High',
   });
+
+  const [missionData, setMissionData] = useState<any>(null);
+
+  useEffect(() => {
+    const user = firebaseAuth.currentUser;
+    if (!user) return;
+
+    const q = query(
+      collection(firestore, 'missions'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'active')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        setMissionData(snapshot.docs[0].data());
+      } else {
+        setMissionData(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const isLockedIn = useMemo(() => {
     return Object.values(ratings).every((rating) => rating !== 'Low');
@@ -142,7 +168,7 @@ export function ReadinessCheckScreen({ onNavigateToSetup }: ReadinessCheckScreen
           <View style={styles.summaryTopRow}>
             <View>
               <Text style={styles.summaryLabel}>Objective</Text>
-              <Text style={styles.summaryObjective}>Protect Capital</Text>
+              <Text style={styles.summaryObjective}>{missionData?.objective || 'Protect Capital'}</Text>
             </View>
             <Text style={styles.fadedSymbol}>◎</Text>
           </View>
@@ -151,12 +177,14 @@ export function ReadinessCheckScreen({ onNavigateToSetup }: ReadinessCheckScreen
 
           <View>
             <Text style={styles.summaryLabel}>Threats</Text>
-            <Text style={styles.summaryThreats}>FOMO • OVERTRADING</Text>
+            <Text style={styles.summaryThreats}>
+              {missionData?.threats?.join(' • ').toUpperCase() || 'FOMO • OVERTRADING'}
+            </Text>
           </View>
 
           <View>
             <Text style={styles.summaryLabel}>Core Focus</Text>
-            <Text style={styles.summaryFocus}>Patience</Text>
+            <Text style={styles.summaryFocus}>{missionData?.coreFocus || 'Patience'}</Text>
           </View>
 
           <Text style={styles.tapHint}>Tap to edit mission</Text>

@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+
+import { firebaseAuth, firestore } from '../services/firebase';
 
 type Objective = {
   eyebrow: string;
@@ -89,6 +92,35 @@ export function MissionSetupScreen({ onNavigateToReadiness }: MissionSetupScreen
       timeZoneName: 'short',
     }).format(new Date());
   }, []);
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  async function handleBeginMission() {
+    if (isSaving) return;
+
+    const user = firebaseAuth.currentUser;
+    if (!user) {
+      console.error('Error starting mission: User not authenticated');
+      return;
+    }
+    
+    try {
+      setIsSaving(true);
+      await addDoc(collection(firestore, 'missions'), {
+        userId: user.uid,
+        objective: selectedObjective,
+        threats: selectedThreats,
+        coreFocus: selectedFocus,
+        status: 'active',
+        createdAt: serverTimestamp(),
+      });
+      onNavigateToReadiness?.();
+    } catch (error) {
+      console.error('Error starting mission:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   function toggleThreat(threat: string) {
     setSelectedThreats((currentThreats) => {
@@ -239,10 +271,16 @@ export function MissionSetupScreen({ onNavigateToReadiness }: MissionSetupScreen
 
       <Pressable
         accessibilityRole="button"
-        onPress={onNavigateToReadiness}
-        style={({ pressed }) => [styles.beginButton, pressed && styles.beginButtonPressed]}
+        disabled={isSaving}
+        onPress={handleBeginMission}
+        style={({ pressed }) => [
+          styles.beginButton,
+          (pressed || isSaving) && styles.beginButtonPressed,
+        ]}
       >
-        <Text style={styles.beginButtonText}>Begin Mission</Text>
+        <Text style={styles.beginButtonText}>
+          {isSaving ? 'Starting...' : 'Begin Mission'}
+        </Text>
       </Pressable>
     </ScrollView>
   );
