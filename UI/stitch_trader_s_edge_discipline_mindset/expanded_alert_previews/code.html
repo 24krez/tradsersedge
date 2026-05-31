@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TRADER'S EDGE | Alert Preview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-tint": "#e9c176",
+                    "on-primary-fixed": "#261900",
+                    "on-background": "#e0e3e5",
+                    "tertiary-container": "#9fa4bc",
+                    "surface-container-low": "#191c1e",
+                    "background": "#101415",
+                    "surface-container-lowest": "#0b0f10",
+                    "surface-bright": "#363a3b",
+                    "on-secondary-fixed": "#0d1c32",
+                    "surface": "#101415",
+                    "on-surface": "#e0e3e5",
+                    "primary-fixed": "#ffdea5",
+                    "secondary": "#b9c7e4",
+                    "inverse-primary": "#775a19",
+                    "tertiary-fixed-dim": "#c0c6de",
+                    "on-primary-fixed-variant": "#5d4201",
+                    "inverse-on-surface": "#2d3133",
+                    "secondary-fixed": "#d6e3ff",
+                    "on-tertiary": "#2a3043",
+                    "inverse-surface": "#e0e3e5",
+                    "error-container": "#93000a",
+                    "primary": "#e9c176",
+                    "surface-container-high": "#272a2c",
+                    "surface-variant": "#323537",
+                    "surface-container-highest": "#323537",
+                    "secondary-fixed-dim": "#b9c7e4",
+                    "on-error-container": "#ffdad6",
+                    "on-tertiary-fixed-variant": "#40465a",
+                    "tertiary-fixed": "#dce1fb",
+                    "on-secondary-container": "#abb9d6",
+                    "primary-container": "#c5a059",
+                    "on-primary-container": "#4e3700",
+                    "on-secondary-fixed-variant": "#39475f",
+                    "tertiary": "#c0c6de",
+                    "surface-container": "#1d2022",
+                    "primary-fixed-dim": "#e9c176",
+                    "on-surface-variant": "#d1c5b4",
+                    "on-error": "#690005",
+                    "error": "#ffb4ab",
+                    "surface-dim": "#101415",
+                    "on-secondary": "#233148",
+                    "secondary-container": "#3c4962",
+                    "outline": "#9a8f80",
+                    "on-tertiary-fixed": "#151b2d",
+                    "outline-variant": "#4e4639",
+                    "on-primary": "#412d00",
+                    "on-tertiary-container": "#343a4e"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "lg": "40px",
+                    "xs": "8px",
+                    "margin-desktop": "48px",
+                    "gutter": "24px",
+                    "base": "4px",
+                    "margin-mobile": "16px",
+                    "xl": "64px",
+                    "md": "24px",
+                    "sm": "16px"
+            },
+            "fontFamily": {
+                    "display-lg-mobile": ["Montserrat"],
+                    "body-lg": ["Inter"],
+                    "data-mono": ["Inter"],
+                    "display-lg": ["Montserrat"],
+                    "headline-md": ["Montserrat"],
+                    "label-caps": ["Inter"],
+                    "headline-sm": ["Montserrat"],
+                    "body-md": ["Inter"]
+            },
+            "fontSize": {
+                    "display-lg-mobile": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "data-mono": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.1em", "fontWeight": "600"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "letterSpacing": "0.01em", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #101415;
+            color: #e0e3e5;
+            overflow-x: hidden;
+        }
+        .luxury-card {
+            background: #1d2022;
+            border-left: 4px solid #e9c176;
+            box-shadow: none;
+        }
+        .precision-bar {
+            height: 2px;
+            background: #3c4962;
+            position: relative;
+        }
+        .precision-bar-fill {
+            height: 100%;
+            background: #e9c176;
+        }
+        .glass-overlay {
+            background: rgba(16, 20, 21, 0.8);
+            backdrop-filter: blur(12px);
+        }
+        .dynamic-island {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- TopAppBar from JSON -->
+<header class="fixed top-0 left-0 w-full z-[100] border-b border-primary/20 bg-surface-container-low h-16">
+<div class="flex justify-between items-center w-full px-sm h-full max-w-7xl mx-auto">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="menu">menu</span>
+</div>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary tracking-tighter uppercase">TRADER'S EDGE</h1>
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="account_circle">account_circle</span>
+</div>
+</div>
+</header>
+<main class="flex-grow pt-24 pb-32 px-margin-mobile md:px-margin-desktop max-w-7xl mx-auto w-full">
+<!-- Header Section -->
+<section class="mb-xl">
+<h2 class="font-headline-md text-headline-md text-primary mb-xs">MISSION ALERTS</h2>
+<p class="font-body-md text-on-surface-variant max-w-2xl">Configure and preview how the terminal communicates critical session data to your mobile device.</p>
+</section>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-xl items-start">
+<!-- LEFT: Alert Previews Stack -->
+<div class="space-y-xl">
+<!-- Expanded Dynamic Island View -->
+<div class="relative group">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-sm uppercase tracking-widest">Dynamic Island / Notch Expansion</div>
+<div class="dynamic-island bg-black rounded-[40px] p-6 border border-white/5 shadow-2xl overflow-hidden">
+<div class="flex justify-between items-start mb-6">
+<div>
+<div class="text-[10px] font-bold text-primary tracking-[0.2em] mb-1">MISSION ACTIVE</div>
+<h3 class="font-headline-sm text-headline-sm text-white">Protect Capital</h3>
+</div>
+<div class="text-right">
+<div class="text-[10px] font-bold text-on-surface-variant tracking-[0.2em] mb-1">SESSION</div>
+<div class="text-white font-data-mono">68% REMAINING</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-md mb-6">
+<div class="bg-surface-container-high p-4 border-l-2 border-primary">
+<div class="text-[10px] font-bold text-primary/60 tracking-widest mb-1 uppercase">Threat</div>
+<div class="font-headline-sm text-headline-sm text-white">FOMO</div>
+</div>
+<div class="bg-surface-container-high p-4 border-l-2 border-primary">
+<div class="text-[10px] font-bold text-primary/60 tracking-widest mb-1 uppercase">Focus</div>
+<div class="font-headline-sm text-headline-sm text-white">Patience</div>
+</div>
+</div>
+<div class="precision-bar mb-8">
+<div class="precision-bar-fill w-[68%]"></div>
+</div>
+<button class="w-full py-4 bg-primary text-on-primary-fixed font-label-caps text-label-caps uppercase tracking-widest font-bold active:scale-95 transition-all">
+                            I'm Done Trading
+                        </button>
+</div>
+</div>
+<!-- Lock Screen Notification -->
+<div class="space-y-sm">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-sm uppercase tracking-widest">Lock Screen Briefing</div>
+<div class="bg-surface-container rounded-xl p-md flex items-center gap-md border border-outline-variant/30 hover:border-primary/50 transition-colors cursor-pointer group">
+<div class="w-12 h-12 bg-primary flex items-center justify-center rounded">
+<span class="material-symbols-outlined text-on-primary" data-icon="target">target</span>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-center mb-1">
+<span class="font-label-caps text-label-caps text-primary tracking-[0.15em] uppercase">Mission Briefing</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Now</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-white mb-1">NY SESSION</h4>
+<p class="font-body-md text-on-surface-variant text-sm">Volatility expected at 08:30 EST. Stick to the execution plan.</p>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="chevron_right">chevron_right</span>
+</div>
+<!-- NEW: Volatility Alert Preview Card -->
+<div class="bg-surface-container rounded-xl p-md flex flex-col gap-sm border border-error/30 hover:border-error/60 transition-colors cursor-pointer group">
+<div class="flex justify-between items-start">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+<span class="font-label-caps text-label-caps text-error tracking-[0.15em] uppercase">Volatility Alert</span>
+</div>
+<span class="font-label-caps text-label-caps text-on-surface-variant">Active</span>
+</div>
+<div>
+<h4 class="font-headline-sm text-headline-sm text-white mb-1">High Volatility Detected <span class="text-error ml-2 text-sm">ATR: 2.4</span></h4>
+<p class="font-body-md text-error/80 text-sm mb-2 font-medium uppercase tracking-tight">Warning: Significant slippage risk on market orders.</p>
+<div class="bg-surface-container-highest p-3 border-l-2 border-primary">
+<div class="font-label-caps text-[10px] text-primary mb-1 uppercase tracking-widest">Tactical Coaching</div>
+<p class="font-body-md text-on-surface text-sm italic">"Shift to limit orders only and reduce position size by 50% to manage variance."</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Session Reminder -->
+<div class="relative">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-sm uppercase tracking-widest">Session Reminder</div>
+<div class="bg-surface-container rounded-xl p-md border border-outline-variant/30">
+<div class="flex items-center justify-between mb-md">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary" data-icon="timer">timer</span>
+<span class="font-label-caps text-label-caps text-primary uppercase tracking-widest">End of Mission</span>
+</div>
+<div class="px-2 py-0.5 bg-error text-on-error font-label-caps text-[10px] uppercase tracking-tighter">Priority 1</div>
+</div>
+<div class="text-center mb-md">
+<div class="font-data-mono text-4xl text-white font-bold mb-1 tracking-tighter">14:59 TO CLOSE</div>
+<p class="font-body-md text-on-surface-variant text-sm">Daily profit target reached. Secure your positions and exit the terminal to preserve mental capital.</p>
+</div>
+<div class="flex flex-col gap-sm">
+<button class="w-full py-3 bg-primary text-on-primary-fixed font-label-caps text-label-caps uppercase tracking-widest font-bold hover:brightness-110 active:scale-95 transition-all">
+    Acknowledge &amp; Lock
+</button>
+<button class="w-full py-2 text-on-surface-variant font-label-caps text-label-caps uppercase tracking-widest text-[10px] hover:text-white transition-colors">Dismiss</button>
+</div>
+</div>
+</div>
+</div>
+<!-- RIGHT: Customization Panel -->
+<div class="bg-surface-container-low p-md lg:p-xl border border-outline-variant/20 sticky top-24">
+<div class="flex items-center gap-xs mb-md">
+<div class="w-1 h-6 bg-primary"></div>
+<h3 class="font-headline-sm text-headline-sm text-primary uppercase tracking-tighter">ALERT PARAMETERS</h3>
+</div>
+<div class="space-y-lg">
+<!-- Toggle Switch -->
+<div class="flex justify-between items-center border-b border-outline-variant/20 pb-md">
+<div>
+<div class="font-label-caps text-label-caps text-white mb-1 uppercase">DANGER ALERTS</div>
+<div class="text-[11px] text-on-surface-variant uppercase">TRIGGER ON FOMO &amp; OVERTRADING</div>
+</div>
+<div class="w-12 h-6 bg-primary-container/20 rounded-full relative cursor-pointer" onclick="this.classList.toggle('bg-primary/40')">
+<div class="absolute right-1 top-1 w-4 h-4 bg-primary rounded-none shadow-sm transition-all duration-300"></div>
+</div>
+</div>
+<!-- Input Fields -->
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase block mb-xs">MISSION OBJECTIVE</label>
+<input class="w-full bg-transparent border-b border-outline text-white font-headline-sm text-headline-sm focus:border-primary outline-none py-2 px-0 transition-colors uppercase" type="text" value="PROTECT CAPITAL"/>
+</div>
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase block mb-xs">SESSION DURATION (MINUTES)</label>
+<input class="w-full bg-transparent border-b border-outline text-white font-headline-sm text-headline-sm focus:border-primary outline-none py-2 px-0 transition-colors" type="number" value="240"/>
+</div>
+<!-- Radio Custom -->
+<div>
+<label class="font-label-caps text-label-caps text-on-surface-variant uppercase block mb-md">HAPTIC INTENSITY</label>
+<div class="flex gap-md">
+<div class="flex items-center gap-xs cursor-pointer group">
+<div class="w-4 h-4 border border-primary flex items-center justify-center">
+<div class="w-2 h-2 bg-primary"></div>
+</div>
+<span class="font-label-caps text-label-caps text-white uppercase group-hover:text-primary transition-colors">Tactical</span>
+</div>
+<div class="flex items-center gap-xs cursor-pointer group opacity-40">
+<div class="w-4 h-4 border border-outline flex items-center justify-center"></div>
+<span class="font-label-caps text-label-caps text-white uppercase group-hover:text-primary transition-colors">Standard</span>
+</div>
+</div>
+</div>
+<div class="pt-md">
+<button class="w-full py-4 bg-primary text-on-primary-fixed font-label-caps text-label-caps uppercase tracking-widest font-bold hover:brightness-110 active:scale-95 transition-all">
+                            SYNC TO DEVICE
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar from JSON -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-safe bg-surface-container border-t border-primary/20 bg-surface-container-highest h-20">
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-2 pb-1 hover:bg-primary/10 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="target">target</span>
+<span class="font-label-caps text-label-caps uppercase tracking-widest mt-1">Mission</span>
+</a>
+<a class="flex flex-col items-center justify-center text-primary border-t-2 border-primary pt-2 pb-1 hover:bg-primary/10 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-label-caps text-label-caps uppercase tracking-widest mt-1">Terminal</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-2 pb-1 hover:bg-primary/10 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="psychology">psychology</span>
+<span class="font-label-caps text-label-caps uppercase tracking-widest mt-1">Mindset</span>
+</a>
+<a class="flex flex-col items-center justify-center text-on-surface-variant pt-2 pb-1 hover:bg-primary/10 transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-caps text-label-caps uppercase tracking-widest mt-1">Profile</span>
+</a>
+</nav>
+<script>
+        // Simple Interaction logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const island = document.querySelector('.dynamic-island');
+            
+            // Atmospheric subtle hover effect for the island
+            island.addEventListener('mouseenter', () => {
+                island.style.transform = 'scale(1.02)';
+                island.style.borderColor = 'rgba(233, 193, 118, 0.2)';
+            });
+            
+            island.addEventListener('mouseleave', () => {
+                island.style.transform = 'scale(1)';
+                island.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+            });
+
+            // Handle toggle simulation
+            const toggle = document.querySelector('[onclick]');
+            toggle.addEventListener('click', () => {
+                const knob = toggle.querySelector('div');
+                if (knob.style.right === '1.75rem') {
+                    knob.style.right = '0.25rem';
+                } else {
+                    knob.style.right = '1.75rem';
+                }
+            });
+        });
+    </script>
+</body></html>
