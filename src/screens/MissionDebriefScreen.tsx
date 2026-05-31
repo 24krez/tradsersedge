@@ -450,14 +450,19 @@ export function MissionDebriefScreen() {
 
               <Text style={styles.disciplineGradingLabel}>DISCIPLINE GRADE</Text>
               <View style={styles.gradeDisplayContainer}>
-                <Text style={styles.gradeDisplayScore}>{currentDisciplineScore.finalScore} / 100</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 12 }}>
-                  <Text style={styles.gradeDisplayLetter}>{currentDisciplineScore.finalGrade}</Text>
-                  <Text style={styles.gradeDisplayTier}>
-                    {['S', 'A+', 'A', 'A-'].includes(currentDisciplineScore.finalGrade) ? 'ELITE' : 
-                     ['B+', 'B'].includes(currentDisciplineScore.finalGrade) ? 'STRONG' : 
-                     currentDisciplineScore.finalGrade === 'C' ? 'AVERAGE' : 'NEEDS WORK'}
-                  </Text>
+                <View style={styles.gradeDisplayAccent} />
+                <View style={styles.gradeDisplayContent}>
+                  <View style={styles.gradeDisplayLeft}>
+                    <Text style={styles.gradeDisplayTier}>
+                      {['S', 'A+', 'A', 'A-'].includes(currentDisciplineScore.finalGrade) ? 'ELITE' : 
+                       ['B+', 'B'].includes(currentDisciplineScore.finalGrade) ? 'STRONG' : 
+                       currentDisciplineScore.finalGrade === 'C' ? 'AVERAGE' : 'NEEDS WORK'}
+                    </Text>
+                    <Text style={styles.gradeDisplayScore}>{currentDisciplineScore.finalScore} / 100 PTS</Text>
+                  </View>
+                  <View style={styles.gradeDisplayRight}>
+                    <Text style={styles.gradeDisplayLetter}>{currentDisciplineScore.finalGrade}</Text>
+                  </View>
                 </View>
               </View>
 
@@ -558,11 +563,15 @@ const styles = StyleSheet.create({
   statusChip: { borderWidth: 1, borderColor: '#4e4639', paddingHorizontal: 12, paddingVertical: 4 },
   statusChipText: { color: '#8a8f93', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
 
-  disciplineGradingLabel: { color: '#e0e3e5', fontSize: 11, fontWeight: '700', letterSpacing: 1, marginTop: 32, marginBottom: 16, textAlign: 'center' },
-  gradeDisplayContainer: { alignItems: 'center', justifyContent: 'center', padding: 24, borderWidth: 1, borderColor: '#4e4639', backgroundColor: '#101415' },
-  gradeDisplayScore: { color: '#8a8f93', fontSize: 14, fontWeight: '800', marginBottom: 4 },
-  gradeDisplayLetter: { color: '#e9c176', fontSize: 48, fontWeight: '900', letterSpacing: 2 },
-  gradeDisplayTier: { color: '#e0e3e5', fontSize: 24, fontWeight: '800', letterSpacing: 1 },
+  disciplineGradingLabel: { color: '#8a8f93', fontFamily: 'Montserrat', fontSize: 11, fontWeight: '700', letterSpacing: 2, marginTop: 32, marginBottom: 12 },
+  gradeDisplayContainer: { backgroundColor: '#101415', borderColor: 'rgba(233, 193, 118, 0.4)', borderWidth: 1, position: 'relative', padding: 24, marginVertical: 8 },
+  gradeDisplayAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: '#e9c176' },
+  gradeDisplayContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  gradeDisplayLeft: { flex: 1 },
+  gradeDisplayRight: { justifyContent: 'center', alignItems: 'flex-end', minWidth: 80 },
+  gradeDisplayTier: { color: '#f8fafc', fontFamily: 'Montserrat', fontSize: 24, fontWeight: '900', letterSpacing: 2, marginBottom: 8 },
+  gradeDisplayScore: { color: '#e9c176', fontFamily: 'Montserrat', fontSize: 13, fontWeight: '800', letterSpacing: 1.5 },
+  gradeDisplayLetter: { color: '#e9c176', fontFamily: 'Montserrat', fontSize: 64, fontWeight: '900', letterSpacing: -2, lineHeight: 68 },
 
   archiveBox: { backgroundColor: '#101415', padding: 20, marginTop: 32, marginBottom: 24 },
   archiveIcon: { fontSize: 16, marginRight: 8 },
