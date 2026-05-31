@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { addDoc, collection, onSnapshot, query, serverTimestamp, where } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 
 import { MissionStackNavigationProp } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
@@ -10,34 +11,34 @@ type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
 type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
 
-type AssessmentItem = {
-  key: AssessmentKey;
-  title: string;
-  description: string;
-};
-
-const assessmentItems: AssessmentItem[] = [
-  {
-    key: 'executionConfidence',
-    title: 'Execution Confidence',
-    description: 'Belief in strategy execution without hesitation.',
-  },
-  {
-    key: 'patienceReserve',
-    title: 'Patience Reserve',
-    description: 'Ability to wait for high-probability setups.',
-  },
-  {
-    key: 'marketFocus',
-    title: 'Market Focus',
-    description: 'Mental clarity and absence of external distractions.',
-  },
-];
-
 const levels: ReadinessLevel[] = ['Low', 'Medium', 'High'];
 
 export function ReadinessCheckScreen() {
+  const { t } = useTranslation('mission');
   const navigation = useNavigation<MissionStackNavigationProp>();
+  
+  const assessmentItems: Array<{
+    key: AssessmentKey;
+    title: string;
+    description: string;
+  }> = [
+    {
+      key: 'executionConfidence',
+      title: t('readinessCheck.assessment.executionConfidence.title'),
+      description: t('readinessCheck.assessment.executionConfidence.description'),
+    },
+    {
+      key: 'patienceReserve',
+      title: t('readinessCheck.assessment.patienceReserve.title'),
+      description: t('readinessCheck.assessment.patienceReserve.description'),
+    },
+    {
+      key: 'marketFocus',
+      title: t('readinessCheck.assessment.marketFocus.title'),
+      description: t('readinessCheck.assessment.marketFocus.description'),
+    },
+  ];
+
   const [ratings, setRatings] = useState<Record<AssessmentKey, ReadinessLevel>>({
     executionConfidence: 'High',
     patienceReserve: 'Medium',
@@ -111,38 +112,38 @@ export function ReadinessCheckScreen() {
         <View style={styles.topBar}>
           <View style={styles.topBarLeft}>
             <Text style={styles.shieldMark}>⬟</Text>
-            <Text style={styles.topBarTitle}>MISSION READINESS</Text>
+            <Text style={styles.topBarTitle}>{t('readinessCheck.topBarTitle')}</Text>
           </View>
           <View style={styles.operatorBadge}>
-            <Text style={styles.operatorBadgeText}>ID</Text>
+            <Text style={styles.operatorBadgeText}>{t('readinessCheck.operatorBadge')}</Text>
           </View>
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.eyebrow}>PRE-SESSION ANALYSIS</Text>
-          <Text style={styles.title}>MISSION READINESS</Text>
-          <Text style={styles.subtitle}>Assess your operational state before entering the market.</Text>
+          <Text style={styles.eyebrow}>{t('readinessCheck.eyebrow')}</Text>
+          <Text style={styles.title}>{t('readinessCheck.title')}</Text>
+          <Text style={styles.subtitle}>{t('readinessCheck.subtitle')}</Text>
         </View>
 
         <View style={styles.goldDivider} />
 
         <View style={styles.statusCard}>
           <View style={styles.statusCopy}>
-            <Text style={styles.statusLabel}>Mission Status</Text>
+            <Text style={styles.statusLabel}>{t('readinessCheck.status.label')}</Text>
             <View style={styles.statusHeadlineRow}>
               <View style={[styles.statusDot, !isLockedIn && styles.warningDot]} />
-              <Text style={styles.statusHeadline}>{isLockedIn ? 'Locked In' : 'Review Required'}</Text>
+              <Text style={styles.statusHeadline}>{isLockedIn ? t('readinessCheck.status.lockedIn') : t('readinessCheck.status.reviewRequired')}</Text>
             </View>
             <Text style={styles.statusDescription}>
               {isLockedIn
-                ? 'Operational state verified. Readiness standards met for full deployment.'
-                : 'One or more readiness standards need attention before deployment.'}
+                ? t('readinessCheck.status.lockedInDesc')
+                : t('readinessCheck.status.reviewRequiredDesc')}
             </Text>
           </View>
         </View>
 
         <View style={styles.assessmentSection}>
-          <Text style={styles.sectionLabel}>Readiness Assessment</Text>
+          <Text style={styles.sectionLabel}>{t('readinessCheck.assessment.label')}</Text>
 
           {assessmentItems.map((item) => (
             <View key={item.key} style={styles.assessmentCard}>
@@ -163,7 +164,7 @@ export function ReadinessCheckScreen() {
                       onPress={() => updateRating(item.key, level)}
                       style={[styles.segmentButton, isSelected && styles.selectedSegmentButton]}
                     >
-                      <Text style={[styles.segmentText, isSelected && styles.selectedSegmentText]}>{level}</Text>
+                      <Text style={[styles.segmentText, isSelected && styles.selectedSegmentText]}>{t(`readinessCheck.levels.${level}`)}</Text>
                     </Pressable>
                   );
                 })}
@@ -175,11 +176,11 @@ export function ReadinessCheckScreen() {
         <View style={styles.briefingCard}>
           <Text style={styles.briefingIcon}>!</Text>
           <View style={styles.briefingCopy}>
-            <Text style={styles.briefingLabel}>Operator Briefing</Text>
+            <Text style={styles.briefingLabel}>{t('readinessCheck.briefing.label')}</Text>
             <Text style={styles.briefingText}>
-              "The market rewards patience. Protect capital and wait for confirmation. Precision is your primary edge."
+              {t('readinessCheck.briefing.text')}
             </Text>
-            <Text style={styles.briefingSource}>Source: Operational Command</Text>
+            <Text style={styles.briefingSource}>{t('readinessCheck.briefing.source')}</Text>
           </View>
         </View>
 
@@ -191,8 +192,8 @@ export function ReadinessCheckScreen() {
           <View style={styles.cornerDetail} />
           <View style={styles.summaryTopRow}>
             <View>
-              <Text style={styles.summaryLabel}>Objective</Text>
-              <Text style={styles.summaryObjective}>{missionData?.objective || 'Protect Capital'}</Text>
+              <Text style={styles.summaryLabel}>{t('readinessCheck.summary.objective')}</Text>
+              <Text style={styles.summaryObjective}>{missionData?.objective ? t(`data.objectives.${missionData.objective}.title`) : t('readinessCheck.summary.defaultObjective')}</Text>
             </View>
             <Text style={styles.fadedSymbol}>◎</Text>
           </View>
@@ -200,18 +201,18 @@ export function ReadinessCheckScreen() {
           <View style={styles.innerDivider} />
 
           <View>
-            <Text style={styles.summaryLabel}>Threats</Text>
+            <Text style={styles.summaryLabel}>{t('readinessCheck.summary.threats')}</Text>
             <Text style={styles.summaryThreats}>
-              {missionData?.threats?.join(' • ').toUpperCase() || 'FOMO • OVERTRADING'}
+              {missionData?.threats?.length > 0 ? missionData.threats.map((tKey: string) => t(`data.threats.${tKey}`).toUpperCase()).join(' • ') : t('readinessCheck.summary.defaultThreats')}
             </Text>
           </View>
 
           <View>
-            <Text style={styles.summaryLabel}>Core Focus</Text>
-            <Text style={styles.summaryFocus}>{missionData?.coreFocus || 'Patience'}</Text>
+            <Text style={styles.summaryLabel}>{t('readinessCheck.summary.focus')}</Text>
+            <Text style={styles.summaryFocus}>{missionData?.coreFocus ? t(`data.focusAreas.${missionData.coreFocus}`) : t('readinessCheck.summary.defaultFocus')}</Text>
           </View>
 
-          <Text style={styles.tapHint}>Tap to edit mission</Text>
+          <Text style={styles.tapHint}>{t('readinessCheck.summary.tapHint')}</Text>
         </Pressable>
 
         <Pressable
@@ -220,7 +221,9 @@ export function ReadinessCheckScreen() {
           onPress={handleBeginSession}
           style={({ pressed }) => [styles.startButton, (pressed || isSaving) && styles.startButtonPressed]}
         >
-          <Text style={styles.startButtonText}>{isSaving ? 'Deploying...' : 'Begin Session'}</Text>
+          <Text style={styles.startButtonText}>
+            {isSaving ? t('readinessCheck.action.beginDeploying') : t('readinessCheck.action.beginSession')}
+          </Text>
           <Text style={styles.startButtonArrow}>ϟ</Text>
         </Pressable>
       </ScrollView>

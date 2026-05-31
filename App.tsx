@@ -3,6 +3,9 @@ import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { NavigationContainer, NavigationProp } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
+
+import './src/i18n';
 
 import { MissionActiveScreen } from './src/screens/MissionActiveScreen';
 import { MissionDebriefScreen } from './src/screens/MissionDebriefScreen';
@@ -28,13 +31,6 @@ export type MissionStackNavigationProp = NavigationProp<RootStackParamList>;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const tabs: Array<{ key: TabKey; label: string }> = [
-  { key: 'mission', label: 'Mission' },
-  { key: 'progress', label: 'Progress' },
-  { key: 'vault', label: 'Vault' },
-  { key: 'profile', label: 'Profile' },
-];
-
 function MissionStackNavigator() {
   return (
     <Stack.Navigator
@@ -53,7 +49,15 @@ function MissionStackNavigator() {
 }
 
 export default function App() {
+  const { t } = useTranslation('common');
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
+
+  const tabs: Array<{ key: TabKey; label: string }> = [
+    { key: 'mission', label: t('tabs.mission', 'Mission') },
+    { key: 'progress', label: t('tabs.progress', 'Progress') },
+    { key: 'vault', label: t('tabs.vault', 'Vault') },
+    { key: 'profile', label: t('tabs.profile', 'Profile') },
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>

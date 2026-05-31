@@ -2,86 +2,61 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 
 import { MissionStackNavigationProp } from '../../App';
 
 import { firebaseAuth, firestore } from '../services/firebase';
 
-type Objective = {
-  eyebrow: string;
-  title: string;
-  description: string;
-};
-
 type Template = {
-  title: string;
+  key: string;
   objective: string;
   threats: string[];
   focus: string;
 };
 
-const objectives: Objective[] = [
-  {
-    eyebrow: 'Safety First',
-    title: 'Protect Capital',
-    description: 'Preserve capital and avoid unnecessary risk at all costs.',
-  },
-  {
-    eyebrow: 'Evaluation',
-    title: 'Pass Challenge',
-    description: 'Focus on meeting professional evaluation requirements.',
-  },
-  {
-    eyebrow: 'Selectivity',
-    title: 'Take Only A+ Setups',
-    description: 'Prioritize quality over quantity. Reject anything subpar.',
-  },
-  {
-    eyebrow: 'Learning',
-    title: 'Observation Mode',
-    description: 'Focus on learning and observing market flow without risk.',
-  },
+const objectiveKeys = ['protectCapital', 'passChallenge', 'onlyASetups', 'observationMode'];
+
+const threatKeys = [
+  'fomo',
+  'overtrading',
+  'revengeTrading',
+  'movingStops',
+  'enteringEarly',
+  'chasingBreakouts',
+  'lackOfPatience',
+  'overLeverage',
 ];
 
-const threats = [
-  'FOMO',
-  'Overtrading',
-  'Revenge Trading',
-  'Moving Stops',
-  'Entering Early',
-  'Chasing Breakouts',
-  'Lack of Patience',
-  'Over-Leverage',
-];
-
-const focusAreas = ['Patience', 'Discipline', 'Risk Control', 'Execution', 'Confidence', 'Consistency'];
+const focusAreaKeys = ['patience', 'discipline', 'riskControl', 'execution', 'confidence', 'consistency'];
 
 const templates: Template[] = [
   {
-    title: 'Capital Preservation',
-    objective: 'Protect Capital',
-    threats: ['Overtrading', 'Revenge Trading'],
-    focus: 'Risk Control',
+    key: 'capitalPreservation',
+    objective: 'protectCapital',
+    threats: ['overtrading', 'revengeTrading'],
+    focus: 'riskControl',
   },
   {
-    title: 'Funded Account',
-    objective: 'Pass Challenge',
-    threats: ['Moving Stops', 'Over-Leverage'],
-    focus: 'Discipline',
+    key: 'fundedAccount',
+    objective: 'passChallenge',
+    threats: ['movingStops', 'overLeverage'],
+    focus: 'discipline',
   },
   {
-    title: 'Sniper Session',
-    objective: 'Take Only A+ Setups',
-    threats: ['FOMO', 'Entering Early', 'Lack of Patience'],
-    focus: 'Patience',
+    key: 'sniperSession',
+    objective: 'onlyASetups',
+    threats: ['fomo', 'enteringEarly', 'lackOfPatience'],
+    focus: 'patience',
   },
 ];
 
 export function MissionSetupScreen() {
+  const { t } = useTranslation('mission');
   const navigation = useNavigation<MissionStackNavigationProp>();
-  const [selectedObjective, setSelectedObjective] = useState(objectives[2].title);
-  const [selectedThreats, setSelectedThreats] = useState(['Overtrading', 'Entering Early', 'Lack of Patience']);
-  const [selectedFocus, setSelectedFocus] = useState('Discipline');
+  const [selectedObjective, setSelectedObjective] = useState<string>(objectiveKeys[2]);
+  const [selectedThreats, setSelectedThreats] = useState<string[]>(['overtrading', 'enteringEarly', 'lackOfPatience']);
+  const [selectedFocus, setSelectedFocus] = useState<string>('discipline');
 
   const timestamp = useMemo(() => {
     return new Intl.DateTimeFormat('en-US', {
@@ -149,71 +124,75 @@ export function MissionSetupScreen() {
       style={styles.container}
     >
       <View style={styles.brandBar}>
-        <Text style={styles.brand}>TRADER'S EDGE</Text>
+        <Text style={styles.brand}>{t('setup.brand')}</Text>
       </View>
 
       <View style={styles.header}>
-        <Text style={styles.title}>MISSION SETUP</Text>
-        <Text style={styles.subtitle}>Define today's mission before entering the market.</Text>
+        <Text style={styles.title}>{t('setup.title')}</Text>
+        <Text style={styles.subtitle}>{t('setup.subtitle')}</Text>
       </View>
 
-      <Section number="01" title="Choose Objective">
+      <Section number="01" title={t('setup.sections.objective')}>
         <View style={styles.objectiveList}>
-          {objectives.map((objective) => {
-            const isSelected = objective.title === selectedObjective;
+          {objectiveKeys.map((objectiveKey) => {
+            const isSelected = objectiveKey === selectedObjective;
 
             return (
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                key={objective.title}
-                onPress={() => setSelectedObjective(objective.title)}
+                key={objectiveKey}
+                onPress={() => setSelectedObjective(objectiveKey)}
                 style={[styles.objectiveCard, isSelected && styles.selectedObjectiveCard]}
               >
-                <Text style={styles.cardEyebrow}>{objective.eyebrow}</Text>
-                <Text style={styles.cardTitle}>{objective.title}</Text>
-                <Text style={styles.cardDescription}>{objective.description}</Text>
+                <Text style={styles.cardEyebrow}>{t(`data.objectives.${objectiveKey}.eyebrow`)}</Text>
+                <Text style={styles.cardTitle}>{t(`data.objectives.${objectiveKey}.title`)}</Text>
+                <Text style={styles.cardDescription}>{t(`data.objectives.${objectiveKey}.description`)}</Text>
               </Pressable>
             );
           })}
         </View>
       </Section>
 
-      <Section number="02" title="Identify Threats">
-        <Text style={styles.helperText}>Select up to three operational hazards.</Text>
+      <Section number="02" title={t('setup.sections.threats')}>
+        <Text style={styles.helperText}>{t('setup.sections.threatsHelper')}</Text>
         <View style={styles.chipGrid}>
-          {threats.map((threat) => {
-            const isSelected = selectedThreats.includes(threat);
+          {threatKeys.map((threatKey) => {
+            const isSelected = selectedThreats.includes(threatKey);
 
             return (
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                key={threat}
-                onPress={() => toggleThreat(threat)}
+                key={threatKey}
+                onPress={() => toggleThreat(threatKey)}
                 style={[styles.threatChip, isSelected && styles.selectedThreatChip]}
               >
-                <Text style={[styles.threatChipText, isSelected && styles.selectedChipText]}>{threat}</Text>
+                <Text style={[styles.threatChipText, isSelected && styles.selectedChipText]}>
+                  {t(`data.threats.${threatKey}`)}
+                </Text>
               </Pressable>
             );
           })}
         </View>
       </Section>
 
-      <Section number="03" title="Core Focus">
+      <Section number="03" title={t('setup.sections.focus')}>
         <View style={styles.focusGrid}>
-          {focusAreas.map((focusArea) => {
-            const isSelected = focusArea === selectedFocus;
+          {focusAreaKeys.map((focusAreaKey) => {
+            const isSelected = focusAreaKey === selectedFocus;
 
             return (
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                key={focusArea}
-                onPress={() => setSelectedFocus(focusArea)}
+                key={focusAreaKey}
+                onPress={() => setSelectedFocus(focusAreaKey)}
                 style={[styles.focusButton, isSelected && styles.selectedFocusButton]}
               >
-                <Text style={[styles.focusText, isSelected && styles.selectedFocusText]}>{focusArea}</Text>
+                <Text style={[styles.focusText, isSelected && styles.selectedFocusText]}>
+                  {t(`data.focusAreas.${focusAreaKey}`)}
+                </Text>
               </Pressable>
             );
           })}
@@ -221,9 +200,9 @@ export function MissionSetupScreen() {
       </Section>
 
       <View style={styles.templateHeader}>
-        <Text style={styles.quickStart}>Quick Start</Text>
-        <Text style={styles.templateTitle}>Templates</Text>
-        <Text style={styles.templateHint}>Swipe for more configurations</Text>
+        <Text style={styles.quickStart}>{t('setup.templates.quickStart')}</Text>
+        <Text style={styles.templateTitle}>{t('setup.templates.title')}</Text>
+        <Text style={styles.templateHint}>{t('setup.templates.hint')}</Text>
       </View>
 
       <ScrollView
@@ -232,11 +211,11 @@ export function MissionSetupScreen() {
         showsHorizontalScrollIndicator={false}
       >
         {templates.map((template) => (
-          <Pressable key={template.title} onPress={() => applyTemplate(template)} style={styles.templateCard}>
-            <Text style={styles.templateCardTitle}>{template.title}</Text>
-            <Text style={styles.templateLine}>OBJ: {template.objective}</Text>
-            <Text style={styles.templateLine}>THREATS: {template.threats.join('/')}</Text>
-            <Text style={styles.templateLine}>FOCUS: {template.focus}</Text>
+          <Pressable key={template.key} onPress={() => applyTemplate(template)} style={styles.templateCard}>
+            <Text style={styles.templateCardTitle}>{t(`data.templates.${template.key}`)}</Text>
+            <Text style={styles.templateLine}>{t('setup.templates.objPrefix')}{t(`data.objectives.${template.objective}.title`)}</Text>
+            <Text style={styles.templateLine}>{t('setup.templates.threatsPrefix')}{template.threats.map(tKey => t(`data.threats.${tKey}`)).join(' / ')}</Text>
+            <Text style={styles.templateLine}>{t('setup.templates.focusPrefix')}{t(`data.focusAreas.${template.focus}`)}</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -244,29 +223,29 @@ export function MissionSetupScreen() {
       <View style={styles.brief}>
         <View style={styles.cornerTop} />
         <View style={styles.cornerBottom} />
-        <Text style={styles.briefEyebrow}>Current Configuration</Text>
-        <Text style={styles.briefTitle}>MISSION BRIEF</Text>
+        <Text style={styles.briefEyebrow}>{t('setup.brief.eyebrow')}</Text>
+        <Text style={styles.briefTitle}>{t('setup.brief.title')}</Text>
         <View style={styles.timestampRow}>
-          <Text style={styles.timestampLabel}>TIMESTAMP:</Text>
+          <Text style={styles.timestampLabel}>{t('setup.brief.timestamp')}</Text>
           <Text style={styles.timestampValue}>{timestamp}</Text>
         </View>
         <View style={styles.goldRule} />
         <View style={styles.divider} />
 
-        <Text style={styles.briefLabel}>Objective</Text>
-        <Text style={styles.briefObjective}>{selectedObjective}</Text>
+        <Text style={styles.briefLabel}>{t('setup.brief.objective')}</Text>
+        <Text style={styles.briefObjective}>{t(`data.objectives.${selectedObjective}.title`)}</Text>
 
-        <Text style={[styles.briefLabel, styles.briefThreatLabel]}>Identified Threats</Text>
+        <Text style={[styles.briefLabel, styles.briefThreatLabel]}>{t('setup.brief.threats')}</Text>
         <View style={styles.briefThreatList}>
           {selectedThreats.map((threat) => (
             <Text key={threat} style={styles.briefThreat}>
-              {threat}
+              {t(`data.threats.${threat}`).toUpperCase()}
             </Text>
           ))}
         </View>
 
-        <Text style={[styles.briefLabel, styles.briefFocusLabel]}>Core Focus</Text>
-        <Text style={styles.briefFocus}>{selectedFocus}</Text>
+        <Text style={[styles.briefLabel, styles.briefFocusLabel]}>{t('setup.brief.focusLabel')}</Text>
+        <Text style={styles.briefFocus}>{t(`data.focusAreas.${selectedFocus}`)}</Text>
       </View>
 
       <Pressable

@@ -1,0 +1,134 @@
+{
+  "readinessCheck": {
+    "topBarTitle": "MISSION READINESS",
+    "operatorBadge": "ID",
+    "eyebrow": "PRE-SESSION ANALYSIS",
+    "title": "MISSION READINESS",
+    "subtitle": "Assess your operational state before entering the market.",
+    "status": {
+      "label": "Mission Status",
+      "lockedIn": "Locked In",
+      "reviewRequired": "Review Required",
+      "lockedInDesc": "Operational state verified. Readiness standards met for full deployment.",
+      "reviewRequiredDesc": "One or more readiness standards need attention before deployment."
+    },
+    "assessment": {
+      "label": "Readiness Assessment",
+      "executionConfidence": {
+        "title": "Execution Confidence",
+        "description": "Trust in your edge and ability to pull the trigger."
+      },
+      "patienceReserve": {
+        "title": "Patience Reserve",
+        "description": "Capacity to wait for A+ setups without forcing."
+      },
+      "marketFocus": {
+        "title": "Market Focus",
+        "description": "Mental clarity and absence of external distractions."
+      }
+    },
+    "levels": {
+      "Low": "Low",
+      "Medium": "Medium",
+      "High": "High"
+    },
+    "briefing": {
+      "label": "Operator Briefing",
+      "text": "\"The market rewards patience. Protect capital and wait for confirmation. Precision is your primary edge.\"",
+      "source": "Source: Operational Command"
+    },
+    "summary": {
+      "objective": "Objective",
+      "defaultObjective": "Protect Capital",
+      "threats": "Threats",
+      "defaultThreats": "FOMO • OVERTRADING",
+      "focus": "Core Focus",
+      "defaultFocus": "Patience",
+      "tapHint": "Tap to edit mission"
+    },
+    "action": {
+      "beginDeploying": "Deploying...",
+      "beginSession": "Begin Session"
+    }
+  },
+  "setup": {
+    "brand": "TRADER'S EDGE",
+    "title": "MISSION SETUP",
+    "subtitle": "Define today's mission before entering the market.",
+    "sections": {
+      "objective": "Choose Objective",
+      "threats": "Identify Threats",
+      "threatsHelper": "Select up to three operational hazards.",
+      "focus": "Core Focus"
+    },
+    "templates": {
+      "quickStart": "Quick Start",
+      "title": "Templates",
+      "hint": "Swipe for more configurations",
+      "objPrefix": "OBJ: ",
+      "threatsPrefix": "THREATS: ",
+      "focusPrefix": "FOCUS: "
+    },
+    "brief": {
+      "eyebrow": "Current Configuration",
+      "title": "MISSION BRIEF",
+      "timestamp": "TIMESTAMP:",
+      "operator": "OPERATOR ID:",
+      "operatorPlaceholder": "UNKNOWN_OP",
+      "objectiveLabel": "PRIMARY OBJECTIVE",
+      "threatsLabel": "KNOWN THREATS",
+      "focusLabel": "CORE FOCUS"
+    },
+    "action": {
+      "initializing": "INITIALIZING...",
+      "initialize": "INITIALIZE MISSION"
+    }
+  },
+  "data": {
+    "objectives": {
+      "protectCapital": {
+        "eyebrow": "Safety First",
+        "title": "Protect Capital",
+        "description": "Preserve capital and avoid unnecessary risk at all costs."
+      },
+      "passChallenge": {
+        "eyebrow": "Evaluation",
+        "title": "Pass Challenge",
+        "description": "Focus on meeting professional evaluation requirements."
+      },
+      "onlyASetups": {
+        "eyebrow": "Selectivity",
+        "title": "Take Only A+ Setups",
+        "description": "Prioritize quality over quantity. Reject anything subpar."
+      },
+      "observationMode": {
+        "eyebrow": "Learning",
+        "title": "Observation Mode",
+        "description": "Focus on learning and observing market flow without risk."
+      }
+    },
+    "threats": {
+      "fomo": "FOMO",
+      "overtrading": "Overtrading",
+      "revengeTrading": "Revenge Trading",
+      "movingStops": "Moving Stops",
+      "enteringEarly": "Entering Early",
+      "chasingBreakouts": "Chasing Breakouts",
+      "lackOfPatience": "Lack of Patience",
+      "overLeverage": "Over-Leverage"
+    },
+    "focusAreas": {
+      "patience": "Patience",
+      "discipline": "Discipline",
+      "riskControl": "Risk Control",
+      "execution": "Execution",
+      "confidence": "Confidence",
+      "consistency": "Consistency"
+    },
+    "templates": {
+      "capitalPreservation": "Capital Preservation",
+      "fundedAccount": "Funded Account",
+      "sniperSession": "Sniper Session"
+    }
+  }
+}
