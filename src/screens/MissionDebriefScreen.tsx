@@ -97,37 +97,53 @@ export function MissionDebriefScreen() {
   const currentDisciplineScore = useMemo(() => {
     if (traded === null) return null;
     
-    // Only calculate if the required base fields for the active flow are filled
-    if (traded === true) {
-      if (!followedPlan || !respectedStop || !stoppedAppropriately || !avoidedFomo || !avoidedRevenge) return null;
-      
-      const input: DebriefInput = {
-        didTrade: true,
-        followedPlan,
-        respectedStop,
-        stoppedAppropriately,
-        avoidedFomo,
-        avoidedRevenge,
-        emotionalControlValue: pulseScore,
-        emotionalState: emotion || '',
-        biggestLesson: notes,
-        selfAssessment: ''
+    try {
+      const missionContext = { 
+        objective: missionData?.objective,
+        primaryThreat: missionData?.threats?.[0] || 'none',
+        coreFocus: missionData?.coreFocus
       };
-      return calculateDisciplineScore(input, { objective: missionData?.objective });
-    } else {
-      if (!avoidedForcingTrades || !remainedPatient || !protectedCapital || !followedMissionObjective) return null;
-      
-      const input: DebriefInput = {
-        didTrade: false,
-        avoidedForcingTrades,
-        remainedPatient,
-        protectedCapital,
-        followedMissionObjective,
-        emotionalState: emotion || '',
-        biggestLesson: notes,
-        selfAssessment: ''
-      };
-      return calculateDisciplineScore(input, { objective: missionData?.objective });
+
+      // Provide valid fallbacks to bypass the strict validateDebrief requirements 
+      // for Free users who are locked out of entering these fields.
+      const fallbackEmotion = emotion || 'neutral';
+      const fallbackLesson = notes.length > 10 ? notes : 'Routine execution check completed.';
+      const fallbackAssessment = 'N/A';
+
+      if (traded === true) {
+        if (!followedPlan || !respectedStop || !stoppedAppropriately || !avoidedFomo || !avoidedRevenge) return null;
+        
+        const input: DebriefInput = {
+          didTrade: true,
+          followedPlan,
+          respectedStop,
+          stoppedAppropriately,
+          avoidedFomo,
+          avoidedRevenge,
+          emotionalControlValue: pulseScore,
+          emotionalState: fallbackEmotion,
+          biggestLesson: fallbackLesson,
+          selfAssessment: fallbackAssessment
+        };
+        return calculateDisciplineScore(input, missionContext);
+      } else {
+        if (!avoidedForcingTrades || !remainedPatient || !protectedCapital || !followedMissionObjective) return null;
+        
+        const input: DebriefInput = {
+          didTrade: false,
+          avoidedForcingTrades,
+          remainedPatient,
+          protectedCapital,
+          followedMissionObjective,
+          emotionalState: fallbackEmotion,
+          biggestLesson: fallbackLesson,
+          selfAssessment: fallbackAssessment
+        };
+        return calculateDisciplineScore(input, missionContext);
+      }
+    } catch (e) {
+      console.warn("Discipline score calculation blocked:", e);
+      return null;
     }
   }, [traded, followedPlan, respectedStop, stoppedAppropriately, avoidedFomo, avoidedRevenge, avoidedForcingTrades, remainedPatient, protectedCapital, followedMissionObjective, pulseScore, emotion, notes, missionData]);
 
