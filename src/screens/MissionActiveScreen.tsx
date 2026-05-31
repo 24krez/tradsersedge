@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import { addDoc, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -19,6 +19,8 @@ import { useIsPro } from '../contexts/AuthContext';
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
 
+import { MindsetCheckin } from '../logic/missionStatus';
+
 function CompactMindsetModule({ missionId }: { missionId: string }) {
   const { t } = useTranslation('mission');
   const [isSaving, setIsSaving] = useState(false);
@@ -28,6 +30,47 @@ function CompactMindsetModule({ missionId }: { missionId: string }) {
     patienceReserve: 'Medium',
     marketFocus: 'High',
   });
+  const [previousCheckin, setPreviousCheckin] = useState<MindsetCheckin | null>(null);
+
+  useEffect(() => {
+    if (!firebaseAuth.currentUser || !missionId) return;
+    const fetchInitial = async () => {
+      const q = query(
+        collection(firestore, 'mindset_checkins'),
+        where('missionId', '==', missionId),
+        where('userId', '==', firebaseAuth.currentUser!.uid),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const data = snap.docs[0].data();
+        const prev: MindsetCheckin = {
+          confidence: data.confidence,
+          patience: data.patience,
+          focus: data.focus,
+        };
+        setPreviousCheckin(prev);
+        setRatings({
+          executionConfidence: prev.confidence,
+          patienceReserve: prev.patience,
+          marketFocus: prev.focus,
+        });
+      }
+    };
+    fetchInitial();
+  }, [missionId]);
+
+  const currentStatusResult = useMemo(() => {
+    return calculateMissionStatus(
+      {
+        confidence: ratings.executionConfidence,
+        patience: ratings.patienceReserve,
+        focus: ratings.marketFocus,
+      },
+      previousCheckin || undefined
+    );
+  }, [ratings, previousCheckin]);
 
   const levels: ReadinessLevel[] = ['Low', 'Medium', 'High'];
   
@@ -50,9 +93,14 @@ function CompactMindsetModule({ missionId }: { missionId: string }) {
       );
       const snap = await getDocs(q);
       
-      let previousCheckin = undefined;
+      let checkinData = undefined;
       if (!snap.empty) {
-        previousCheckin = snap.docs[0].data();
+        const data = snap.docs[0].data();
+        checkinData = {
+          confidence: data.confidence,
+          patience: data.patience,
+          focus: data.focus,
+        } as MindsetCheckin;
       }
 
       const newStatusResult = calculateMissionStatus(
@@ -61,11 +109,7 @@ function CompactMindsetModule({ missionId }: { missionId: string }) {
           patience: ratings.patienceReserve,
           focus: ratings.marketFocus,
         },
-        previousCheckin ? {
-          confidence: previousCheckin.confidence,
-          patience: previousCheckin.patience,
-          focus: previousCheckin.focus,
-        } : undefined
+        checkinData || previousCheckin || undefined
       );
 
       await addDoc(collection(firestore, 'mindset_checkins'), {
@@ -109,6 +153,31 @@ function CompactMindsetModule({ missionId }: { missionId: string }) {
         <Pressable onPress={() => setIsExpanded(false)} style={mindsetStyles.closeBtn}>
           <Text style={mindsetStyles.closeBtnText}>✕</Text>
         </Pressable>
+      </View>
+
+      {/* Dynamic Status Chips */}
+      <View style={mindsetStyles.statusChipsContainer}>
+        {['On Track', 'Caution', 'High Risk'].map(chipStatus => {
+          const isLockedIn = currentStatusResult.status === 'Locked In';
+          const isThisChipActive = currentStatusResult.status === chipStatus || (isLockedIn && chipStatus === 'On Track');
+          
+          let icon = '';
+          let label = chipStatus.toUpperCase();
+          if (chipStatus === 'On Track') {
+             icon = isLockedIn && isThisChipActive ? '🔒' : '🟢';
+             label = isLockedIn && isThisChipActive ? 'LOCKED IN' : 'ON TRACK';
+          }
+          if (chipStatus === 'Caution') icon = '🟡';
+          if (chipStatus === 'High Risk') icon = '🔴';
+          
+          return (
+            <View key={chipStatus} style={[mindsetStyles.statusChip, isThisChipActive && mindsetStyles.statusChipActive]}>
+              <Text style={[mindsetStyles.statusChipText, isThisChipActive && mindsetStyles.statusChipTextActive]}>
+                {icon} {label}
+              </Text>
+            </View>
+          );
+        })}
       </View>
       {assessmentItems.map(item => (
         <View key={item.key} style={mindsetStyles.row}>
@@ -368,7 +437,19 @@ export function MissionActiveScreen() {
               <View style={styles.goldDivider} />
               <View style={styles.objectiveBottomRow}>
                 <Text style={styles.priorityText}>{t('missionActive.priorityMax')}</Text>
-                <Text style={styles.stateText}>{t('missionActive.operationalStateReady')}</Text>
+                {isPending || !missionData.missionStatus ? (
+                  <Text style={styles.stateText}>{isPending ? 'PENDING READINESS' : t('missionActive.operationalStateReady')}</Text>
+                ) : (
+                  <View style={styles.headerStatusChip}>
+                    <Text style={styles.headerStatusText}>
+                      {missionData.missionStatus === 'Locked In' ? '🔒 ' : ''}
+                      {missionData.missionStatus === 'On Track' ? '🟢 ' : ''}
+                      {missionData.missionStatus === 'Caution' ? '🟡 ' : ''}
+                      {missionData.missionStatus === 'High Risk' ? '🔴 ' : ''}
+                      {missionData.missionStatus.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
               </View>
             </View>
 
@@ -720,9 +801,24 @@ const styles = StyleSheet.create({
   },
   stateText: {
     color: '#8a8f93',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontFamily: 'Montserrat',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 2,
+  },
+  headerStatusChip: {
+    backgroundColor: '#1a1e1f',
+    borderColor: '#4e4639',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  headerStatusText: {
+    color: '#e0e3e5',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   splitRow: {
     flexDirection: 'row',
@@ -1031,6 +1127,35 @@ const mindsetStyles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.5,
   },
+  statusChipsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    marginTop: 16,
+  },
+  statusChip: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: '#1a1e1f',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#2a3135',
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  statusChipActive: {
+    backgroundColor: '#2a3135',
+    borderColor: '#e9c176',
+  },
+  statusChipText: {
+    color: '#808d93',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusChipTextActive: {
+    color: '#e0e3e5',
+  },
   toggleBtn: {
     alignItems: 'center',
     backgroundColor: '#1a1e1f',
@@ -1111,6 +1236,35 @@ const notesStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.5,
+  },
+  statusChipsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    marginTop: 16,
+  },
+  statusChip: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: '#1a1e1f',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#2a3135',
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  statusChipActive: {
+    backgroundColor: '#2a3135',
+    borderColor: '#e9c176',
+  },
+  statusChipText: {
+    color: '#808d93',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusChipTextActive: {
+    color: '#e0e3e5',
   },
   toggleBtn: {
     alignItems: 'center',

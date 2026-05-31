@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { MissionStackNavigationProp } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { calculateMissionStatus } from '../logic/missionStatus';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
@@ -100,6 +101,13 @@ export function ReadinessCheckScreen() {
 
     try {
       setIsSaving(true);
+      
+      const newStatusResult = calculateMissionStatus({
+        confidence: ratings.executionConfidence,
+        patience: ratings.patienceReserve,
+        focus: ratings.marketFocus,
+      });
+      
       await addDoc(collection(firestore, 'mindset_checkins'), {
         missionId: missionData.id,
         userId: user.uid,
@@ -107,13 +115,14 @@ export function ReadinessCheckScreen() {
         confidence: ratings.executionConfidence,
         patience: ratings.patienceReserve,
         focus: ratings.marketFocus,
-        missionStatus: isLockedIn ? 'Locked In' : 'Review Required',
+        missionStatus: newStatusResult.status,
         createdAt: serverTimestamp(),
       });
 
-      // Update the mission document to mark it as active
+      // Update the mission document to mark it as active and save initial status
       await updateDoc(doc(firestore, 'missions', missionData.id), {
         status: 'active',
+        missionStatus: newStatusResult.status,
       });
 
       navigation.goBack();
