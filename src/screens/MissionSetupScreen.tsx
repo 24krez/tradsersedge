@@ -220,7 +220,7 @@ export function MissionSetupScreen() {
         <Text style={styles.briefLabel}>Objective</Text>
         <Text style={styles.briefObjective}>{selectedObjective}</Text>
 
-        <Text style={styles.briefLabel}>Identified Threats</Text>
+        <Text style={[styles.briefLabel, styles.briefThreatLabel]}>Identified Threats</Text>
         <View style={styles.briefThreatList}>
           {selectedThreats.map((threat) => (
             <Text key={threat} style={styles.briefThreat}>
@@ -229,7 +229,7 @@ export function MissionSetupScreen() {
           ))}
         </View>
 
-        <Text style={styles.briefLabel}>Core Focus</Text>
+        <Text style={[styles.briefLabel, styles.briefFocusLabel]}>Core Focus</Text>
         <Text style={styles.briefFocus}>{selectedFocus}</Text>
       </View>
     </ScrollView>
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   selectedChipText: {
-    color: '#ffb4ab',
+    color: '#ff6b5f',
   },
   focusGrid: {
     flexDirection: 'row',
@@ -471,11 +471,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   brief: {
+    backgroundColor: '#272a2c',
     borderColor: '#8a744c',
     borderWidth: 1,
     marginHorizontal: 16,
     minHeight: 440,
-    paddingHorizontal: 28,
+    paddingLeft: 28,
+    paddingRight: 18,
     paddingVertical: 26,
     position: 'relative',
   },
@@ -514,7 +516,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: '900',
     letterSpacing: 0.8,
-    marginBottom: 27,
+    marginBottom: 15,
   },
   timestampRow: {
     alignItems: 'center',
@@ -523,12 +525,12 @@ const styles = StyleSheet.create({
   },
   timestampLabel: {
     color: '#f8fafc',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '900',
   },
   timestampValue: {
     color: '#f8fafc',
-    fontSize: 8,
+    fontSize: 13,
     fontWeight: '900',
   },
   goldRule: {
@@ -538,40 +540,44 @@ const styles = StyleSheet.create({
     width: 112,
   },
   divider: {
-    backgroundColor: '#272a2c',
+    backgroundColor: '#363a3b',
     height: 1,
     marginTop: 26,
-    marginBottom: 38,
   },
   briefLabel: {
     color: '#f8fafc',
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '900',
+    marginTop: 34,
     marginBottom: 8,
     textTransform: 'uppercase',
   },
+  briefFocusLabel: {
+    marginTop: 21,
+  },
+  briefThreatLabel: {
+    marginTop: 14,
+  },
   briefObjective: {
     color: '#f8fafc',
-    fontSize: 18,
+    fontSize: 21,
     fontWeight: '900',
     marginBottom: 34,
     textTransform: 'uppercase',
   },
   briefThreatList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 7,
-    marginBottom: 34,
+    gap: 8,
+    marginBottom: 18,
   },
   briefThreat: {
-    color: '#f8fafc',
-    fontSize: 10,
+    color: '#ff6b5f',
+    fontSize: 12,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
   briefFocus: {
     color: '#e9c176',
-    fontSize: 18,
+    fontSize: 21,
     fontWeight: '900',
     textTransform: 'uppercase',
   },
