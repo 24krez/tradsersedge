@@ -5,7 +5,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc, setDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { firestore } from '../services/firebase';
 import { calculateDisciplineScore, DebriefInput, YesMostlyNo } from '../logic/disciplineScore';
 
@@ -96,29 +96,37 @@ export function MissionDebriefScreen() {
           
           // If readOnly, load the debrief data
           if (isReadOnly) {
-             const { getDocs } = await import('firebase/firestore');
              const debriefQuery = query(collection(firestore, 'mission_debriefs'), where('missionId', '==', routeMissionId), limit(1));
-             const debriefSnap = await getDocs(debriefQuery);
-             if (!debriefSnap.empty) {
-               const data = debriefSnap.docs[0].data();
-               const isTraded = data.execution?.tradeStatus === 'traded';
-               setTraded(isTraded);
-               if (isTraded) {
-                 setFollowedPlan(data.execution?.followedPlan);
-                 setRespectedStop(data.execution?.respectedStop);
-                 setStoppedAppropriately(data.execution?.stoppedAppropriately);
-                 setAvoidedFomo(data.psychology?.avoidedFomo);
-                 setAvoidedRevenge(data.psychology?.avoidedRevenge);
+             try {
+               const debriefSnap = await getDocs(debriefQuery);
+               if (!debriefSnap.empty) {
+                 const data = debriefSnap.docs[0].data();
+                 const isTraded = data.execution?.tradeStatus === 'traded';
+                 setTraded(isTraded);
+                 if (isTraded) {
+                   setFollowedPlan(data.execution?.followedPlan);
+                   setRespectedStop(data.execution?.respectedStop);
+                   setStoppedAppropriately(data.execution?.stoppedAppropriately);
+                   setAvoidedFomo(data.psychology?.avoidedFomo);
+                   setAvoidedRevenge(data.psychology?.avoidedRevenge);
+                 } else {
+                   setAvoidedForcingTrades(data.execution?.avoidedForcingTrades);
+                   setRemainedPatient(data.psychology?.remainedPatient);
+                   setProtectedCapital(data.execution?.protectedCapital);
+                   setFollowedMissionObjective(data.execution?.followedMissionObjective);
+                   setWhyNotTradeReason(data.execution?.whyNotTradeReason || null);
+                 }
+                 setPulseScore(data.psychology?.stateScore || 50);
+                 setEmotion(data.psychology?.emotions?.[0] || null);
+                 setNotes(data.lesson?.text || '');
                } else {
-                 setAvoidedForcingTrades(data.execution?.avoidedForcingTrades);
-                 setRemainedPatient(data.psychology?.remainedPatient);
-                 setProtectedCapital(data.execution?.protectedCapital);
-                 setFollowedMissionObjective(data.execution?.followedMissionObjective);
-                 setWhyNotTradeReason(data.execution?.whyNotTradeReason || null);
+                 Alert.alert("Missing Data", "No debrief record was found for this mission. It may be from an older version of the app.");
+                 navigation.goBack();
                }
-               setPulseScore(data.psychology?.stateScore || 50);
-               setEmotion(data.psychology?.emotions?.[0] || null);
-               setNotes(data.lesson?.text || '');
+             } catch (e) {
+               console.error("Error fetching debrief", e);
+               Alert.alert("Error", "Could not load debrief data.");
+               navigation.goBack();
              }
           }
         } else {
