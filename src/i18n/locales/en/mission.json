@@ -146,6 +146,12 @@
     "untilClose": "UNTIL CLOSE",
     "protocolActive": "PROTOCOL ACTIVE",
     "lockSuffix": "LOCK",
-    "nySession": "NY SESSION MONITORING"
+    "nySession": "NY SESSION MONITORING",
+    "missionComplete": "MISSION COMPLETE",
+    "mindsetUpdateLabel": "MID-SESSION MINDSET",
+    "updateMindsetBtn": "LOG MINDSET",
+    "sessionNotesLabel": "SESSION NOTES",
+    "sessionNotesPlaceholder": "Log an observation or emotional trigger...",
+    "saveNoteBtn": "SAVE NOTE"
   }
 }
