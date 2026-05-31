@@ -551,6 +551,7 @@ export function MissionActiveScreen() {
               <Pressable
                 style={({ pressed }) => [
                   styles.startTradingButton,
+                  { width: '100%' }, // Make it full width inside the centered container
                   pressed && styles.startTradingButtonPressed,
                 ]}
                 onPress={() => navigation.navigate('MissionDebrief')}
