@@ -75,7 +75,7 @@ The goal is to launch the first discipline operating system built specifically f
 **Collections**
 - [x] Users
 - [x] Missions
-- [ ] Mindset Check-ins
+- [x] Mindset Check-ins
 - [ ] Session Notes
 - [ ] Mission Debriefs
 - [ ] Discipline Scores
@@ -97,15 +97,15 @@ The goal is to launch the first discipline operating system built specifically f
 **Tasks**
 
 **Mission Setup**
-- [ ] Objective selection
-- [ ] Threat selection
-- [ ] Core focus selection
+- [x] Objective selection
+- [x] Threat selection
+- [x] Core focus selection
 - [ ] Session selection
-- [ ] Mission preview
-- [ ] Start Mission
+- [x] Mission preview
+- [x] Start Mission
 
 **Mission Templates**
-- [ ] Default templates
+- [x] Default templates
 
 ### Epic 4: Readiness Engine
 
@@ -114,26 +114,26 @@ The goal is to launch the first discipline operating system built specifically f
 **Tasks**
 
 **Pre-Session Check-In**
-- [ ] Confidence
-- [ ] Patience
-- [ ] Focus
+- [x] Confidence
+- [x] Patience
+- [x] Focus
 
 **Status Engine**
 - [ ] On Track
 - [ ] Caution
 - [ ] High Risk
-- [ ] Locked In
+- [x] Locked In
 
 ### Epic 5: Mission Active Lite
 
 **Goal:** Provide daily discipline support.
 
 **Free Features**
-- [ ] Objective card
-- [ ] Threat display
-- [ ] Core focus display
-- [ ] Mission status
-- [ ] Session timer
+- [x] Objective card
+- [x] Threat display
+- [x] Core focus display
+- [x] Mission status
+- [x] Session timer
 - [ ] Update mindset
 - [ ] Session notes
 

@@ -130,5 +130,22 @@
       "fundedAccount": "Funded Account",
       "sniperSession": "Sniper Session"
     }
+  },
+  "missionActive": {
+    "liveFeed": "LIVE FEED // ACTIVE",
+    "briefingTitle": "MISSION BRIEFING",
+    "primaryObjective": "PRIMARY OBJECTIVE",
+    "priorityMax": "PRIORITY: MAX",
+    "operationalStateReady": "OPERATIONAL STATE: READY",
+    "threatsLabel": "THREATS",
+    "coreFocusLabel": "CORE FOCUS",
+    "mindsetLock": "MINDSET LOCK",
+    "quote": "\"90% of traders fail because they abandon risk management. Precision is the difference between a gambler and a professional.\"",
+    "startTradingDay": "START TRADING DAY",
+    "encryptedLink": "ENCRYPTED TERMINAL LINK 0X-4F29",
+    "untilClose": "UNTIL CLOSE",
+    "protocolActive": "PROTOCOL ACTIVE",
+    "lockSuffix": "LOCK",
+    "nySession": "NY SESSION MONITORING"
   }
 }
