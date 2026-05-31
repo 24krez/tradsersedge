@@ -38,10 +38,7 @@ const NO_TRADE_REASONS = [
 export function MissionDebriefScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const { t } = useTranslation('mission');
-  const { user } = useAuth();
-  
-  // Mock Pro Status (To be replaced with RevenueCat later)
-  const isPro = false; 
+  const { user, isPro } = useAuth(); 
 
   const [missionData, setMissionData] = useState<MissionData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
