@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
@@ -31,7 +31,11 @@ const assessmentItems: AssessmentItem[] = [
 
 const levels: ReadinessLevel[] = ['Low', 'Medium', 'High'];
 
-export function ReadinessCheckScreen() {
+type ReadinessCheckScreenProps = {
+  onNavigateToSetup?: () => void;
+};
+
+export function ReadinessCheckScreen({ onNavigateToSetup }: ReadinessCheckScreenProps) {
   const [ratings, setRatings] = useState<Record<AssessmentKey, ReadinessLevel>>({
     executionConfidence: 'High',
     patienceReserve: 'Medium',
@@ -48,6 +52,8 @@ export function ReadinessCheckScreen() {
       [key]: rating,
     }));
   }
+
+  const [showEditModal, setShowEditModal] = useState(false);
 
   return (
     <View style={styles.container}>
@@ -127,7 +133,11 @@ export function ReadinessCheckScreen() {
           </View>
         </View>
 
-        <View style={styles.summaryCard}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowEditModal(true)}
+          style={({ pressed }) => [styles.summaryCard, pressed && styles.summaryCardPressed]}
+        >
           <View style={styles.cornerDetail} />
           <View style={styles.summaryTopRow}>
             <View>
@@ -148,18 +158,54 @@ export function ReadinessCheckScreen() {
             <Text style={styles.summaryLabel}>Core Focus</Text>
             <Text style={styles.summaryFocus}>Patience</Text>
           </View>
-        </View>
+
+          <Text style={styles.tapHint}>Tap to edit mission</Text>
+        </Pressable>
 
         <Pressable accessibilityRole="button" style={({ pressed }) => [styles.startButton, pressed && styles.startButtonPressed]}>
           <Text style={styles.startButtonText}>Start Mission</Text>
           <Text style={styles.startButtonArrow}>ϟ</Text>
         </Pressable>
-
-        <Pressable accessibilityRole="button" style={({ pressed }) => [styles.setupButton, pressed && styles.startButtonPressed]}>
-          <Text style={styles.setupButtonText}>Mission Setup</Text>
-          <Text style={styles.setupButtonIcon}>⚙</Text>
-        </Pressable>
       </ScrollView>
+
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setShowEditModal(false)}
+        transparent
+        visible={showEditModal}
+      >
+        <Pressable
+          onPress={() => setShowEditModal(false)}
+          style={styles.modalOverlay}
+        >
+          <Pressable style={styles.modalCard}>
+            <View style={styles.modalAccent} />
+            <Text style={styles.modalTitle}>Edit Mission?</Text>
+            <Text style={styles.modalDescription}>
+              This will take you back to Mission Setup to reconfigure your objective, threats, and focus.
+            </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowEditModal(false)}
+                style={({ pressed }) => [styles.modalCancelButton, pressed && styles.modalButtonPressed]}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setShowEditModal(false);
+                  onNavigateToSetup?.();
+                }}
+                style={({ pressed }) => [styles.modalConfirmButton, pressed && styles.modalButtonPressed]}
+              >
+                <Text style={styles.modalConfirmText}>Edit Mission</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -516,5 +562,92 @@ const styles = StyleSheet.create({
     color: '#e9c176',
     fontSize: 20,
     fontWeight: '900',
+  },
+  summaryCardPressed: {
+    opacity: 0.85,
+  },
+  tapHint: {
+    color: 'rgba(233, 193, 118, 0.5)',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginTop: 16,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+  },
+  modalCard: {
+    backgroundColor: '#1a1e1f',
+    borderColor: 'rgba(233, 193, 118, 0.4)',
+    borderWidth: 1,
+    overflow: 'hidden',
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    paddingTop: 28,
+    width: '100%',
+  },
+  modalAccent: {
+    backgroundColor: '#e9c176',
+    height: 3,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+  },
+  modalTitle: {
+    color: '#e0e3e5',
+    fontSize: 20,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  modalDescription: {
+    color: '#d1c5b4',
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 26,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    alignItems: 'center',
+    borderColor: 'rgba(154, 143, 128, 0.3)',
+    borderWidth: 1,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  modalConfirmButton: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  modalButtonPressed: {
+    opacity: 0.75,
+  },
+  modalCancelText: {
+    color: '#d1c5b4',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  modalConfirmText: {
+    color: '#1a1e1f',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 });

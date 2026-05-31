@@ -71,7 +71,11 @@ const templates: Template[] = [
   },
 ];
 
-export function MissionSetupScreen() {
+type MissionSetupScreenProps = {
+  onNavigateToReadiness?: () => void;
+};
+
+export function MissionSetupScreen({ onNavigateToReadiness }: MissionSetupScreenProps) {
   const [selectedObjective, setSelectedObjective] = useState(objectives[2].title);
   const [selectedThreats, setSelectedThreats] = useState(['Overtrading', 'Entering Early', 'Lack of Patience']);
   const [selectedFocus, setSelectedFocus] = useState('Discipline');
@@ -233,7 +237,11 @@ export function MissionSetupScreen() {
         <Text style={styles.briefFocus}>{selectedFocus}</Text>
       </View>
 
-      <Pressable accessibilityRole="button" style={({ pressed }) => [styles.beginButton, pressed && styles.beginButtonPressed]}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onNavigateToReadiness}
+        style={({ pressed }) => [styles.beginButton, pressed && styles.beginButtonPressed]}
+      >
         <Text style={styles.beginButtonText}>Begin Mission</Text>
       </Pressable>
     </ScrollView>

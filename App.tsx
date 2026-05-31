@@ -32,12 +32,18 @@ const missionScreens = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
-  const ActiveMissionScreen = missionScreens[2];
+  const [missionScreenIndex, setMissionScreenIndex] = useState(2);
+  const ActiveMissionScreen = missionScreens[missionScreenIndex];
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
-        {activeTab === 'mission' && <ActiveMissionScreen />}
+        {activeTab === 'mission' && (
+          <ActiveMissionScreen
+            onNavigateToSetup={() => setMissionScreenIndex(1)}
+            onNavigateToReadiness={() => setMissionScreenIndex(2)}
+          />
+        )}
         {activeTab === 'progress' && <ProgressScreen />}
         {activeTab === 'vault' && <VaultScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
