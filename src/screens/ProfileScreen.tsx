@@ -1,5 +1,5 @@
 import { signOut } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -7,12 +7,25 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View 
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseAuth, firestore } from '../services/firebase';
 
+type UserStats = {
+  averageDisciplineScore?: number;
+  bestDisciplineScore?: number;
+  bestGrade?: string;
+  currentStreak?: number;
+  longestStreak?: number;
+  totalDebriefs?: number;
+  totalDebriefsCompleted?: number;
+  totalMissionsCompleted?: number;
+};
+
 export function ProfileScreen() {
   const { t } = useTranslation('profile');
   const { user, userProfile } = useAuth();
 
   const [callsign, setCallsign] = useState('');
   const [motto, setMotto] = useState('');
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [hasLoadedStats, setHasLoadedStats] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -21,6 +34,29 @@ export function ProfileScreen() {
       setMotto(userProfile.motto || '');
     }
   }, [userProfile]);
+
+  useEffect(() => {
+    if (!user) {
+      setUserStats(null);
+      setHasLoadedStats(true);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(firestore, 'user_stats', user.uid),
+      (snapshot) => {
+        setUserStats(snapshot.exists() ? (snapshot.data() as UserStats) : null);
+        setHasLoadedStats(true);
+      },
+      (error) => {
+        console.error('Error loading profile stats:', error);
+        setUserStats(null);
+        setHasLoadedStats(true);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   async function handleSave() {
     if (!user || isSaving) return;
@@ -99,6 +135,41 @@ export function ProfileScreen() {
           </View>
         </View>
 
+        <View style={styles.statsSection}>
+          <Text style={styles.statsSectionTitle}>OPERATOR STATS</Text>
+          {hasLoadedStats && hasStats(userStats) ? (
+            <>
+              <View style={styles.statsGrid}>
+                <StatWidget label="MISSIONS COMPLETED" value={String(numberFrom(userStats?.totalMissionsCompleted))} />
+                <StatWidget
+                  label="AVG DISCIPLINE"
+                  value={`${Math.round(numberFrom(userStats?.averageDisciplineScore))}%`}
+                />
+                <StatWidget label="CURRENT STREAK" value={`${numberFrom(userStats?.currentStreak)} DAYS`} />
+                <StatWidget label="BEST GRADE" value={bestGradeFromStats(userStats)} />
+              </View>
+              <View style={styles.previewRow}>
+                <View style={styles.previewItem}>
+                  <Text style={styles.previewLabel}>TRADER CLASSIFICATION</Text>
+                  <Text style={styles.previewValue}>{userProfile?.classification || t('defaultClassification')}</Text>
+                </View>
+                <View style={styles.previewDivider} />
+                <View style={styles.previewItem}>
+                  <Text style={styles.previewLabel}>RANK PREVIEW</Text>
+                  <Text style={styles.previewValue}>{userProfile?.rank || t('defaultRank')}</Text>
+                </View>
+              </View>
+            </>
+          ) : (
+            <View style={styles.emptyStatsCard}>
+              <Text style={styles.emptyStatsTitle}>NO MISSIONS ARCHIVED YET</Text>
+              <Text style={styles.emptyStatsText}>
+                Complete a mission debrief to unlock performance stats.
+              </Text>
+            </View>
+          )}
+        </View>
+
         <Pressable
           accessibilityRole="button"
           disabled={isSaving}
@@ -122,6 +193,39 @@ export function ProfileScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function StatWidget({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.statWidget}>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function bestGradeFromStats(stats: UserStats | null): string {
+  if (stats?.bestGrade) return stats.bestGrade === 'Recovery Required' ? 'F' : stats.bestGrade;
+  return gradeFromScore(numberFrom(stats?.bestDisciplineScore));
+}
+
+function gradeFromScore(score: number): string {
+  if (score >= 95) return 'S';
+  if (score >= 90) return 'A+';
+  if (score >= 85) return 'A';
+  if (score >= 80) return 'A-';
+  if (score >= 75) return 'B+';
+  if (score >= 70) return 'B';
+  if (score >= 60) return 'C';
+  return '--';
+}
+
+function hasStats(stats: UserStats | null): boolean {
+  return numberFrom(stats?.totalMissionsCompleted) > 0 || numberFrom(stats?.totalDebriefsCompleted ?? stats?.totalDebriefs) > 0;
+}
+
+function numberFrom(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 const styles = StyleSheet.create({
@@ -190,6 +294,86 @@ const styles = StyleSheet.create({
     borderColor: '#2a3135',
     borderWidth: 1,
     marginBottom: 32,
+  },
+  statsSection: {
+    marginBottom: 32,
+  },
+  statsSectionTitle: {
+    color: '#e9c176',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 12,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  statWidget: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    minHeight: 82,
+    padding: 14,
+    width: '48%',
+  },
+  statValue: {
+    color: '#f8fafc',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  statLabel: {
+    color: '#8a8f93',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  previewRow: {
+    backgroundColor: '#0a0f10',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+  },
+  previewItem: {
+    padding: 16,
+  },
+  previewLabel: {
+    color: '#e9c176',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  previewValue: {
+    color: '#d1c5b4',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  previewDivider: {
+    backgroundColor: '#2a3135',
+    height: 1,
+  },
+  emptyStatsCard: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    padding: 18,
+  },
+  emptyStatsTitle: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  emptyStatsText: {
+    color: '#8a8f93',
+    fontSize: 13,
+    lineHeight: 19,
   },
   readOnlyRow: {
     flexDirection: 'row',

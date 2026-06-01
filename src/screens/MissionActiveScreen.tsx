@@ -14,10 +14,17 @@ import {
 } from '../logic/sessionEngine';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { calculateMissionStatus } from '../logic/missionStatus';
-import { useIsPro } from '../contexts/AuthContext';
+import { useAuth, useIsPro } from '../contexts/AuthContext';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
+type UserStats = {
+  bestDisciplineScore?: number;
+  bestGrade?: string;
+  totalDebriefs?: number;
+  totalDebriefsCompleted?: number;
+  totalMissionsCompleted?: number;
+};
 
 import { MindsetCheckin } from '../logic/missionStatus';
 
@@ -328,7 +335,9 @@ function LiveTimerModule({
 export function MissionActiveScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const { t } = useTranslation('mission');
+  const { user } = useAuth();
   const [missionData, setMissionData] = useState<any>(undefined);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [isLive, setIsLive] = useState(false);
   const [currentSession, setCurrentSession] = useState(getCurrentSession());
   const [showCompleteModal, setShowCompleteModal] = useState(false);
@@ -379,6 +388,26 @@ export function MissionActiveScreen() {
       setIsRestarting(false);
     }
   };
+
+  useEffect(() => {
+    if (!user) {
+      setUserStats(null);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      doc(firestore, 'user_stats', user.uid),
+      (snapshot) => {
+        setUserStats(snapshot.exists() ? (snapshot.data() as UserStats) : null);
+      },
+      (error) => {
+        console.error('Error loading mission stats:', error);
+        setUserStats(null);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -457,6 +486,7 @@ export function MissionActiveScreen() {
   const isCompleted = status === 'completed';
   const objectiveKey = objective;
   const focusKey = coreFocus;
+  const shouldShowStats = hasStats(userStats);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -498,6 +528,13 @@ export function MissionActiveScreen() {
                 )}
               </View>
             </View>
+
+            {shouldShowStats && (
+              <View style={styles.activeStatsRow}>
+                <ActiveStatWidget label="MISSIONS COMPLETED" value={String(numberFrom(userStats?.totalMissionsCompleted))} />
+                <ActiveStatWidget label="BEST GRADE" value={bestGradeFromStats(userStats)} />
+              </View>
+            )}
 
             <View style={styles.splitRow}>
               <View style={styles.threatsCard}>
@@ -611,18 +648,20 @@ export function MissionActiveScreen() {
             <Text style={modalStyles.description}>{t('missionActive.endSessionDesc')}</Text>
             <View style={modalStyles.actions}>
               <Pressable
-                onPress={() => setShowCompleteModal(false)}
-                style={({ pressed }) => [modalStyles.cancelButton, pressed && modalStyles.buttonPressed]}
-              >
-                <Text style={modalStyles.cancelText}>{t('missionActive.cancelBtn')}</Text>
-              </Pressable>
-              <Pressable
                 disabled={isCompleting}
                 onPress={handleCompleteMission}
                 style={({ pressed }) => [modalStyles.confirmButton, (pressed || isCompleting) && modalStyles.buttonPressed]}
               >
-                <Text style={modalStyles.confirmText}>
+                <Text adjustsFontSizeToFit numberOfLines={1} style={modalStyles.confirmText}>
                   {isCompleting ? '...' : t('missionActive.completeMissionBtn')}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowCompleteModal(false)}
+                style={({ pressed }) => [modalStyles.cancelButton, pressed && modalStyles.buttonPressed]}
+              >
+                <Text adjustsFontSizeToFit numberOfLines={1} style={modalStyles.cancelText}>
+                  {t('missionActive.cancelBtn')}
                 </Text>
               </Pressable>
             </View>
@@ -631,6 +670,46 @@ export function MissionActiveScreen() {
       </Modal>
     </SafeAreaView>
   );
+}
+
+function ActiveStatWidget({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.activeStatWidget}>
+      <View style={styles.activeStatLabelBlock}>
+        <Text style={styles.activeStatEyebrow}>OPERATOR STAT</Text>
+        <Text style={styles.activeStatLabel}>{label.replace(' ', '\n')}</Text>
+      </View>
+      <View style={styles.activeStatValueBadge}>
+        <Text adjustsFontSizeToFit numberOfLines={1} style={styles.activeStatValue}>
+          {value}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function bestGradeFromStats(stats: UserStats | null): string {
+  if (stats?.bestGrade) return stats.bestGrade === 'Recovery Required' ? 'F' : stats.bestGrade;
+  return gradeFromScore(numberFrom(stats?.bestDisciplineScore));
+}
+
+function gradeFromScore(score: number): string {
+  if (score >= 95) return 'S';
+  if (score >= 90) return 'A+';
+  if (score >= 85) return 'A';
+  if (score >= 80) return 'A-';
+  if (score >= 75) return 'B+';
+  if (score >= 70) return 'B';
+  if (score >= 60) return 'C';
+  return '--';
+}
+
+function hasStats(stats: UserStats | null): boolean {
+  return numberFrom(stats?.totalMissionsCompleted) > 0 || numberFrom(stats?.totalDebriefsCompleted ?? stats?.totalDebriefs) > 0;
+}
+
+function numberFrom(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 const timerStyles = StyleSheet.create({
@@ -1034,6 +1113,58 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 4,
   },
+  activeStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  activeStatWidget: {
+    alignItems: 'center',
+    backgroundColor: '#14181a',
+    borderColor: 'rgba(233, 193, 118, 0.18)',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flex: 1,
+    justifyContent: 'space-between',
+    minHeight: 74,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  activeStatLabelBlock: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  activeStatEyebrow: {
+    color: '#4e4639',
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
+  activeStatValue: {
+    color: '#101415',
+    fontSize: 18,
+    fontWeight: '900',
+    maxWidth: 76,
+    textAlign: 'center',
+  },
+  activeStatValueBadge: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    justifyContent: 'center',
+    minHeight: 38,
+    minWidth: 48,
+    paddingHorizontal: 9,
+  },
+  activeStatLabel: {
+    color: '#d1c5b4',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    lineHeight: 13,
+  },
   footer: {
     alignItems: 'center',
     marginTop: 'auto',
@@ -1091,66 +1222,76 @@ const modalStyles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     flex: 1,
     justifyContent: 'center',
-    padding: 32,
+    padding: 24,
   },
   card: {
-    backgroundColor: '#14181a',
-    borderColor: 'rgba(233, 193, 118, 0.3)',
+    backgroundColor: '#0b1111',
+    borderColor: '#252d2d',
     borderWidth: 1,
+    maxWidth: 420,
     overflow: 'hidden',
-    padding: 28,
+    padding: 26,
     width: '100%',
   },
   accent: {
     backgroundColor: '#e9c176',
-    height: 3,
+    height: 4,
     left: 0,
     position: 'absolute',
-    right: 0,
     top: 0,
+    width: 72,
   },
   title: {
     color: '#f8fafc',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     marginBottom: 12,
+    textAlign: 'center',
   },
   description: {
-    color: '#8a8f93',
-    fontSize: 14,
+    color: '#d1c5b4',
+    fontSize: 15,
     fontWeight: '500',
-    lineHeight: 22,
+    lineHeight: 23,
     marginBottom: 28,
+    textAlign: 'center',
   },
   actions: {
-    flexDirection: 'row',
     gap: 12,
   },
   cancelButton: {
     alignItems: 'center',
-    borderColor: '#2a3135',
+    borderColor: '#4e4639',
     borderWidth: 1,
-    flex: 1,
+    justifyContent: 'center',
+    minHeight: 54,
+    paddingHorizontal: 18,
     paddingVertical: 14,
   },
   confirmButton: {
     alignItems: 'center',
     backgroundColor: '#e9c176',
-    flex: 1,
-    paddingVertical: 14,
+    justifyContent: 'center',
+    minHeight: 56,
+    paddingHorizontal: 22,
+    paddingVertical: 16,
   },
   cancelText: {
-    color: '#8a8f93',
+    color: '#e9c176',
     fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontWeight: '900',
+    letterSpacing: 2,
+    maxWidth: '100%',
+    textAlign: 'center',
   },
   confirmText: {
     color: '#101415',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 1,
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 2,
+    maxWidth: '100%',
+    textAlign: 'center',
   },
   buttonPressed: {
     opacity: 0.7,

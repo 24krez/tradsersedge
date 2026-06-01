@@ -49,6 +49,7 @@ export async function updateUserStatsAfterDebrief({
     const previousAverage = numberFrom(currentStats.averageDisciplineScore);
     const totalDebriefsCompleted = previousDebriefTotal + 1;
     const averageDisciplineScore = calculateRunningAverage(previousAverage, previousDebriefTotal, score);
+    const bestDisciplineScore = Math.max(numberFrom(currentStats.bestDisciplineScore), score);
     const currentStreak = calculateCurrentStreak(
       stringFrom(currentStats.lastMissionCompletedDate),
       numberFrom(currentStats.currentStreak),
@@ -62,7 +63,8 @@ export async function updateUserStatsAfterDebrief({
       statsRef,
       {
         averageDisciplineScore,
-        bestDisciplineScore: Math.max(numberFrom(currentStats.bestDisciplineScore), score),
+        bestDisciplineScore,
+        bestGrade: gradeFromScore(bestDisciplineScore),
         currentStreak,
         lastCompletedDate: completedAt.toISOString(),
         lastDebriefId: debriefId,
@@ -119,6 +121,17 @@ function formatLocalDateKey(date: Date): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function gradeFromScore(score: number): string {
+  if (score >= 95) return 'S';
+  if (score >= 90) return 'A+';
+  if (score >= 85) return 'A';
+  if (score >= 80) return 'A-';
+  if (score >= 75) return 'B+';
+  if (score >= 70) return 'B';
+  if (score >= 60) return 'C';
+  return 'Recovery Required';
 }
 
 function numberFrom(value: unknown): number {

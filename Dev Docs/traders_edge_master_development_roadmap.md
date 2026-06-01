@@ -20,7 +20,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - Active mission screen with objective, threats, focus, mission status, session timer, mid-session mindset update, session notes, and mission completion flow.
 - Debrief screen with traded and no-trade paths, Pro-gated psychological state and journaling controls, score preview, Firestore debrief persistence, mission completion update, and transactional user stats update.
 - Discipline score, mission status, notification rule, session timer, rank progression, and behavioral classification logic modules.
-- Profile screen with callsign, motto, subscription badge, read-only rank/classification display, save, and sign out.
+- Profile screen with callsign, motto, subscription badge, read-only rank/classification display, user stats summary, save, and sign out.
 - Pro upsell shell and subscription-tier gate using the current user profile.
 
 **Partially implemented**
@@ -196,6 +196,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [x] Session progress bar
 - [x] Update mindset
 - [x] Session notes
+- [x] Stats preview widgets when user stats exist
 - [x] Complete mission modal
 - [x] Completed mission state
 - [x] Restart mission from completed state
@@ -472,7 +473,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [ ] Rank persistence
 - [ ] Classification persistence
 - [ ] Mission preferences editor
-- [ ] Statistics summary
+- [x] Statistics summary
 - [ ] Account management
 
 ### Epic 18: Alerts Command Center
