@@ -294,9 +294,11 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [x] User stats update after debrief completion
 - [x] Duplicate stats update guard for archived debriefs
 - [x] Read-only archived debrief loading
+- [x] Existing debrief reuse instead of duplicate debrief creation
+- [x] Duplicate score save guard for archived debriefs
+- [x] Edit prevention and clearer locked archive state
 - [ ] Self-assessment field
 - [ ] Session duration calculation
-- [ ] Edit prevention and clearer locked archive state
 - [ ] Full localization of debrief copy
 
 ### Epic 10: Discipline Engine

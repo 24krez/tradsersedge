@@ -17,7 +17,10 @@ type MissionData = {
   threats: string[];
   status: string;
   createdAt: any;
+  debriefId?: string;
 };
+
+type ArchivedDisciplineOutput = ReturnType<typeof buildDisciplineOutput>;
 
 const EMOTIONS = [
   { id: 'calm', icon: '😌', label: 'Calm' },
@@ -51,6 +54,38 @@ function buildDisciplineOutput(scoreResult: DisciplineScoreResult) {
     gradeBeforeCaps: scoreResult.gradeBeforeCaps,
     numericCapsApplied: scoreResult.numericCapsApplied,
     gradeCapsApplied: scoreResult.gradeCapsApplied,
+  };
+}
+
+function buildArchivedDisciplineResult(discipline: ArchivedDisciplineOutput): DisciplineScoreResult {
+  const breakdown = discipline.breakdown || {
+    executionIntegrity: 0,
+    riskDiscipline: 0,
+    emotionalControl: 0,
+    missionAdherence: 0,
+    selfAwareness: 0,
+  };
+  const score = Number.isFinite(discipline.score) ? discipline.score : 0;
+  const grade = discipline.grade || 'Recovery Required';
+
+  return {
+    score,
+    grade,
+    breakdown,
+    executionIntegrity: breakdown.executionIntegrity || 0,
+    riskDiscipline: breakdown.riskDiscipline || 0,
+    emotionalControl: breakdown.emotionalControl || 0,
+    missionAdherence: breakdown.missionAdherence || 0,
+    selfAwareness: breakdown.selfAwareness || 0,
+    rawTotalScore: discipline.rawTotalScore || score,
+    finalScore: score,
+    gradeBeforeCaps: discipline.gradeBeforeCaps || grade,
+    finalGrade: grade,
+    numericCapsApplied: discipline.numericCapsApplied || [],
+    gradeCapsApplied: discipline.gradeCapsApplied || [],
+    strongestBehavior: discipline.strongestBehavior || 'Mission Adherence',
+    improvementArea: discipline.improvementArea || 'Execution Integrity',
+    explanation: discipline.explanation || [],
   };
 }
 
@@ -161,6 +196,63 @@ export function MissionDebriefScreen() {
   const [notes, setNotes] = useState('');
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingDebriefId, setExistingDebriefId] = useState<string | null>(null);
+  const [existingDiscipline, setExistingDiscipline] = useState<ArchivedDisciplineOutput | null>(null);
+  const hasArchivedDebrief = Boolean(existingDebriefId);
+  const isArchivedMode = isReadOnly || hasArchivedDebrief;
+
+  const applyExistingDebrief = (debriefId: string, data: any) => {
+    const isTraded = data.execution?.tradeStatus === 'traded';
+
+    setExistingDebriefId(debriefId);
+    setExistingDiscipline(data.discipline || null);
+    setTraded(isTraded);
+
+    if (isTraded) {
+      setFollowedPlan(data.execution?.followedPlan || null);
+      setRespectedStop(data.execution?.respectedStopLoss || null);
+      setStoppedAppropriately(data.execution?.stoppedWhenShouldHave || null);
+      setAvoidedFomo(data.execution?.avoidedFomo || null);
+      setAvoidedRevenge(data.execution?.avoidedRevengeTrading || null);
+    } else {
+      setAvoidedForcingTrades(data.execution?.avoidedForcingTrades || null);
+      setRemainedPatient(data.execution?.remainedPatient || null);
+      setProtectedCapital(data.execution?.protectedCapital || null);
+      setFollowedMissionObjective(data.execution?.followedMissionObjective || null);
+      setWhyNotTradeReason(data.noTradeReason?.label || null);
+    }
+
+    setPulseScore(data.psychology?.stateScore || 50);
+    setEmotion(data.psychology?.emotions?.[0] || null);
+    setNotes(data.lesson?.text || '');
+    setDebriefDate(dateFromFirestoreValue(data.date || data.createdAt));
+  };
+
+  const clearExistingDebrief = () => {
+    setExistingDebriefId(null);
+    setExistingDiscipline(null);
+  };
+
+  const loadExistingDebrief = async (missionId: string) => {
+    if (!user) return null;
+
+    const debriefQuery = query(
+      collection(firestore, 'mission_debriefs'),
+      where('missionId', '==', missionId),
+      where('userId', '==', user.uid),
+      limit(1)
+    );
+    const debriefSnap = await getDocs(debriefQuery);
+
+    if (debriefSnap.empty) {
+      clearExistingDebrief();
+      return null;
+    }
+
+    const debriefDoc = debriefSnap.docs[0];
+    applyExistingDebrief(debriefDoc.id, debriefDoc.data());
+    return debriefDoc.id;
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -172,43 +264,20 @@ export function MissionDebriefScreen() {
       // but if we want to use onSnapshot it's easier to just use doc ref.
       const unsubscribe = onSnapshot(doc(firestore, 'missions', routeMissionId), async (docSnap) => {
         if (docSnap.exists()) {
-          setMissionData({ id: docSnap.id, ...docSnap.data() } as MissionData);
-          
-          // If readOnly, load the debrief data
-          if (isReadOnly) {
-             const debriefQuery = query(collection(firestore, 'mission_debriefs'), where('missionId', '==', routeMissionId), where('userId', '==', user.uid), limit(1));
-             try {
-               const debriefSnap = await getDocs(debriefQuery);
-               if (!debriefSnap.empty) {
-                 const data = debriefSnap.docs[0].data();
-                 const isTraded = data.execution?.tradeStatus === 'traded';
-                 setTraded(isTraded);
-                 if (isTraded) {
-                   setFollowedPlan(data.execution?.followedPlan);
-                   setRespectedStop(data.execution?.respectedStopLoss);
-                   setStoppedAppropriately(data.execution?.stoppedWhenShouldHave);
-                   setAvoidedFomo(data.execution?.avoidedFomo);
-                   setAvoidedRevenge(data.execution?.avoidedRevengeTrading);
-                 } else {
-                   setAvoidedForcingTrades(data.execution?.avoidedForcingTrades);
-                   setRemainedPatient(data.execution?.remainedPatient);
-                   setProtectedCapital(data.execution?.protectedCapital);
-                   setFollowedMissionObjective(data.execution?.followedMissionObjective);
-                   setWhyNotTradeReason(data.noTradeReason?.label || null);
-                 }
-                 setPulseScore(data.psychology?.stateScore || 50);
-                 setEmotion(data.psychology?.emotions?.[0] || null);
-                 setNotes(data.lesson?.text || '');
-                 setDebriefDate(dateFromFirestoreValue(data.date || data.createdAt));
-               } else {
-                 Alert.alert("Missing Data", "No debrief record was found for this mission. It may be from an older version of the app.");
-                 navigation.goBack();
-               }
-             } catch (e) {
-               console.error("Error fetching debrief", e);
-               Alert.alert("Error", "Could not load debrief data.");
-               navigation.goBack();
-             }
+          const mission = { id: docSnap.id, ...docSnap.data() } as MissionData;
+          setMissionData(mission);
+          setDebriefDate(dateFromFirestoreValue(mission.createdAt));
+
+          try {
+            const foundDebriefId = await loadExistingDebrief(routeMissionId);
+            if (isReadOnly && !foundDebriefId) {
+              Alert.alert("Missing Data", "No debrief record was found for this mission. It may be from an older version of the app.");
+              navigation.goBack();
+            }
+          } catch (e) {
+            console.error("Error fetching debrief", e);
+            Alert.alert("Error", "Could not load debrief data.");
+            navigation.goBack();
           }
         } else {
           setMissionData(null);
@@ -224,14 +293,22 @@ export function MissionDebriefScreen() {
         limit(1)
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      const unsubscribe = onSnapshot(q, async (snapshot) => {
         if (!snapshot.empty) {
           const docSnap = snapshot.docs[0];
           const data = docSnap.data();
-          setMissionData({ id: docSnap.id, ...data } as MissionData);
+          const mission = { id: docSnap.id, ...data } as MissionData;
+          setMissionData(mission);
           setDebriefDate(dateFromFirestoreValue(data.createdAt));
+
+          try {
+            await loadExistingDebrief(mission.id);
+          } catch (e) {
+            console.error("Error checking existing debrief", e);
+          }
         } else {
           setMissionData(null);
+          clearExistingDebrief();
         }
         setIsLoading(false);
       });
@@ -291,12 +368,34 @@ export function MissionDebriefScreen() {
   }
 
   // Live Score Calculation
-  const currentDisciplineScore = useMemo(calculateCurrentDisciplineScore, [traded, followedPlan, respectedStop, stoppedAppropriately, avoidedFomo, avoidedRevenge, avoidedForcingTrades, remainedPatient, protectedCapital, followedMissionObjective, pulseScore, emotion, notes, missionData]);
+  const currentDisciplineScore = useMemo(() => {
+    if (existingDiscipline) return buildArchivedDisciplineResult(existingDiscipline);
+    if (hasArchivedDebrief) return null;
+    return calculateCurrentDisciplineScore();
+  }, [existingDiscipline, hasArchivedDebrief, traded, followedPlan, respectedStop, stoppedAppropriately, avoidedFomo, avoidedRevenge, avoidedForcingTrades, remainedPatient, protectedCapital, followedMissionObjective, pulseScore, emotion, notes, missionData]);
   const headerDate = useMemo(() => {
     return formatDebriefDate(debriefDate || dateFromFirestoreValue(missionData?.createdAt));
   }, [debriefDate, missionData?.createdAt]);
 
   const handleSubmit = async () => {
+    if (existingDebriefId) {
+      Alert.alert(
+        "Debrief Archived",
+        "This mission already has a completed debrief. Archived debriefs are locked to protect your stats and score history.",
+        [
+          {
+            text: "View Results",
+            onPress: () => navigation.replace('MissionResults', {
+              debriefId: existingDebriefId,
+              missionId: missionData?.id,
+            }),
+          },
+          { text: "OK", style: "cancel" },
+        ],
+      );
+      return;
+    }
+
     const completedScore = calculateCurrentDisciplineScore();
 
     if (!user || !missionData || isSubmitting || !completedScore) return;
@@ -318,6 +417,15 @@ export function MissionDebriefScreen() {
             setIsSubmitting(true);
             try {
               const now = new Date();
+              const archivedDebriefId = await loadExistingDebrief(missionData.id);
+              if (archivedDebriefId) {
+                navigation.replace('MissionResults', {
+                  debriefId: archivedDebriefId,
+                  missionId: missionData.id,
+                });
+                return;
+              }
+
               const disciplineOutput = buildDisciplineOutput(completedScore);
       
       // 1. Save massive debrief document
@@ -458,7 +566,7 @@ export function MissionDebriefScreen() {
             <View style={styles.headerDivider} />
           </View>
 
-          {isReadOnly && (
+          {isArchivedMode && (
             <Pressable
               accessibilityRole="button"
               onPress={() => navigation.replace('MissionActive')}
@@ -500,7 +608,7 @@ export function MissionDebriefScreen() {
             </View>
           </View>
 
-          <View pointerEvents={isReadOnly ? 'none' : 'auto'}>
+          <View pointerEvents={isArchivedMode ? 'none' : 'auto'}>
             <Text style={styles.sectionHeader}>EXECUTION INTEGRITY</Text>
 
           {/* Gateway Question */}
@@ -570,7 +678,7 @@ export function MissionDebriefScreen() {
                   minimumTrackTintColor="#e9c176"
                   maximumTrackTintColor="#2a3135"
                   thumbTintColor="#e9c176"
-                  disabled={!isPro || isReadOnly}
+                  disabled={!isPro || isArchivedMode}
                 />
                 <View style={styles.sliderLabels}><Text style={styles.sliderLabelText}>FRANTIC</Text><Text style={styles.sliderLabelText}>ELITE</Text></View>
                 <Text style={styles.todayIFeltLabel}>TODAY I FELT</Text>
@@ -599,7 +707,7 @@ export function MissionDebriefScreen() {
                   multiline
                   value={notes}
                   onChangeText={setNotes}
-                  editable={isPro && !isReadOnly}
+                  editable={isPro && !isArchivedMode}
                 />
               </View>
             </View>
@@ -647,7 +755,7 @@ export function MissionDebriefScreen() {
                 </View>
               </View>
 
-              {!isReadOnly ? (
+              {!isArchivedMode ? (
                 <>
                   <View style={styles.archiveBox}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
