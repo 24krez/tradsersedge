@@ -96,7 +96,7 @@ export function MissionDebriefScreen() {
           
           // If readOnly, load the debrief data
           if (isReadOnly) {
-             const debriefQuery = query(collection(firestore, 'mission_debriefs'), where('missionId', '==', routeMissionId), limit(1));
+             const debriefQuery = query(collection(firestore, 'mission_debriefs'), where('missionId', '==', routeMissionId), where('userId', '==', user.uid), limit(1));
              try {
                const debriefSnap = await getDocs(debriefQuery);
                if (!debriefSnap.empty) {
@@ -216,12 +216,20 @@ export function MissionDebriefScreen() {
     // If No Trade, they must pick a reason
     if (traded === false && !whyNotTradeReason) return;
     
-    // If Pro, they must pick an emotion (just enforcing basic validation for mock)
-    if (isPro && (!emotion || !notes)) return;
+    // Notes and emotion are completely optional for Pro users.
 
-    setIsSubmitting(true);
-    try {
-      const now = new Date();
+    Alert.alert(
+      "Confirm Submission",
+      "Are you sure? Once completed, this mission and its discipline score are permanently locked and cannot be changed.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Complete Debrief", 
+          style: "default",
+          onPress: async () => {
+            setIsSubmitting(true);
+            try {
+              const now = new Date();
       
       // 1. Save massive debrief document
       const debriefRef = await addDoc(collection(firestore, 'mission_debriefs'), {
@@ -335,10 +343,15 @@ export function MissionDebriefScreen() {
       navigation.replace('MissionResults');
       Alert.alert("Debrief Archived", "Discipline score updated.");
 
-    } catch (e) {
-      console.error('Error saving debrief:', e);
-      setIsSubmitting(false);
-    }
+            } catch (e: any) {
+              console.error('Error saving debrief:', e);
+              Alert.alert("Submission Failed", e.message || "An error occurred while saving your debrief.");
+              setIsSubmitting(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderTriPill = (value: YesMostlyNo | null, setter: (val: YesMostlyNo) => void) => (
