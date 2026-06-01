@@ -5,9 +5,10 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, increment, getDoc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { firestore } from '../services/firebase';
-import { calculateDisciplineScore, DebriefInput, YesMostlyNo } from '../logic/disciplineScore';
+import { updateUserStatsAfterDebrief } from '../services/userStats';
+import { calculateDisciplineScore, DisciplineScoreResult, YesMostlyNo } from '../logic/disciplineScore';
 
 type MissionData = {
   id: string;
@@ -35,6 +36,63 @@ const NO_TRADE_REASONS = [
   'TIME CONSTRAINTS',
   'OTHER'
 ];
+
+const DISCIPLINE_SCORING_VERSION = 'v1-client';
+
+function buildDisciplineOutput(scoreResult: DisciplineScoreResult) {
+  return {
+    score: scoreResult.score,
+    grade: scoreResult.grade,
+    strongestBehavior: scoreResult.strongestBehavior,
+    improvementArea: scoreResult.improvementArea,
+    explanation: scoreResult.explanation,
+    breakdown: scoreResult.breakdown,
+    rawTotalScore: scoreResult.rawTotalScore,
+    gradeBeforeCaps: scoreResult.gradeBeforeCaps,
+    numericCapsApplied: scoreResult.numericCapsApplied,
+    gradeCapsApplied: scoreResult.gradeCapsApplied,
+  };
+}
+
+function buildDisciplineScoreDocument({
+  debriefId,
+  disciplineOutput,
+  missionData,
+  traded,
+  userId,
+}: {
+  debriefId: string;
+  disciplineOutput: ReturnType<typeof buildDisciplineOutput>;
+  missionData: MissionData;
+  traded: boolean | null;
+  userId: string;
+}) {
+  return {
+    userId,
+    missionId: missionData.id,
+    debriefId,
+    score: disciplineOutput.score,
+    grade: disciplineOutput.grade,
+    strongestBehavior: disciplineOutput.strongestBehavior,
+    improvementArea: disciplineOutput.improvementArea,
+    explanation: disciplineOutput.explanation,
+    breakdown: disciplineOutput.breakdown,
+    result: disciplineOutput,
+    scoring: {
+      version: DISCIPLINE_SCORING_VERSION,
+      source: 'client',
+      status: 'client_calculated',
+      serverVerified: false,
+    },
+    missionSnapshot: {
+      objective: missionData.objective,
+      threatsIdentified: missionData.threats || [],
+      coreFocus: missionData.coreFocus,
+      tradeStatus: traded ? 'traded' : 'no_trade',
+    },
+    createdAt: serverTimestamp(),
+  };
+}
 
 export function MissionDebriefScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
@@ -105,16 +163,16 @@ export function MissionDebriefScreen() {
                  setTraded(isTraded);
                  if (isTraded) {
                    setFollowedPlan(data.execution?.followedPlan);
-                   setRespectedStop(data.execution?.respectedStop);
-                   setStoppedAppropriately(data.execution?.stoppedAppropriately);
-                   setAvoidedFomo(data.psychology?.avoidedFomo);
-                   setAvoidedRevenge(data.psychology?.avoidedRevenge);
+                   setRespectedStop(data.execution?.respectedStopLoss);
+                   setStoppedAppropriately(data.execution?.stoppedWhenShouldHave);
+                   setAvoidedFomo(data.execution?.avoidedFomo);
+                   setAvoidedRevenge(data.execution?.avoidedRevengeTrading);
                  } else {
                    setAvoidedForcingTrades(data.execution?.avoidedForcingTrades);
-                   setRemainedPatient(data.psychology?.remainedPatient);
+                   setRemainedPatient(data.execution?.remainedPatient);
                    setProtectedCapital(data.execution?.protectedCapital);
                    setFollowedMissionObjective(data.execution?.followedMissionObjective);
-                   setWhyNotTradeReason(data.execution?.whyNotTradeReason || null);
+                   setWhyNotTradeReason(data.noTradeReason?.label || null);
                  }
                  setPulseScore(data.psychology?.stateScore || 50);
                  setEmotion(data.psychology?.emotions?.[0] || null);
@@ -156,8 +214,7 @@ export function MissionDebriefScreen() {
     }
   }, [user, routeMissionId, isReadOnly]);
 
-  // Live Score Calculation
-  const currentDisciplineScore = useMemo(() => {
+  function calculateCurrentDisciplineScore() {
     if (traded === null) return null;
     
     try {
@@ -176,7 +233,7 @@ export function MissionDebriefScreen() {
       if (traded === true) {
         if (!followedPlan || !respectedStop || !stoppedAppropriately || !avoidedFomo || !avoidedRevenge) return null;
         
-        const input: DebriefInput = {
+        return calculateDisciplineScore({
           didTrade: true,
           followedPlan,
           respectedStop,
@@ -187,12 +244,11 @@ export function MissionDebriefScreen() {
           emotionalState: fallbackEmotion,
           biggestLesson: fallbackLesson,
           selfAssessment: fallbackAssessment
-        };
-        return calculateDisciplineScore(input, missionContext);
+        }, missionContext);
       } else {
         if (!avoidedForcingTrades || !remainedPatient || !protectedCapital || !followedMissionObjective) return null;
         
-        const input: DebriefInput = {
+        return calculateDisciplineScore({
           didTrade: false,
           avoidedForcingTrades,
           remainedPatient,
@@ -201,17 +257,21 @@ export function MissionDebriefScreen() {
           emotionalState: fallbackEmotion,
           biggestLesson: fallbackLesson,
           selfAssessment: fallbackAssessment
-        };
-        return calculateDisciplineScore(input, missionContext);
+        }, missionContext);
       }
     } catch (e) {
       console.warn("Discipline score calculation blocked:", e);
       return null;
     }
-  }, [traded, followedPlan, respectedStop, stoppedAppropriately, avoidedFomo, avoidedRevenge, avoidedForcingTrades, remainedPatient, protectedCapital, followedMissionObjective, pulseScore, emotion, notes, missionData]);
+  }
+
+  // Live Score Calculation
+  const currentDisciplineScore = useMemo(calculateCurrentDisciplineScore, [traded, followedPlan, respectedStop, stoppedAppropriately, avoidedFomo, avoidedRevenge, avoidedForcingTrades, remainedPatient, protectedCapital, followedMissionObjective, pulseScore, emotion, notes, missionData]);
 
   const handleSubmit = async () => {
-    if (!user || !missionData || isSubmitting || !currentDisciplineScore) return;
+    const completedScore = calculateCurrentDisciplineScore();
+
+    if (!user || !missionData || isSubmitting || !completedScore) return;
     
     // If No Trade, they must pick a reason
     if (traded === false && !whyNotTradeReason) return;
@@ -230,6 +290,7 @@ export function MissionDebriefScreen() {
             setIsSubmitting(true);
             try {
               const now = new Date();
+              const disciplineOutput = buildDisciplineOutput(completedScore);
       
       // 1. Save massive debrief document
       const debriefRef = await addDoc(collection(firestore, 'mission_debriefs'), {
@@ -271,17 +332,7 @@ export function MissionDebriefScreen() {
           missionStart: missionData.createdAt?.toDate().toISOString() || now.toISOString(),
           missionStatus: traded ? 'TRADED' : 'NO TRADE DAY'
         },
-        discipline: {
-          score: currentDisciplineScore.finalScore,
-          grade: currentDisciplineScore.finalGrade,
-          breakdown: {
-            executionIntegrity: currentDisciplineScore.executionIntegrity,
-            riskDiscipline: currentDisciplineScore.riskDiscipline,
-            emotionalControl: currentDisciplineScore.emotionalControl,
-            missionAdherence: currentDisciplineScore.missionAdherence,
-            selfAwareness: currentDisciplineScore.selfAwareness
-          }
-        },
+        discipline: disciplineOutput,
         archive: {
           readyForArchive: true,
           includedInStats: true,
@@ -295,49 +346,36 @@ export function MissionDebriefScreen() {
         updatedAt: serverTimestamp(),
       });
 
+      await addDoc(collection(firestore, 'discipline_scores'), {
+        ...buildDisciplineScoreDocument({
+          userId: user.uid,
+          missionData,
+          debriefId: debriefRef.id,
+          disciplineOutput,
+          traded,
+        }),
+      });
+
       // 2. Update existing Mission doc
       await updateDoc(doc(firestore, 'missions', missionData.id), {
         status: 'completed',
         completedAt: serverTimestamp(),
         debriefId: debriefRef.id,
-        disciplineScore: currentDisciplineScore.finalScore,
+        disciplineScore: disciplineOutput.score,
+        disciplineGrade: disciplineOutput.grade,
+        strongestBehavior: disciplineOutput.strongestBehavior,
+        improvementArea: disciplineOutput.improvementArea,
         missionStatus: traded ? 'TRADED' : 'NO TRADE DAY'
       });
 
       // 3. Update User Stats
-      const statsRef = doc(firestore, 'user_stats', user.uid);
-      const statsDoc = await getDoc(statsRef);
-      
-      const newScore = currentDisciplineScore.finalScore;
-      
-      if (statsDoc.exists()) {
-        const data = statsDoc.data();
-        const prevTotal = data.totalDebriefs || 0;
-        const prevAvg = data.averageDisciplineScore || 0;
-        const newAvg = ((prevAvg * prevTotal) + newScore) / (prevTotal + 1);
-
-        await updateDoc(statsRef, {
-          totalMissionsCompleted: increment(1),
-          totalDebriefs: increment(1),
-          noTradeDays: increment(traded ? 0 : 1),
-          tradeDays: increment(traded ? 1 : 0),
-          averageDisciplineScore: newAvg,
-          lastCompletedDate: now.toISOString(),
-          updatedAt: serverTimestamp()
-        });
-      } else {
-        await setDoc(statsRef, {
-          totalMissionsCompleted: 1,
-          totalDebriefs: 1,
-          noTradeDays: traded ? 0 : 1,
-          tradeDays: traded ? 1 : 0,
-          averageDisciplineScore: newScore,
-          currentStreak: 1,
-          longestStreak: 1,
-          lastCompletedDate: now.toISOString(),
-          updatedAt: serverTimestamp()
-        });
-      }
+      await updateUserStatsAfterDebrief({
+        completedAt: now,
+        debriefId: debriefRef.id,
+        score: disciplineOutput.score,
+        tradeStatus: traded ? 'traded' : 'no_trade',
+        userId: user.uid,
+      });
       
       // Navigate to results
       navigation.replace('MissionResults');

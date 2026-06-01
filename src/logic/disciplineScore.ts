@@ -38,6 +38,11 @@ export interface NoTradeDebriefInput extends BaseDebriefInput {
 }
 
 export type DebriefInput = TradedDebriefInput | NoTradeDebriefInput;
+export type DisciplineScoreInput = Partial<BaseDebriefInput> &
+  Partial<Omit<TradedDebriefInput, keyof BaseDebriefInput | "didTrade">> &
+  Partial<Omit<NoTradeDebriefInput, keyof BaseDebriefInput | "didTrade">> & {
+    didTrade: boolean;
+  };
 
 export interface ScoreCap {
   type: "numeric" | "grade";
@@ -45,7 +50,18 @@ export interface ScoreCap {
   reason: string;
 }
 
+export interface DisciplineScoreBreakdown {
+  executionIntegrity: number;
+  riskDiscipline: number;
+  emotionalControl: number;
+  missionAdherence: number;
+  selfAwareness: number;
+}
+
 export interface DisciplineScoreResult {
+  score: number;
+  grade: Grade;
+  breakdown: DisciplineScoreBreakdown;
   executionIntegrity: number;
   riskDiscipline: number;
   emotionalControl: number;
@@ -63,18 +79,20 @@ export interface DisciplineScoreResult {
 }
 
 const GRADE_ORDER: Grade[] = ["Recovery Required", "C", "B", "B+", "A-", "A", "A+", "S"];
+const DEFAULT_YES_MOSTLY_NO: YesMostlyNo = "No";
 
 export function calculateDisciplineScore(
-  debrief: DebriefInput,
+  debrief: DisciplineScoreInput,
   mission: MissionScoringContext = {},
 ): DisciplineScoreResult {
-  validateDebrief(debrief, mission);
+  const normalizedDebrief = normalizeDebrief(debrief);
+  const normalizedMission = normalizeMissionContext(mission);
 
-  const executionIntegrity = calculateExecutionIntegrity(debrief);
-  const riskDiscipline = calculateRiskDiscipline(debrief);
-  const emotionalControl = calculateEmotionalControl(debrief);
-  const missionAdherence = calculateMissionAdherence(debrief, mission);
-  const selfAwareness = calculateSelfAwareness(debrief);
+  const executionIntegrity = calculateExecutionIntegrity(normalizedDebrief);
+  const riskDiscipline = calculateRiskDiscipline(normalizedDebrief);
+  const emotionalControl = calculateEmotionalControl(normalizedDebrief);
+  const missionAdherence = calculateMissionAdherence(normalizedDebrief, normalizedMission);
+  const selfAwareness = calculateSelfAwareness(normalizedDebrief);
 
   const rawTotalScore =
     executionIntegrity + riskDiscipline + emotionalControl + missionAdherence + selfAwareness;
@@ -83,21 +101,23 @@ export function calculateDisciplineScore(
   const numericCapsApplied: ScoreCap[] = [];
   const gradeCapsApplied: ScoreCap[] = [];
 
-  if (isNoTradeMinimumEligible(debrief, mission) && finalScore < 90) {
+  if (isNoTradeMinimumEligible(normalizedDebrief, normalizedMission) && finalScore < 90) {
     finalScore = 90;
   }
 
-  for (const cap of getNumericCaps(mission)) {
+  for (const cap of getNumericCaps(normalizedMission)) {
     if (typeof cap.cap === "number" && finalScore > cap.cap) {
       finalScore = cap.cap;
       numericCapsApplied.push(cap);
     }
   }
 
+  finalScore = Math.round(finalScore);
+
   const gradeBeforeCaps = gradeFromScore(finalScore);
   let finalGrade = gradeBeforeCaps;
 
-  for (const cap of getGradeCaps(debrief)) {
+  for (const cap of getGradeCaps(normalizedDebrief)) {
     if (typeof cap.cap === "string" && compareGrades(finalGrade, cap.cap) > 0) {
       finalGrade = cap.cap;
       gradeCapsApplied.push(cap);
@@ -112,8 +132,18 @@ export function calculateDisciplineScore(
     "Self-Awareness": selfAwareness,
   };
   const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+  const breakdown = {
+    executionIntegrity,
+    riskDiscipline,
+    emotionalControl,
+    missionAdherence,
+    selfAwareness,
+  };
 
   return {
+    score: finalScore,
+    grade: finalGrade,
+    breakdown,
     executionIntegrity,
     riskDiscipline,
     emotionalControl,
@@ -131,13 +161,52 @@ export function calculateDisciplineScore(
   };
 }
 
+function normalizeDebrief(debrief: DisciplineScoreInput): DebriefInput {
+  const base = {
+    emotionalState: stringOrEmpty(debrief.emotionalState),
+    biggestLesson: stringOrEmpty(debrief.biggestLesson),
+    selfAssessment: stringOrEmpty(debrief.selfAssessment),
+  };
+
+  if (debrief.didTrade) {
+    return {
+      ...base,
+      didTrade: true,
+      followedPlan: normalizeYesMostlyNo(debrief.followedPlan),
+      respectedStop: normalizeYesMostlyNo(debrief.respectedStop),
+      stoppedAppropriately: normalizeYesMostlyNo(debrief.stoppedAppropriately),
+      avoidedFomo: normalizeYesMostlyNo(debrief.avoidedFomo),
+      avoidedRevenge: normalizeYesMostlyNo(debrief.avoidedRevenge),
+      emotionalControlValue: clampScore(debrief.emotionalControlValue),
+    };
+  }
+
+  return {
+    ...base,
+    didTrade: false,
+    avoidedForcingTrades: normalizeYesMostlyNo(debrief.avoidedForcingTrades),
+    remainedPatient: normalizeYesMostlyNo(debrief.remainedPatient),
+    protectedCapital: normalizeYesMostlyNo(debrief.protectedCapital),
+    followedMissionObjective: normalizeYesMostlyNo(debrief.followedMissionObjective),
+  };
+}
+
+function normalizeMissionContext(mission: MissionScoringContext): MissionScoringContext {
+  return {
+    ...mission,
+    objective: stringOrUndefined(mission.objective),
+    primaryThreat: stringOrUndefined(mission.primaryThreat),
+    coreFocus: stringOrUndefined(mission.coreFocus),
+  };
+}
+
 function calculateExecutionIntegrity(debrief: DebriefInput): number {
-  if (!debrief.didTrade) return yesMostlyNoPoints(debrief.followedMissionObjective, 20, 10);
+  if (debrief.didTrade === false) return yesMostlyNoPoints(debrief.followedMissionObjective, 20, 10);
   return yesMostlyNoPoints(debrief.followedPlan, 20, 10);
 }
 
 function calculateRiskDiscipline(debrief: DebriefInput): number {
-  if (!debrief.didTrade) {
+  if (debrief.didTrade === false) {
     return yesMostlyNoPoints(debrief.protectedCapital, 20, 10);
   }
 
@@ -151,7 +220,7 @@ function calculateRiskDiscipline(debrief: DebriefInput): number {
 }
 
 function calculateEmotionalControl(debrief: DebriefInput): number {
-  if (!debrief.didTrade) return yesMostlyNoPoints(debrief.remainedPatient, 20, 10);
+  if (debrief.didTrade === false) return yesMostlyNoPoints(debrief.remainedPatient, 20, 10);
 
   return (
     yesMostlyNoPoints(debrief.avoidedFomo, 8, 4) +
@@ -163,7 +232,7 @@ function calculateEmotionalControl(debrief: DebriefInput): number {
 function calculateMissionAdherence(debrief: DebriefInput, mission: MissionScoringContext): number {
   if (!mission.objective || !mission.primaryThreat || !mission.coreFocus) return 0;
 
-  if (!debrief.didTrade) {
+  if (debrief.didTrade === false) {
     return (
       yesMostlyNoPoints(debrief.followedMissionObjective, 10, 5) +
       yesMostlyNoPoints(debrief.avoidedForcingTrades, 5, 2.5) +
@@ -239,28 +308,13 @@ function getGradeCaps(debrief: DebriefInput): ScoreCap[] {
 
 function isNoTradeMinimumEligible(debrief: DebriefInput, mission: MissionScoringContext): boolean {
   return (
-    !debrief.didTrade &&
+    debrief.didTrade === false &&
     debrief.avoidedForcingTrades === "Yes" &&
     debrief.protectedCapital === "Yes" &&
     debrief.remainedPatient === "Yes" &&
     isMeaningfulText(debrief.biggestLesson) &&
     Boolean(mission.objective && mission.primaryThreat && mission.coreFocus)
   );
-}
-
-function validateDebrief(debrief: DebriefInput, mission: MissionScoringContext): void {
-  if (!debrief.emotionalState.trim()) throw new Error("Missing emotionalState.");
-  if (!isMeaningfulText(debrief.biggestLesson)) throw new Error("Missing meaningful biggestLesson.");
-  if (!debrief.selfAssessment.trim()) throw new Error("Missing selfAssessment.");
-  if (mission.objective === "" || mission.primaryThreat === "" || mission.coreFocus === "") {
-    throw new Error("Mission scoring context cannot contain blank objective, threat, or focus.");
-  }
-  if (debrief.didTrade && !Number.isFinite(debrief.emotionalControlValue)) {
-    throw new Error("Missing emotionalControlValue.");
-  }
-  if (debrief.didTrade && (debrief.emotionalControlValue < 0 || debrief.emotionalControlValue > 100)) {
-    throw new Error("emotionalControlValue must be between 0 and 100.");
-  }
 }
 
 function yesMostlyNoPoints(answer: YesMostlyNo, yes: number, mostly: number): number {
@@ -311,6 +365,26 @@ function gradeFromScore(score: number): Grade {
 
 function compareGrades(a: Grade, b: Grade): number {
   return GRADE_ORDER.indexOf(a) - GRADE_ORDER.indexOf(b);
+}
+
+function normalizeYesMostlyNo(value: unknown): YesMostlyNo {
+  if (value === "Yes" || value === "Mostly" || value === "No") return value;
+  return DEFAULT_YES_MOSTLY_NO;
+}
+
+function clampScore(value: unknown): number {
+  if (!Number.isFinite(value)) return 50;
+  return Math.max(0, Math.min(100, Number(value)));
+}
+
+function stringOrEmpty(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function stringOrUndefined(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
 }
 
 function isMeaningfulText(value: string): boolean {
