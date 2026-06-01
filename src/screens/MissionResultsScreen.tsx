@@ -18,9 +18,36 @@ type DisciplineResult = {
   breakdown?: Record<string, number>;
 };
 
+type DebriefExecution = {
+  tradeStatus?: 'traded' | 'no_trade';
+  followedPlan?: string;
+  respectedStopLoss?: string;
+  avoidedFomo?: string;
+  avoidedRevengeTrading?: string;
+  stoppedWhenShouldHave?: string;
+  avoidedForcingTrades?: string;
+  remainedPatient?: string;
+  protectedCapital?: string;
+  followedMissionObjective?: string;
+};
+
 type DebriefResultData = {
   discipline?: DisciplineResult;
+  execution?: DebriefExecution;
+  lesson?: {
+    text?: string;
+  };
   missionId?: string;
+};
+
+type UserStatsData = {
+  averageDisciplineScore?: number;
+  currentStreak?: number;
+};
+
+type ParameterRow = {
+  label: string;
+  value?: string;
 };
 
 export function MissionResultsScreen() {
@@ -28,10 +55,28 @@ export function MissionResultsScreen() {
   const route = useRoute<MissionResultsRouteProp>();
   const { user, userProfile } = useAuth();
   const [debrief, setDebrief] = useState<DebriefResultData | null>(null);
+  const [userStats, setUserStats] = useState<UserStatsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const routeDebriefId = route.params?.debriefId;
   const routeMissionId = route.params?.missionId;
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = onSnapshot(
+      doc(firestore, 'user_stats', user.uid),
+      (snapshot) => {
+        setUserStats(snapshot.exists() ? (snapshot.data() as UserStatsData) : null);
+      },
+      (error) => {
+        console.error('Error loading user stats for mission results:', error);
+        setUserStats(null);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -82,13 +127,21 @@ export function MissionResultsScreen() {
   const discipline = debrief?.discipline;
   const score = typeof discipline?.score === 'number' ? discipline.score : 0;
   const grade = discipline?.grade || '--';
+  const displayGrade = grade === 'Recovery Required' ? 'F' : grade;
   const strongestBehavior = discipline?.strongestBehavior || 'Discipline';
   const improvementArea = discipline?.improvementArea || 'Emotional Control';
   const operatorName = userProfile?.callsign?.trim() || 'Operator';
+  const currentStreak = userStats?.currentStreak ?? 0;
+  const averageScore = Math.round(userStats?.averageDisciplineScore ?? score);
+  const operatorRank = userProfile?.rank || 'Recruit';
+  const parameters = buildParameterRows(debrief?.execution);
 
   const commandMessage = useMemo(() => {
-    return `Mission Debrief Complete. Discipline Score: ${score} - Grade ${grade}. Strongest behavior: ${strongestBehavior}. Improvement area: ${improvementArea}. Good work, ${operatorName}. Log the lesson and prepare for the next session.`;
-  }, [grade, improvementArea, operatorName, score, strongestBehavior]);
+    const lesson = debrief?.lesson?.text?.trim();
+    if (lesson) return `"${lesson}"`;
+
+    return `"Improvement area: ${improvementArea}. Good work, ${operatorName}. Log the lesson and prepare for the next session."`;
+  }, [debrief?.lesson?.text, improvementArea, operatorName]);
 
   if (isLoading) {
     return (
@@ -122,68 +175,91 @@ export function MissionResultsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.frame}>
-          <View style={styles.topRow}>
+          <View style={styles.cornerVertical} />
+          <View style={styles.cornerHorizontal} />
+
+          <Pressable
+            accessibilityLabel="Back to command"
+            accessibilityRole="button"
+            onPress={() => navigation.replace('MissionActive')}
+            style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.closeButtonText}>X</Text>
+          </Pressable>
+
+          <View style={styles.header}>
             <View style={styles.statusPlate}>
               <Text style={styles.statusPlateText}>MISSION COMPLETE</Text>
             </View>
-            <Pressable
-              accessibilityLabel="Back to command"
-              accessibilityRole="button"
-              onPress={() => navigation.replace('MissionActive')}
-              style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.closeButtonText}>X</Text>
-            </Pressable>
+            <Text style={styles.title}>INTELLIGENCE</Text>
+            <Text style={styles.title}>REPORT</Text>
           </View>
 
-          <Text style={styles.title}>INTELLIGENCE REPORT</Text>
+          <View style={styles.heroGrid}>
+            <View style={styles.bentoCard}>
+              <View style={styles.goldRail} />
+              <Text style={styles.panelLabel}>PERFORMANCE RANK</Text>
+              <View style={styles.gradeRow}>
+                <Text style={styles.gradeLetter}>{displayGrade}</Text>
+                <View style={styles.gradeBadge}>
+                  <Text style={styles.gradeBadgeText}>{gradeLabel(grade)}</Text>
+                </View>
+              </View>
+            </View>
 
-          <View style={styles.rankPanel}>
-            <View style={styles.goldRail} />
-            <Text style={styles.panelLabel}>PERFORMANCE RANK</Text>
-            <View style={styles.gradeRow}>
-              <Text style={styles.gradeLetter}>{grade === 'Recovery Required' ? 'F' : grade}</Text>
-              <View style={styles.gradeBadge}>
-                <Text style={styles.gradeBadgeText}>{gradeLabel(grade)}</Text>
+            <View style={styles.bentoCard}>
+              <View style={styles.goldRail} />
+              <Text style={styles.panelLabel}>DISCIPLINE SCORE</Text>
+              <View style={styles.scoreRing}>
+                <Text style={styles.scoreValue}>{score}%</Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.scorePanel}>
-            <View style={styles.goldRail} />
-            <Text style={styles.panelLabel}>DISCIPLINE SCORE</Text>
-            <View style={styles.scoreRing}>
-              <Text style={styles.scoreValue}>{score}</Text>
-              <Text style={styles.scoreSuffix}>/100</Text>
+          <View style={styles.statsGrid}>
+            <StatTile accent="FIRE" label="STREAK STATUS" value={`${currentStreak || 1} Day Maintained`} />
+            <StatTile accent="RANK" label="OPERATOR RANK" value={operatorRank} />
+            <StatTile accent="EFF" label="EFFICIENCY" value={`${averageScore}% Target Hit`} />
+          </View>
+
+          <View style={styles.behaviorGrid}>
+            <BehaviorCard
+              accent="STRONGEST BEHAVIOR"
+              label={strongestBehavior}
+              text="Operational parameters adhered with surgical precision."
+            />
+
+            <BehaviorCard
+              accent="IMPROVEMENT AREA"
+              label={improvementArea}
+              text="Review the lesson, reset, and tighten execution before the next session."
+            />
+          </View>
+
+          <View style={styles.parametersSection}>
+            <Text style={styles.parametersTitle}>WHY THIS SCORE</Text>
+            {parameters.map((parameter) => (
+              <View key={parameter.label} style={styles.parameterRow}>
+                <Text style={styles.parameterLabel}>{parameter.label}</Text>
+                <Text style={[styles.parameterMark, isPositiveAnswer(parameter.value) ? styles.positiveMark : styles.negativeMark]}>
+                  {isPositiveAnswer(parameter.value) ? '✓' : '×'}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.commandBox}>
+            <View style={styles.commandAccent} />
+            <View style={styles.handlerAvatar}>
+              <Text style={styles.handlerAvatarText}>TE</Text>
+            </View>
+            <View style={styles.commandCopy}>
+              <Text style={styles.commandLabel}>COMMAND MESSAGE</Text>
+              <Text style={styles.commandText}>{commandMessage}</Text>
             </View>
           </View>
 
-          <BehaviorCard
-            accent="STRENGTH"
-            label={strongestBehavior}
-            text={`${strongestBehavior} led the session. Operational discipline held where it mattered most.`}
-          />
-
-          <BehaviorCard
-            accent="FOCUS"
-            label={improvementArea}
-            text={`${improvementArea} is the next refinement target. Review the lesson, reset, and tighten execution.`}
-          />
-
-          <View style={styles.commandBox}>
-            <Text style={styles.commandLabel}>COMMAND MESSAGE</Text>
-            <Text style={styles.commandText}>{commandMessage}</Text>
-          </View>
-
           <View style={styles.actions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => navigation.replace('MissionActive')}
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
-            >
-              <Text style={styles.secondaryButtonText}>BACK TO COMMAND</Text>
-            </Pressable>
-
             <Pressable
               accessibilityRole="button"
               onPress={() =>
@@ -196,10 +272,40 @@ export function MissionResultsScreen() {
             >
               <Text style={styles.primaryButtonText}>VIEW MISSION REPORT</Text>
             </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigation.replace('MissionActive')}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.secondaryButtonText}>BACK TO COMMAND</Text>
+            </Pressable>
           </View>
         </View>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function StatTile({
+  accent,
+  label,
+  value,
+}: {
+  accent: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.statTile}>
+      <View style={styles.statIcon}>
+        <Text style={styles.statIconText}>{accent}</Text>
+      </View>
+      <View style={styles.statCopy}>
+        <Text style={styles.statLabel}>{label}</Text>
+        <Text style={styles.statValue}>{value}</Text>
+      </View>
+    </View>
   );
 }
 
@@ -221,6 +327,29 @@ function BehaviorCard({
   );
 }
 
+function buildParameterRows(execution?: DebriefExecution): ParameterRow[] {
+  if (execution?.tradeStatus === 'no_trade') {
+    return [
+      { label: 'AVOIDED FORCING TRADES', value: execution.avoidedForcingTrades },
+      { label: 'REMAINED PATIENT', value: execution.remainedPatient },
+      { label: 'PROTECTED CAPITAL', value: execution.protectedCapital },
+      { label: 'FOLLOWED MISSION OBJECTIVE', value: execution.followedMissionObjective },
+    ];
+  }
+
+  return [
+    { label: 'FOLLOWED PLAN', value: execution?.followedPlan },
+    { label: 'RESPECTED STOPS', value: execution?.respectedStopLoss },
+    { label: 'AVOIDED REVENGE TRADING', value: execution?.avoidedRevengeTrading },
+    { label: 'AVOIDED FOMO', value: execution?.avoidedFomo },
+    { label: 'STOPPED APPROPRIATELY', value: execution?.stoppedWhenShouldHave },
+  ];
+}
+
+function isPositiveAnswer(value?: string): boolean {
+  return value === 'Yes' || value === 'Mostly';
+}
+
 function gradeLabel(grade: string): string {
   if (['S', 'A+', 'A', 'A-'].includes(grade)) return 'EXC';
   if (['B+', 'B'].includes(grade)) return 'STR';
@@ -230,7 +359,7 @@ function gradeLabel(grade: string): string {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#060909',
+    backgroundColor: '#050707',
     flex: 1,
   },
   content: {
@@ -238,23 +367,58 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   frame: {
-    backgroundColor: '#0b1111',
+    backgroundColor: '#0a1010',
     borderColor: '#202827',
+    borderRadius: 8,
     borderWidth: 1,
-    padding: 24,
+    overflow: 'hidden',
+    padding: 28,
+    paddingTop: 70,
+    position: 'relative',
   },
-  topRow: {
+  cornerVertical: {
+    backgroundColor: '#e9c176',
+    height: 72,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 6,
+  },
+  cornerHorizontal: {
+    backgroundColor: '#e9c176',
+    height: 6,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 86,
+  },
+  closeButton: {
     alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    height: 44,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: 18,
+    top: 18,
+    width: 44,
+    zIndex: 2,
+  },
+  closeButtonText: {
+    color: '#d1c5b4',
+    fontSize: 28,
+    fontWeight: '300',
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 34,
   },
   statusPlate: {
     alignItems: 'center',
+    backgroundColor: 'rgba(233, 193, 118, 0.08)',
     borderColor: '#4e4639',
     borderWidth: 1,
-    minWidth: 210,
-    paddingHorizontal: 16,
+    marginBottom: 18,
+    minWidth: 220,
+    paddingHorizontal: 18,
     paddingVertical: 10,
   },
   statusPlateText: {
@@ -263,39 +427,23 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 4,
   },
-  closeButton: {
-    alignItems: 'center',
-    height: 44,
-    justifyContent: 'center',
-    width: 44,
-  },
-  closeButtonText: {
-    color: '#d1c5b4',
-    fontSize: 28,
-    fontWeight: '300',
-  },
   title: {
     color: '#f8fafc',
-    fontSize: 28,
-    fontWeight: '300',
+    fontSize: 40,
+    fontWeight: '900',
+    letterSpacing: 1,
+    lineHeight: 48,
+    textAlign: 'center',
+  },
+  heroGrid: {
+    gap: 28,
     marginBottom: 28,
   },
-  rankPanel: {
+  bentoCard: {
     alignItems: 'center',
     backgroundColor: '#071a33',
     justifyContent: 'center',
-    marginBottom: 28,
-    minHeight: 210,
-    overflow: 'hidden',
-    padding: 24,
-    position: 'relative',
-  },
-  scorePanel: {
-    alignItems: 'center',
-    backgroundColor: '#071a33',
-    justifyContent: 'center',
-    marginBottom: 28,
-    minHeight: 250,
+    minHeight: 220,
     overflow: 'hidden',
     padding: 24,
     position: 'relative',
@@ -310,9 +458,10 @@ const styles = StyleSheet.create({
   },
   panelLabel: {
     color: '#d1c5b4',
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 14,
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
+    marginBottom: 16,
   },
   gradeRow: {
     alignItems: 'flex-start',
@@ -320,9 +469,9 @@ const styles = StyleSheet.create({
   },
   gradeLetter: {
     color: '#e9c176',
-    fontSize: 92,
+    fontSize: 84,
     fontWeight: '900',
-    lineHeight: 104,
+    lineHeight: 96,
     textShadowColor: 'rgba(233, 193, 118, 0.25)',
     textShadowOffset: { height: 8, width: 0 },
     textShadowRadius: 18,
@@ -350,64 +499,176 @@ const styles = StyleSheet.create({
   },
   scoreValue: {
     color: '#e9c176',
-    fontSize: 42,
+    fontSize: 36,
     fontWeight: '900',
-    lineHeight: 46,
   },
-  scoreSuffix: {
+  statsGrid: {
+    gap: 14,
+    marginBottom: 28,
+  },
+  statTile: {
+    alignItems: 'center',
+    backgroundColor: '#171c1c',
+    borderColor: '#252d2d',
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 84,
+    padding: 18,
+  },
+  statIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    minWidth: 38,
+  },
+  statIconText: {
+    color: '#e9c176',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  statCopy: {
+    flex: 1,
+  },
+  statLabel: {
     color: '#d1c5b4',
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
+  statValue: {
+    color: '#f8fafc',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  behaviorGrid: {
+    gap: 18,
+    marginBottom: 28,
   },
   behaviorCard: {
     backgroundColor: '#171c1c',
     borderColor: '#252d2d',
     borderWidth: 1,
-    marginBottom: 22,
     padding: 22,
   },
   behaviorAccent: {
     color: '#e9c176',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '900',
     letterSpacing: 2,
     marginBottom: 10,
   },
   behaviorLabel: {
     color: '#f8fafc',
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 12,
+    fontSize: 19,
+    fontWeight: '800',
+    marginBottom: 10,
   },
   behaviorText: {
     color: '#d1c5b4',
-    fontSize: 16,
-    lineHeight: 23,
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 22,
+  },
+  parametersSection: {
+    marginBottom: 28,
+  },
+  parametersTitle: {
+    borderBottomColor: '#202827',
+    borderBottomWidth: 1,
+    color: '#e9c176',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 14,
+    paddingBottom: 10,
+  },
+  parameterRow: {
+    alignItems: 'center',
+    borderBottomColor: '#151d1d',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 42,
+  },
+  parameterLabel: {
+    color: '#d1c5b4',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  parameterMark: {
+    fontSize: 18,
+    fontWeight: '900',
+    marginLeft: 16,
+  },
+  positiveMark: {
+    color: '#e9c176',
+  },
+  negativeMark: {
+    color: '#ffb4ab',
   },
   commandBox: {
-    backgroundColor: '#060909',
-    borderColor: '#151d1d',
-    borderWidth: 1,
-    marginBottom: 24,
-    marginTop: 8,
+    backgroundColor: '#050707',
+    flexDirection: 'row',
+    marginBottom: 28,
+    minHeight: 112,
     padding: 22,
+    position: 'relative',
+  },
+  commandAccent: {
+    backgroundColor: '#e9c176',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 5,
+  },
+  handlerAvatar: {
+    alignItems: 'center',
+    backgroundColor: '#111818',
+    height: 44,
+    justifyContent: 'center',
+    marginRight: 16,
+    marginTop: 12,
+    width: 44,
+  },
+  handlerAvatarText: {
+    color: '#8a8f93',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  commandCopy: {
+    flex: 1,
   },
   commandLabel: {
     color: '#e9c176',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '900',
-    letterSpacing: 3,
-    marginBottom: 14,
-    textAlign: 'center',
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   commandText: {
     color: '#f8fafc',
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
+    fontSize: 15,
+    fontStyle: 'italic',
+    fontWeight: '700',
+    lineHeight: 21,
   },
   actions: {
     gap: 18,
+  },
+  primaryButton: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    justifyContent: 'center',
+    minHeight: 58,
+  },
+  primaryButtonText: {
+    color: '#101415',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 2,
   },
   secondaryButton: {
     alignItems: 'center',
@@ -418,18 +679,6 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: '#e9c176',
-    fontSize: 14,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: '#e9c176',
-    justifyContent: 'center',
-    minHeight: 58,
-  },
-  primaryButtonText: {
-    color: '#101415',
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 2,
