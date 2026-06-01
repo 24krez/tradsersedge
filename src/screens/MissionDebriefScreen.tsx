@@ -94,6 +94,27 @@ function buildDisciplineScoreDocument({
   };
 }
 
+function dateFromFirestoreValue(value: any): Date | null {
+  if (!value) return null;
+  if (typeof value === 'string') {
+    const parsed = new Date(`${value}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value.toDate === 'function') return value.toDate();
+  if (value instanceof Date) return value;
+  return null;
+}
+
+function formatDebriefDate(date: Date | null): string {
+  if (!date) return '';
+
+  return new Intl.DateTimeFormat('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date).toUpperCase();
+}
+
 export function MissionDebriefScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'MissionDebrief'>>();
@@ -104,6 +125,7 @@ export function MissionDebriefScreen() {
   const routeMissionId = route.params?.missionId;
 
   const [missionData, setMissionData] = useState<MissionData | null>(null);
+  const [debriefDate, setDebriefDate] = useState<Date | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Gateway
@@ -177,6 +199,7 @@ export function MissionDebriefScreen() {
                  setPulseScore(data.psychology?.stateScore || 50);
                  setEmotion(data.psychology?.emotions?.[0] || null);
                  setNotes(data.lesson?.text || '');
+                 setDebriefDate(dateFromFirestoreValue(data.date || data.createdAt));
                } else {
                  Alert.alert("Missing Data", "No debrief record was found for this mission. It may be from an older version of the app.");
                  navigation.goBack();
@@ -204,7 +227,9 @@ export function MissionDebriefScreen() {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         if (!snapshot.empty) {
           const docSnap = snapshot.docs[0];
-          setMissionData({ id: docSnap.id, ...docSnap.data() } as MissionData);
+          const data = docSnap.data();
+          setMissionData({ id: docSnap.id, ...data } as MissionData);
+          setDebriefDate(dateFromFirestoreValue(data.createdAt));
         } else {
           setMissionData(null);
         }
@@ -267,6 +292,9 @@ export function MissionDebriefScreen() {
 
   // Live Score Calculation
   const currentDisciplineScore = useMemo(calculateCurrentDisciplineScore, [traded, followedPlan, respectedStop, stoppedAppropriately, avoidedFomo, avoidedRevenge, avoidedForcingTrades, remainedPatient, protectedCapital, followedMissionObjective, pulseScore, emotion, notes, missionData]);
+  const headerDate = useMemo(() => {
+    return formatDebriefDate(debriefDate || dateFromFirestoreValue(missionData?.createdAt));
+  }, [debriefDate, missionData?.createdAt]);
 
   const handleSubmit = async () => {
     const completedScore = calculateCurrentDisciplineScore();
@@ -377,9 +405,10 @@ export function MissionDebriefScreen() {
         userId: user.uid,
       });
       
-      // Navigate to results
-      navigation.replace('MissionResults');
-      Alert.alert("Debrief Archived", "Discipline score updated.");
+      navigation.replace('MissionResults', {
+        debriefId: debriefRef.id,
+        missionId: missionData.id,
+      });
 
             } catch (e: any) {
               console.error('Error saving debrief:', e);
@@ -425,8 +454,19 @@ export function MissionDebriefScreen() {
           <View style={styles.header}>
             <Text style={styles.headerEyebrow}>POST-SESSION ANALYSIS</Text>
             <Text style={styles.headerTitle}>MISSION DEBRIEF</Text>
+            {headerDate ? <Text style={styles.headerDate}>{headerDate}</Text> : null}
             <View style={styles.headerDivider} />
           </View>
+
+          {isReadOnly && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigation.replace('MissionActive')}
+              style={({ pressed }) => [styles.returnToMissionButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.returnToMissionText}>BACK TO ACTIVE MISSION</Text>
+            </Pressable>
+          )}
 
           {/* Top Mission Summary Card (Matches Readiness Check) */}
           <View style={styles.summaryCard}>
@@ -651,7 +691,10 @@ const styles = StyleSheet.create({
   header: { marginBottom: 24 },
   headerEyebrow: { color: '#e9c176', fontFamily: 'Montserrat', fontSize: 10, fontWeight: '700', letterSpacing: 2, marginBottom: 4 },
   headerTitle: { color: '#f8fafc', fontFamily: 'Montserrat', fontSize: 28, fontWeight: '900', letterSpacing: 1 },
+  headerDate: { color: '#8a8f93', fontSize: 11, fontWeight: '800', letterSpacing: 2, marginTop: 8, textTransform: 'uppercase' },
   headerDivider: { height: 2, backgroundColor: '#e9c176', width: '100%', marginTop: 12 },
+  returnToMissionButton: { alignItems: 'center', borderColor: '#4e4639', borderWidth: 1, justifyContent: 'center', marginBottom: 24, minHeight: 48 },
+  returnToMissionText: { color: '#e9c176', fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   
   summaryCard: { backgroundColor: '#1f2324', borderColor: 'rgba(154, 143, 128, 0.18)', borderWidth: 1, paddingHorizontal: 18, paddingVertical: 19, position: 'relative', marginBottom: 32 },
   cornerDetail: { backgroundColor: '#c5a059', height: 20, left: 0, position: 'absolute', top: 0, width: 4 },
@@ -731,4 +774,5 @@ const styles = StyleSheet.create({
   submitButton: { backgroundColor: '#e9c176', paddingVertical: 18, alignItems: 'center' },
   submitButtonDisabled: { backgroundColor: '#4e4639' },
   submitButtonText: { color: '#412d00', fontFamily: 'Montserrat', fontSize: 14, fontWeight: '800', letterSpacing: 2 },
+  buttonPressed: { opacity: 0.72 },
 });

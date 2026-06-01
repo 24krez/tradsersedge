@@ -25,7 +25,7 @@ export type RootStackParamList = {
   MissionSetup: undefined;
   MissionActive: undefined;
   MissionDebrief: { missionId?: string; readOnly?: boolean } | undefined;
-  MissionResults: undefined;
+  MissionResults: { debriefId?: string; missionId?: string } | undefined;
   Welcome: undefined;
   ProUpsell: undefined;
 };

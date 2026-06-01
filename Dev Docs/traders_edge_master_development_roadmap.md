@@ -6,7 +6,7 @@
 
 Trader's Edge is currently an Expo React Native app backed by Firebase Auth and Firestore. The build has a working authenticated shell, mission setup, readiness check, active mission state, mid-session mindset updates, session notes, mission completion, Pro-gated debrief entry, discipline scoring logic, Firestore persistence, profile editing, and multi-language resource files.
 
-The app is not launch-ready yet. The largest unfinished surfaces are email/password auth, notification delivery, Live Activities/Dynamic Island, real subscription billing, Mission Results, Progress, Vault, rank/classification integration, QA coverage, and store preparation.
+The app is not launch-ready yet. The largest unfinished surfaces are email/password auth, notification delivery, Live Activities/Dynamic Island, real subscription billing, full Mission Results reports, Progress, Vault, rank/classification integration, QA coverage, and store preparation.
 
 ## Current Implementation Snapshot
 
@@ -25,7 +25,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 **Partially implemented**
 - User model contains callsign, motto, subscription tier, onboarding status, and mission preferences. Rank and classification are displayed but not computed or persisted.
-- Mission results route exists, but the screen is still a placeholder.
+- Mission results route now shows an initial reward/feedback report after debrief, but the full report experience is still incomplete.
 - Progress and Vault tabs exist, but both screens are placeholders.
 - Notification rule generation exists, but device scheduling, permissions, settings, and delivery are not implemented.
 - Firestore indexes file exists, but required composite indexes have not been captured.
@@ -277,7 +277,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 **Goal:** Convert sessions into intelligence.
 
-**Status:** Debrief entry and persistence are implemented. Results experience is still missing.
+**Status:** Debrief entry, persistence, and initial reward feedback are implemented. Full results/report experience is still incomplete.
 
 **Tasks**
 - [x] Pro-gated debrief route
@@ -327,14 +327,16 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 **Goal:** Deliver immediate feedback.
 
-**Status:** Route exists, screen is a placeholder.
+**Status:** Initial reward/feedback screen is implemented. Full report and progression details are still pending.
 
 **Tasks**
-- [ ] Results screen UI
-- [ ] Grade display from saved debrief
+- [x] Results screen UI
+- [x] Reward/feedback command message
+- [x] Grade display from saved debrief
+- [x] Discipline score display
 - [ ] Score breakdown display
-- [ ] Strongest trait
-- [ ] Improvement area
+- [x] Strongest trait
+- [x] Improvement area
 - [ ] Lesson captured
 - [ ] Rank progress
 - [ ] Free-to-Pro upgrade prompt where applicable
@@ -512,7 +514,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [x] Discipline Score
 - [x] Pro-only debrief controls
 - [x] Archived debrief loading
-- [ ] Mission Results screen
+- [x] Mission Results reward screen
 - [ ] Progress
 - [ ] Vault
 - [ ] Rank Progression integration
