@@ -231,6 +231,8 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [ ] Push notification setup
 - [ ] Firebase Cloud Messaging integration
 - [x] Notification settings screen
+- [ ] Polish Alert Screen UI
+- [ ] Create Alert Preview component
 - [ ] Quiet hours UI
 - [ ] Delivery testing
 
@@ -620,3 +622,58 @@ Create Mission -> Start Session -> Receive Coaching -> Use Lock Screen / Nook ->
 At that point, Trader's Edge delivers its core promise:
 
 **"A discipline and mindset operating system for traders."**
+
+---
+
+## Future Architecture Note: Unified Mission Timeline
+
+Do not build `mission_activity_events` on Day 6.
+
+For now, continue using the existing collections:
+
+* `missions`
+* `mindset_checkins`
+* `session_notes`
+* `mission_debriefs`
+
+However, leave the code structured so a future unified mission timeline can be added later.
+
+### Future collection idea:
+`mission_activity_events`
+
+**Purpose:**
+Create one unified timeline of everything that happens during a mission. This would make future Vault, Mission Reports, Weekly Intelligence, Progress insights, and behavioral analysis easier to build.
+
+**Future document shape:**
+```ts
+{
+  userId: string;
+  missionId: string;
+  type:
+    | 'mission_started'
+    | 'mindset_update'
+    | 'session_note'
+    | 'impulse_log'
+    | 'rule_warning'
+    | 'emotional_shift'
+    | 'mission_completed'
+    | 'debrief_completed';
+
+  status?: 'locked_in' | 'on_track' | 'caution' | 'high_risk';
+  note?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Timestamp;
+}
+```
+
+**Future use cases:**
+* Vault mission timeline
+* Mission detail history
+* Mission report/dossier generation
+* Weekly intelligence reports
+* Behavioral pattern detection
+* AI-style session recap
+* Progress insights
+
+**Important:**
+Do not implement this collection now. Just avoid tightly coupling the Day 6 Pro Mission screens to the current collection structure so this timeline layer can be introduced later without a major rewrite.
