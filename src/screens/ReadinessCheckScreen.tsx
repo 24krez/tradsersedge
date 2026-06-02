@@ -123,6 +123,9 @@ export function ReadinessCheckScreen() {
       await updateDoc(doc(firestore, 'missions', missionData.id), {
         status: 'active',
         missionStatus: newStatusResult.status,
+        missionPhase: 'active',
+        sessionStartedAt: serverTimestamp(),
+        currentMindsetStatus: newStatusResult.status === 'Locked In' ? 'locked_in' : newStatusResult.status === 'On Track' ? 'on_track' : newStatusResult.status === 'Caution' ? 'caution' : 'high_risk',
       });
 
       navigation.goBack();

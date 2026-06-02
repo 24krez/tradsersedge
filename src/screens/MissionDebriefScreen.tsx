@@ -622,6 +622,14 @@ export function MissionDebriefScreen() {
                 <Text style={[styles.gatewayPillText, traded === false && styles.gatewayPillTextActive]}>NO TRADE</Text>
               </Pressable>
             </View>
+            {!isArchivedMode && (
+              <Pressable 
+                onPress={() => navigation.replace('MissionActive')} 
+                style={({ pressed }) => [styles.skipDebriefBtn, pressed && styles.buttonPressed]}
+              >
+                <Text style={styles.skipDebriefBtnText}>SKIP DEBRIEF</Text>
+              </Pressable>
+            )}
           </View>
 
           {traded === true && (
@@ -824,6 +832,9 @@ const styles = StyleSheet.create({
   gatewayPillActive: { backgroundColor: '#e9c176', borderColor: '#e9c176' },
   gatewayPillText: { color: '#8a8f93', fontFamily: 'Montserrat', fontSize: 10, fontWeight: '700', letterSpacing: 1 },
   gatewayPillTextActive: { color: '#101415' },
+  
+  skipDebriefBtn: { alignItems: 'center', borderColor: '#4e4639', borderWidth: 1, justifyContent: 'center', marginTop: 16, minHeight: 48 },
+  skipDebriefBtnText: { color: '#8a8f93', fontFamily: 'Montserrat', fontSize: 10, fontWeight: '700', letterSpacing: 2 },
 
   triPillContainer: { flexDirection: 'row', gap: 0 },
   triPill: { flex: 1, paddingVertical: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#2a3135', backgroundColor: '#101415' },

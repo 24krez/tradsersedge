@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { addDoc, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { MissionStackNavigationProp } from '../../App';
 import {
@@ -15,6 +15,9 @@ import {
 import { firebaseAuth, firestore } from '../services/firebase';
 import { calculateMissionStatus } from '../logic/missionStatus';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
+import { ProMissionBriefing } from './ProMissionBriefing';
+import { ProMissionCockpit } from './ProMissionCockpit';
+import { ProMissionAccomplished } from './ProMissionAccomplished';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
@@ -28,7 +31,7 @@ type UserStats = {
 
 import { MindsetCheckin } from '../logic/missionStatus';
 
-function CompactMindsetModule({ missionId }: { missionId: string }) {
+export function CompactMindsetModule({ missionId }: { missionId: string }) {
   const { t } = useTranslation('mission');
   const [isSaving, setIsSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -367,25 +370,62 @@ export function MissionActiveScreen() {
   }
 
   const [isRestarting, setIsRestarting] = useState(false);
+  const [hasDebrief, setHasDebrief] = useState(true);
+
+  useEffect(() => {
+    if (missionData?.id && missionData.status === 'completed' && user) {
+      const checkDebrief = async () => {
+        try {
+          const q = query(
+            collection(firestore, 'mission_debriefs'),
+            where('missionId', '==', missionData.id),
+            where('userId', '==', user.uid),
+            limit(1)
+          );
+          const snap = await getDocs(q);
+          setHasDebrief(!snap.empty);
+        } catch (e) {
+          console.error('Error checking for debrief:', e);
+        }
+      };
+      checkDebrief();
+    }
+  }, [missionData?.id, missionData?.status, user]);
 
   const handleRestartMission = async () => {
     if (!firebaseAuth.currentUser || !missionData || isRestarting) return;
-    setIsRestarting(true);
-    try {
-      await addDoc(collection(firestore, 'missions'), {
-        userId: firebaseAuth.currentUser.uid,
-        objective: missionData.objective,
-        coreFocus: missionData.coreFocus,
-        threats: missionData.threats,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        lastMindsetScore: 100,
-      });
-      // The onSnapshot listener will automatically pick up the new mission and switch the UI to pending.
-    } catch (error) {
-      console.error('Error restarting mission:', error);
-    } finally {
-      setIsRestarting(false);
+
+    const startNewMission = async () => {
+      setIsRestarting(true);
+      try {
+        await addDoc(collection(firestore, 'missions'), {
+          userId: firebaseAuth.currentUser!.uid,
+          objective: missionData.objective,
+          coreFocus: missionData.coreFocus,
+          threats: missionData.threats,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          lastMindsetScore: 100,
+        });
+        // The onSnapshot listener will automatically pick up the new mission and switch the UI to pending.
+      } catch (error) {
+        console.error('Error restarting mission:', error);
+      } finally {
+        setIsRestarting(false);
+      }
+    };
+
+    if (!hasDebrief) {
+      Alert.alert(
+        'Incomplete Debrief',
+        'You have not completed the debrief for this mission. No debrief data will be saved. Are you sure you want to start a new mission?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Start New Mission', style: 'destructive', onPress: startNewMission }
+        ]
+      );
+    } else {
+      startNewMission();
     }
   };
 
@@ -488,6 +528,29 @@ export function MissionActiveScreen() {
   const focusKey = coreFocus;
   const shouldShowStats = hasStats(userStats);
 
+  // ── Pro Phase Routing ──
+  // Pro users get Briefing for pending missions, and Cockpit for active missions.
+  // Completed states fall through to the existing Free UI.
+  if (isPro) {
+    if (status === 'pending') {
+      return <ProMissionBriefing mission={missionData} />;
+    }
+    if (status === 'active') {
+      return <ProMissionCockpit mission={missionData} />;
+    }
+    if (status === 'completed') {
+      return (
+        <ProMissionAccomplished 
+          mission={missionData} 
+          hasDebrief={hasDebrief} 
+          isRestarting={isRestarting} 
+          onRestartMission={handleRestartMission} 
+        />
+      );
+    }
+  }
+
+  // ── Free Mission Active Lite (unchanged) ──
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -584,16 +647,20 @@ export function MissionActiveScreen() {
           ) : isCompleted ? (
             <View style={styles.completedContainer}>
               <Text style={styles.completedTitle}>MISSION ACCOMPLISHED</Text>
-              <Text style={styles.completedSubtitle}>Review your debrief and stats for this session.</Text>
+              <Text style={styles.completedSubtitle}>
+                {hasDebrief ? 'Review your debrief and stats for this session.' : 'You have an incomplete debrief for this mission.'}
+              </Text>
               <Pressable
                 style={({ pressed }) => [
                   styles.startTradingButton,
                   { width: '100%' }, // Make it full width inside the centered container
                   pressed && styles.startTradingButtonPressed,
                 ]}
-                onPress={() => navigation.navigate('MissionDebrief', { missionId: missionData?.id, readOnly: true })}
+                onPress={() => navigation.navigate('MissionDebrief', { missionId: missionData?.id, readOnly: hasDebrief })}
               >
-                <Text style={styles.startTradingButtonText}>VIEW DEBRIEF</Text>
+                <Text style={styles.startTradingButtonText}>
+                  {hasDebrief ? 'VIEW DEBRIEF' : 'COMPLETE YOUR DEBRIEF'}
+                </Text>
               </Pressable>
               
               <Pressable

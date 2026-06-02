@@ -6,6 +6,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View 
 
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseAuth, firestore } from '../services/firebase';
+import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 
 type UserStats = {
   averageDisciplineScore?: number;
@@ -27,6 +28,7 @@ export function ProfileScreen() {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isShowingNotifications, setIsShowingNotifications] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -84,6 +86,10 @@ export function ProfileScreen() {
     } catch (e) {
       console.error('Error signing out:', e);
     }
+  }
+
+  if (isShowingNotifications) {
+    return <NotificationSettingsScreen onBack={() => setIsShowingNotifications(false)} />;
   }
 
   return (
@@ -169,6 +175,18 @@ export function ProfileScreen() {
             </View>
           )}
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setIsShowingNotifications(true)}
+          style={({ pressed }) => [styles.alertsButton, pressed && styles.buttonPressed]}
+        >
+          <View>
+            <Text style={styles.alertsEyebrow}>DAY 5 NOTIFICATION ENGINE</Text>
+            <Text style={styles.alertsTitle}>MISSION ALERTS</Text>
+          </View>
+          <Text style={styles.alertsAction}>OPEN</Text>
+        </Pressable>
 
         <Pressable
           accessibilityRole="button"
@@ -374,6 +392,38 @@ const styles = StyleSheet.create({
     color: '#8a8f93',
     fontSize: 13,
     lineHeight: 19,
+  },
+  alertsButton: {
+    alignItems: 'center',
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    minHeight: 76,
+    padding: 16,
+  },
+  alertsEyebrow: {
+    color: '#e9c176',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    marginBottom: 6,
+  },
+  alertsTitle: {
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  alertsAction: {
+    color: '#e9c176',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   readOnlyRow: {
     flexDirection: 'row',

@@ -48,5 +48,9 @@ service cloud.firestore {
       allow read, update, delete: if isOwner(resource.data.userId) || isOwner(document);
       allow create: if isOwner(request.resource.data.userId);
     }
+
+    match /notification_settings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
   }
 }
