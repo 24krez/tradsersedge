@@ -215,7 +215,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 **Goal:** Power mission coaching.
 
-**Status:** Rule generation exists. Notification delivery does not.
+**Status:** Rule generation, local notification scheduling, and notification settings UI are implemented. Push notifications and Firebase Cloud Messaging integration remain open.
 
 **Tasks**
 - [x] Mission start rule
@@ -226,11 +226,11 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [x] High Risk behavioral alert rule
 - [x] Locked In positive reinforcement rule
 - [x] Quiet-hours filtering logic
-- [ ] Notification permissions
-- [ ] Local notification scheduling
+- [x] Notification permissions
+- [x] Local notification scheduling
 - [ ] Push notification setup
 - [ ] Firebase Cloud Messaging integration
-- [ ] Notification settings screen
+- [x] Notification settings screen
 - [ ] Quiet hours UI
 - [ ] Delivery testing
 
