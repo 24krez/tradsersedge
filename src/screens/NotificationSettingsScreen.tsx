@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  ImageBackground,
+  ImageSourcePropType,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -14,6 +16,8 @@ import {
 import * as Notifications from 'expo-notifications';
 
 import { AlertSettings, useAuth, useIsPro } from '../contexts/AuthContext';
+import { getCoachMessage } from '../features/coaching/coachEngine';
+import type { AlertType, CoachingStyle, MissionStatus } from '../features/coaching/coachTypes';
 import { syncAlertSchedules } from '../services/alertScheduler';
 import { defaultAlertSettings, updateUserProfile } from '../services/userProfile';
 import { requestNotificationPermission, NotificationPermissionStatus } from '../services/notificationSettings';
@@ -26,6 +30,31 @@ const activeTrackColor = '#cda35a';
 const inactiveTrackColor = '#2b3334';
 const activeThumbColor = '#f1c977';
 const inactiveThumbColor = '#b8b6ad';
+
+const coachingModeImages: Record<CoachingStyle, ImageSourcePropType> = {
+  tactical: require('../../assets/coaching/tactical-mode.png'),
+  positive: require('../../assets/coaching/positive-mode.png'),
+};
+
+const sampleMissionContext = {
+  objective: 'Protect Capital',
+  threat: 'FOMO',
+  coreFocus: 'Patience',
+  missionStatus: 'active' as MissionStatus,
+  lastLesson: 'Wait for confirmation before entering.',
+};
+
+type PreviewItem = {
+  label: string;
+  alertType: AlertType;
+  isProOnly?: boolean;
+};
+
+const previewItems: PreviewItem[] = [
+  { label: 'Daily Mission Reminder', alertType: 'daily_mission' },
+  { label: 'High Risk Alert', alertType: 'high_risk', isProOnly: true },
+  { label: 'Locked In Reinforcement', alertType: 'locked_in', isProOnly: true },
+];
 
 export function NotificationSettingsScreen({ onBack }: NotificationSettingsScreenProps) {
   const { user, userProfile } = useAuth();
@@ -59,7 +88,7 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
 
   useEffect(() => {
     if (userProfile) {
-      setSettings(userProfile.alertSettings || defaultAlertSettings);
+      setSettings(normalizeAlertSettings(userProfile.alertSettings));
     }
   }, [userProfile]);
 
@@ -174,7 +203,11 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
           status={permissionStatus}
         />
 
-        <AlertPreview />
+        <AlertPreview
+          coachingStyle={isPro ? settings.coaching.style : 'tactical'}
+          isProUser={isPro}
+          onProUpsell={handleProUpsell}
+        />
 
         {/* BEHAVIORAL ALERTS */}
         <View style={styles.sectionCard}>
@@ -350,32 +383,20 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
           />
           
           <Text style={styles.groupLabel}>COACHING STYLE</Text>
-          <View style={styles.buttonGrid}>
-            <OptionButton 
-              label="OPERATOR" 
-              selected={settings.coaching.style === 'operator'}
-              onPress={() => updateSettingGroup('coaching', { style: 'operator' })}
+          <View style={styles.coachingModeGrid}>
+            <CoachingModeCard
+              body="Direct, sharp, discipline-first alerts for clean execution."
+              imageSource={coachingModeImages.tactical}
+              label="TACTICAL"
+              selected={(isPro ? settings.coaching.style : 'tactical') === 'tactical'}
+              onPress={() => updateSettingGroup('coaching', { style: 'tactical' })}
             />
-            <OptionButton 
-              label="COACH" 
-              selected={settings.coaching.style === 'coach'}
-              onPress={() => updateSettingGroup('coaching', { style: 'coach' })}
-              isProOnly
-              isProUser={isPro}
-              onProUpsell={handleProUpsell}
-            />
-            <OptionButton 
-              label="DIRECT" 
-              selected={settings.coaching.style === 'direct'}
-              onPress={() => updateSettingGroup('coaching', { style: 'direct' })}
-              isProOnly
-              isProUser={isPro}
-              onProUpsell={handleProUpsell}
-            />
-            <OptionButton 
-              label="MINIMAL" 
-              selected={settings.coaching.style === 'minimal'}
-              onPress={() => updateSettingGroup('coaching', { style: 'minimal' })}
+            <CoachingModeCard
+              body="Grounded, encouraging alerts for patience and consistency."
+              imageSource={coachingModeImages.positive}
+              label="POSITIVE"
+              selected={isPro && settings.coaching.style === 'positive'}
+              onPress={() => updateSettingGroup('coaching', { style: 'positive' })}
               isProOnly
               isProUser={isPro}
               onProUpsell={handleProUpsell}
@@ -460,6 +481,24 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+function normalizeAlertSettings(settings?: AlertSettings): AlertSettings {
+  if (!settings) return defaultAlertSettings;
+
+  const legacyStyle = (settings.coaching as { style?: string } | undefined)?.style;
+  const style: CoachingStyle = legacyStyle === 'positive' ? 'positive' : 'tactical';
+
+  return {
+    ...defaultAlertSettings,
+    ...settings,
+    behavioral: { ...defaultAlertSettings.behavioral, ...settings.behavioral },
+    mission: { ...defaultAlertSettings.mission, ...settings.mission },
+    intelligence: { ...defaultAlertSettings.intelligence, ...settings.intelligence },
+    lockScreen: { ...defaultAlertSettings.lockScreen, ...settings.lockScreen },
+    coaching: { ...defaultAlertSettings.coaching, ...settings.coaching, style },
+    quietHours: { ...defaultAlertSettings.quietHours, ...settings.quietHours },
+  };
 }
 
 function SectionHeader({ 
@@ -584,6 +623,66 @@ function OptionButton({
   );
 }
 
+function CoachingModeCard({
+  body,
+  imageSource,
+  isProOnly,
+  isProUser,
+  label,
+  onPress,
+  onProUpsell,
+  selected,
+}: {
+  body: string;
+  imageSource: ImageSourcePropType;
+  isProOnly?: boolean;
+  isProUser?: boolean;
+  label: string;
+  onPress: () => void;
+  onProUpsell?: () => void;
+  selected: boolean;
+}) {
+  const disabled = isProOnly && !isProUser;
+
+  const handlePress = () => {
+    if (disabled && onProUpsell) {
+      onProUpsell();
+    } else {
+      onPress();
+    }
+  };
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={handlePress}
+      style={[
+        styles.coachingModeCard,
+        selected && !disabled && styles.coachingModeCardSelected,
+        disabled && styles.coachingModeCardDisabled,
+      ]}
+    >
+      <ImageBackground
+        imageStyle={styles.coachingModeImage}
+        resizeMode="cover"
+        source={imageSource}
+        style={styles.coachingModeVisual}
+      >
+        <View style={styles.coachingModeShade} />
+        {isProOnly && (
+          <View style={styles.coachingModeProPill}>
+            <Text style={styles.coachingModeProPillText}>PRO</Text>
+          </View>
+        )}
+      </ImageBackground>
+      <View style={styles.coachingModeCopy}>
+        <Text style={[styles.coachingModeTitle, disabled && styles.lockedText]}>{label}</Text>
+        <Text style={[styles.coachingModeBody, disabled && styles.lockedText]}>{body}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function PermissionCard({
   isSaving,
   onRequestPermission,
@@ -620,30 +719,85 @@ function PermissionCard({
   );
 }
 
-function AlertPreview() {
+function AlertPreview({
+  coachingStyle,
+  isProUser,
+  onProUpsell,
+}: {
+  coachingStyle: CoachingStyle;
+  isProUser: boolean;
+  onProUpsell: () => void;
+}) {
+  const [activePreviewIndex, setActivePreviewIndex] = useState(0);
+  const activeItem = previewItems[activePreviewIndex];
+  const isLocked = activeItem.isProOnly && !isProUser;
+  const message = getCoachMessage({
+    ...sampleMissionContext,
+    alertType: activeItem.alertType,
+    coachingStyle,
+  });
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setActivePreviewIndex((currentIndex) => (currentIndex + 1) % previewItems.length);
+    }, 4200);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   return (
     <View style={styles.previewCard}>
-      <Text style={styles.previewKicker}>LOCK SCREEN BRIEFING</Text>
-      <View style={styles.previewContent}>
-        <View style={styles.previewIcon}>
-          <Text style={styles.previewIconText}>◎</Text>
-        </View>
-        <View style={styles.previewTextBlock}>
-          <View style={styles.previewHeader}>
-            <Text style={styles.previewEyebrow}>MISSION BRIEFING</Text>
-            <Text style={styles.previewNow}>Now</Text>
+      <View style={styles.previewTopRow}>
+        <Text style={styles.previewKicker}>MISSION ALERT PREVIEWS</Text>
+        <Text style={styles.previewStyleLabel}>
+          {activePreviewIndex + 1}/{previewItems.length} · {coachingStyle.toUpperCase()}
+        </Text>
+      </View>
+      <View style={styles.previewCarousel}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={isLocked ? onProUpsell : undefined}
+          style={[styles.previewContent, isLocked && styles.previewContentLocked]}
+        >
+          <View style={styles.previewIcon}>
+            <Text style={styles.previewIconText}>◎</Text>
           </View>
-          <Text style={styles.previewTitle}>Mission Briefing Ready</Text>
-          <Text style={styles.previewBody}>
-            Check today's trading mission before you enter the market.
-          </Text>
+          <View style={styles.previewTextBlock}>
+            <View style={styles.previewHeader}>
+              <View style={styles.previewLabelRow}>
+                <Text style={styles.previewEyebrow}>{activeItem.label}</Text>
+                {activeItem.isProOnly && (
+                  <View style={styles.previewProPill}>
+                    <Text style={styles.previewProPillText}>PRO</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.previewNow}>Now</Text>
+            </View>
+            <Text style={[styles.previewTitle, isLocked && styles.lockedText]}>{message.title}</Text>
+            <Text style={[styles.previewBody, isLocked && styles.lockedText]}>{message.body}</Text>
+          </View>
+          <Text style={[styles.previewChevron, isLocked && styles.lockedText]}>›</Text>
+        </Pressable>
+        <View style={styles.previewDots}>
+          {previewItems.map((item, index) => {
+            const isActive = index === activePreviewIndex;
+
+            return (
+              <Pressable
+                accessibilityLabel={`Show ${item.label}`}
+                accessibilityRole="button"
+                key={item.alertType}
+                onPress={() => setActivePreviewIndex(index)}
+                style={[styles.previewDotButton, isActive && styles.previewDotButtonActive]}
+              />
+            );
+          })}
         </View>
-        <Text style={styles.previewChevron}>›</Text>
       </View>
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: '#070c14',
@@ -774,12 +928,26 @@ const styles = StyleSheet.create({
   previewCard: {
     marginBottom: 24,
   },
+  previewTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   previewKicker: {
     color: '#d8d2c7',
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.6,
-    marginBottom: 12,
+  },
+  previewStyleLabel: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  previewCarousel: {
+    gap: 12,
   },
   previewContent: {
     alignItems: 'center',
@@ -790,6 +958,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 14,
     padding: 16,
+  },
+  previewContentLocked: {
+    backgroundColor: '#111719',
+    borderColor: '#1f2628',
   },
   previewIcon: {
     alignItems: 'center',
@@ -813,11 +985,33 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 3,
   },
+  previewLabelRow: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 8,
+  },
   previewEyebrow: {
     color: '#e9c176',
+    flexShrink: 1,
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.6,
+  },
+  previewProPill: {
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: 'rgba(233, 193, 118, 0.4)',
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  previewProPillText: {
+    color: '#e9c176',
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   previewNow: {
     color: '#f8fafc',
@@ -839,6 +1033,22 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 22,
     fontWeight: '700',
+  },
+  previewDots: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  previewDotButton: {
+    backgroundColor: '#394345',
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  previewDotButtonActive: {
+    backgroundColor: '#e9c176',
+    width: 22,
   },
   sectionCard: {
     backgroundColor: '#14191a',
@@ -923,6 +1133,66 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  coachingModeGrid: {
+    gap: 12,
+  },
+  coachingModeCard: {
+    backgroundColor: '#101719',
+    borderColor: '#2b3334',
+    borderRadius: 8,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  coachingModeCardSelected: {
+    borderColor: '#e9c176',
+  },
+  coachingModeCardDisabled: {
+    opacity: 0.62,
+  },
+  coachingModeVisual: {
+    height: 124,
+    justifyContent: 'flex-start',
+  },
+  coachingModeImage: {
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  coachingModeShade: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7, 12, 20, 0.16)',
+  },
+  coachingModeProPill: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(7, 12, 20, 0.72)',
+    borderColor: 'rgba(233, 193, 118, 0.55)',
+    borderRadius: 4,
+    borderWidth: 1,
+    margin: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  coachingModeProPillText: {
+    color: '#e9c176',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  coachingModeCopy: {
+    padding: 13,
+  },
+  coachingModeTitle: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
+  coachingModeBody: {
+    color: '#d8d2c7',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
   },
   buttonRow: {
     flexDirection: 'row',

@@ -3,6 +3,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 import { firebaseAuth, firestore } from '../services/firebase';
+import type { CoachingStyle } from '../features/coaching/coachTypes';
 
 export type SubscriptionTier = 'free' | 'pro' | 'lifetime' | 'founder';
 
@@ -34,7 +35,7 @@ export interface AlertSettings {
     liveActivityUpdates: boolean;
   };
   coaching: {
-    style: 'operator' | 'coach' | 'direct' | 'minimal';
+    style: CoachingStyle;
     frequency: 'low' | 'medium' | 'high';
   };
   quietHours: {
