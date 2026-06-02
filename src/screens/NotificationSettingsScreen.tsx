@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,20 +10,12 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
-import { useAuth } from '../contexts/AuthContext';
-import {
-  NotificationSettings,
-  NotificationSettingsUpdate,
-  ReminderType,
-  cancelReminder,
-  loadNotificationSettings,
-  requestNotificationPermission,
-  scheduleDailyReminder,
-  scheduleDebriefReminder,
-  scheduleSessionReminder,
-  updateNotificationSetting,
-} from '../services/notificationSettings';
+import { AlertSettings, useAuth } from '../contexts/AuthContext';
+import { syncAlertSchedules } from '../services/alertScheduler';
+import { defaultAlertSettings, updateUserProfile } from '../services/userProfile';
+import { requestNotificationPermission, NotificationPermissionStatus } from '../services/notificationSettings';
 
 type NotificationSettingsScreenProps = {
   onBack?: () => void;
@@ -35,121 +27,41 @@ const activeThumbColor = '#f1c977';
 const inactiveThumbColor = '#b8b6ad';
 
 export function NotificationSettingsScreen({ onBack }: NotificationSettingsScreenProps) {
-  const { user, isPro } = useAuth();
-  const [settings, setSettings] = useState<NotificationSettings | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, userProfile } = useAuth();
+  
+  // Local state to hold settings while editing
+  const [settings, setSettings] = useState<AlertSettings | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
+  const [permissionStatus, setPermissionStatus] = useState<NotificationPermissionStatus>('undetermined');
 
   useEffect(() => {
-    let isMounted = true;
+    Notifications.getPermissionsAsync().then((status) => {
+      setPermissionStatus(status.status === 'granted' || status.status === 'denied' ? status.status : 'undetermined');
+    });
+  }, []);
 
-    async function loadSettings() {
-      if (!user) {
-        setSettings(null);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const loadedSettings = await loadNotificationSettings(user.uid);
-        if (isMounted) {
-          setSettings(loadedSettings);
-        }
-      } catch (error) {
-        console.error('Error loading notification settings:', error);
-        if (isMounted) {
-          setStatusMessage('Alert settings are offline. Try again in a moment.');
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    loadSettings();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
-
-  const permissionLabel = useMemo(() => {
-    if (!settings) return 'CHECKING';
-    return settings.permissionStatus.toUpperCase();
-  }, [settings]);
+  const permissionLabel = permissionStatus.toUpperCase();
 
   async function handlePermissionRequest() {
-    if (!user || !settings || isSaving) return;
-
+    if (isSaving) return;
     setIsSaving(true);
-    setStatusMessage('');
-
     try {
-      const permissionStatus = await requestNotificationPermission();
-      const nextSettings = { ...settings, permissionStatus };
-
-      setSettings(nextSettings);
-      await updateNotificationSetting(user.uid, { permissionStatus });
-
-      if (permissionStatus === 'granted') {
-        await syncCoreSchedules(nextSettings);
-        setStatusMessage('Notifications enabled. Device schedule synced.');
-      } else {
-        setStatusMessage('Notifications are not enabled on this device.');
-      }
+      const newStatus = await requestNotificationPermission();
+      setPermissionStatus(newStatus);
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      setStatusMessage('Permission request failed. Check device settings.');
     } finally {
       setIsSaving(false);
     }
   }
 
-  async function applyUpdates(updates: NotificationSettingsUpdate, changedReminder?: ReminderType) {
-    if (!user || !settings || isSaving) return;
-
-    const nextSettings = { ...settings, ...updates };
-    setSettings(nextSettings);
-    setIsSaving(true);
-    setStatusMessage('');
-
-    try {
-      await updateNotificationSetting(user.uid, updates);
-
-      if (changedReminder === 'daily') {
-        await scheduleDailyReminder(nextSettings);
-      } else if (changedReminder === 'session') {
-        await scheduleSessionReminder(nextSettings);
-      } else if (changedReminder === 'debrief') {
-        await scheduleDebriefReminder(nextSettings);
-      } else if (changedReminder) {
-        await cancelReminder(changedReminder);
-      }
-    } catch (error) {
-      console.error('Error updating notification settings:', error);
-      setSettings(settings);
-      setStatusMessage('Update failed. Previous settings restored.');
-    } finally {
-      setIsSaving(false);
+  useEffect(() => {
+    if (userProfile) {
+      setSettings(userProfile.alertSettings || defaultAlertSettings);
     }
-  }
+  }, [userProfile]);
 
-  async function syncCoreSchedules(nextSettings: NotificationSettings) {
-    await Promise.all([
-      scheduleDailyReminder(nextSettings),
-      isPro ? scheduleSessionReminder(nextSettings) : cancelReminder('session'),
-      isPro ? scheduleDebriefReminder(nextSettings) : cancelReminder('debrief'),
-    ]);
-  }
-
-  function handleUnlockPro() {
-    console.log('TODO: Present RevenueCat paywall for notification upgrades');
-    setStatusMessage('Pro unlock flow is coming online soon.');
-  }
-
-  if (isLoading) {
+  if (!userProfile || !settings) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingState}>
@@ -159,16 +71,32 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
     );
   }
 
-  if (!settings) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.emptyState}>
-          <Text style={styles.title}>MISSION ALERTS</Text>
-          <Text style={styles.bodyCopy}>Sign in to configure trading reminders.</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  // Handle nested updates
+  const updateSettingGroup = async <K extends keyof AlertSettings>(
+    group: K,
+    updates: Partial<AlertSettings[K]>
+  ) => {
+    if (!user || isSaving) return;
+    
+    setIsSaving(true);
+    
+    const newGroup = { ...settings[group], ...updates };
+    const newSettings = { ...settings, [group]: newGroup };
+    
+    // Optimistic update
+    setSettings(newSettings);
+    
+    try {
+      await updateUserProfile(user.uid, { alertSettings: newSettings });
+      await syncAlertSchedules(user.uid, newSettings);
+    } catch (error) {
+      console.error('Failed to update alert settings:', error);
+      // Revert on failure
+      setSettings(settings); 
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -200,90 +128,276 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
           isSaving={isSaving}
           onRequestPermission={handlePermissionRequest}
           permissionLabel={permissionLabel}
-          status={settings.permissionStatus}
+          status={permissionStatus}
         />
 
-        <AlertPreview settings={settings} />
+        <AlertPreview />
 
+        {/* BEHAVIORAL ALERTS */}
         <View style={styles.sectionCard}>
-          <SectionHeader kicker="ACTIVE PROTOCOL" title="Daily Mission Reminder" />
-          <ReminderRow
-            description="Mission Briefing Ready"
-            enabled={settings.dailyReminderEnabled}
-            onTimeChange={(dailyReminderTime) => applyUpdates({ dailyReminderTime }, 'daily')}
-            onToggle={(dailyReminderEnabled) => applyUpdates({ dailyReminderEnabled }, 'daily')}
-            time={settings.dailyReminderTime}
+          <SectionHeader title="BEHAVIORAL ALERTS" />
+          <ToggleRow
+            label="Mission Status Warnings"
+            value={settings.behavioral.missionStatusWarnings}
+            onToggle={(val) => updateSettingGroup('behavioral', { missionStatusWarnings: val })}
           />
-          <Text style={styles.reminderCopy}>Check today's trading mission before you enter the market.</Text>
+          <ToggleRow
+            label="High Risk Alerts"
+            value={settings.behavioral.highRiskAlerts}
+            onToggle={(val) => updateSettingGroup('behavioral', { highRiskAlerts: val })}
+          />
+          <ToggleRow
+            label="Locked In Recognition"
+            value={settings.behavioral.lockedInRecognition}
+            onToggle={(val) => updateSettingGroup('behavioral', { lockedInRecognition: val })}
+          />
+          <ToggleRow
+            label="Caution Alerts"
+            value={settings.behavioral.cautionAlerts}
+            onToggle={(val) => updateSettingGroup('behavioral', { cautionAlerts: val })}
+          />
         </View>
 
+        {/* MISSION ALERTS */}
         <View style={styles.sectionCard}>
-          <SectionHeader isLocked={!isPro} isPro title="Session Start Reminder" />
-          <ReminderRow
-            description="Session Starting"
-            disabled={!isPro}
-            enabled={isPro && settings.sessionReminderEnabled}
-            onTimeChange={(sessionReminderTime) => applyUpdates({ sessionReminderTime }, 'session')}
-            onToggle={(sessionReminderEnabled) => applyUpdates({ sessionReminderEnabled }, 'session')}
-            time={settings.sessionReminderTime}
+          <SectionHeader title="MISSION ALERTS" />
+          <ToggleRow
+            label="Mission Start"
+            value={settings.mission.missionStart}
+            onToggle={(val) => updateSettingGroup('mission', { missionStart: val })}
           />
-          <Text style={styles.reminderCopy}>
-            Your trading window is opening. Stay patient and follow the plan.
+          <ToggleRow
+            label="Mid-Session Check-In"
+            value={settings.mission.midSessionCheckIn}
+            onToggle={(val) => updateSettingGroup('mission', { midSessionCheckIn: val })}
+          />
+          <ToggleRow
+            label="Mission Complete"
+            value={settings.mission.missionComplete}
+            onToggle={(val) => updateSettingGroup('mission', { missionComplete: val })}
+          />
+          <ToggleRow
+            label="15 Minutes to Close"
+            value={settings.mission.fifteenMinutesToClose}
+            onToggle={(val) => updateSettingGroup('mission', { fifteenMinutesToClose: val })}
+          />
+          <ToggleRow
+            label="Volatility Alerts"
+            value={settings.mission.volatilityAlerts}
+            onToggle={(val) => updateSettingGroup('mission', { volatilityAlerts: val })}
+          />
+          <ToggleRow
+            label="Debrief Reminder"
+            value={settings.mission.debriefReminder}
+            onToggle={(val) => updateSettingGroup('mission', { debriefReminder: val })}
+          />
+        </View>
+
+        {/* INTELLIGENCE REPORTS */}
+        <View style={styles.sectionCard}>
+          <SectionHeader title="INTELLIGENCE REPORTS" />
+          <ToggleRow
+            label="Weekly Intelligence Report"
+            value={settings.intelligence.weeklyIntelligenceReport}
+            onToggle={(val) => updateSettingGroup('intelligence', { weeklyIntelligenceReport: val })}
+          />
+          <ToggleRow
+            label="Behavioral Pattern Reports"
+            value={settings.intelligence.behavioralPatternReports}
+            onToggle={(val) => updateSettingGroup('intelligence', { behavioralPatternReports: val })}
+          />
+          <ToggleRow
+            label="Monthly Performance Summary"
+            value={settings.intelligence.monthlyPerformanceSummary}
+            onToggle={(val) => updateSettingGroup('intelligence', { monthlyPerformanceSummary: val })}
+          />
+          <ToggleRow
+            label="Rank Promotion Alerts"
+            value={settings.intelligence.rankPromotionAlerts}
+            onToggle={(val) => updateSettingGroup('intelligence', { rankPromotionAlerts: val })}
+          />
+        </View>
+
+        {/* LOCK SCREEN & NOOK */}
+        <View style={styles.sectionCard}>
+          <SectionHeader title="LOCK SCREEN & NOOK" />
+          <ToggleRow
+            label="Mission Briefings"
+            value={settings.lockScreen.missionBriefings}
+            onToggle={(val) => updateSettingGroup('lockScreen', { missionBriefings: val })}
+          />
+          <ToggleRow
+            label="Lock Screen Coaching"
+            value={settings.lockScreen.lockScreenCoaching}
+            onToggle={(val) => updateSettingGroup('lockScreen', { lockScreenCoaching: val })}
+          />
+          <ToggleRow
+            label="Nook Monitoring"
+            value={settings.lockScreen.nookMonitoring}
+            onToggle={(val) => updateSettingGroup('lockScreen', { nookMonitoring: val })}
+          />
+          <ToggleRow
+            label="Live Activity Updates"
+            value={settings.lockScreen.liveActivityUpdates}
+            onToggle={(val) => updateSettingGroup('lockScreen', { liveActivityUpdates: val })}
+          />
+        </View>
+
+        {/* COACHING DELIVERY */}
+        <View style={styles.sectionCard}>
+          <SectionHeader title="COACHING DELIVERY" />
+          
+          <Text style={styles.groupLabel}>COACHING STYLE</Text>
+          <View style={styles.buttonGrid}>
+            <OptionButton 
+              label="OPERATOR" 
+              selected={settings.coaching.style === 'operator'}
+              onPress={() => updateSettingGroup('coaching', { style: 'operator' })}
+            />
+            <OptionButton 
+              label="COACH" 
+              selected={settings.coaching.style === 'coach'}
+              onPress={() => updateSettingGroup('coaching', { style: 'coach' })}
+            />
+            <OptionButton 
+              label="DIRECT" 
+              selected={settings.coaching.style === 'direct'}
+              onPress={() => updateSettingGroup('coaching', { style: 'direct' })}
+            />
+            <OptionButton 
+              label="MINIMAL" 
+              selected={settings.coaching.style === 'minimal'}
+              onPress={() => updateSettingGroup('coaching', { style: 'minimal' })}
+            />
+          </View>
+
+          <Text style={[styles.groupLabel, { marginTop: 24 }]}>COACHING FREQUENCY</Text>
+          <View style={styles.buttonRow}>
+            <OptionButton 
+              label="LOW" 
+              selected={settings.coaching.frequency === 'low'}
+              onPress={() => updateSettingGroup('coaching', { frequency: 'low' })}
+              style={{ flex: 1 }}
+            />
+            <OptionButton 
+              label="MEDIUM" 
+              selected={settings.coaching.frequency === 'medium'}
+              onPress={() => updateSettingGroup('coaching', { frequency: 'medium' })}
+              style={{ flex: 1 }}
+            />
+            <OptionButton 
+              label="HIGH" 
+              selected={settings.coaching.frequency === 'high'}
+              onPress={() => updateSettingGroup('coaching', { frequency: 'high' })}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </View>
+
+        {/* QUIET HOURS */}
+        <View style={styles.sectionCard}>
+          <View style={styles.quietHoursHeaderRow}>
+            <Text style={styles.sectionTitle}>QUIET HOURS</Text>
+            <Switch
+              ios_backgroundColor={inactiveTrackColor}
+              onValueChange={(val) => updateSettingGroup('quietHours', { enabled: val })}
+              thumbColor={settings.quietHours.enabled ? activeThumbColor : inactiveThumbColor}
+              trackColor={{ false: inactiveTrackColor, true: activeTrackColor }}
+              value={settings.quietHours.enabled}
+            />
+          </View>
+
+          <View style={styles.timeRow}>
+            <View style={styles.timeBlock}>
+              <Text style={styles.timeLabel}>START TIME</Text>
+              <TextInput
+                style={styles.timeInput}
+                value={settings.quietHours.startTime}
+                onChangeText={(val) => updateSettingGroup('quietHours', { startTime: val })}
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
+            <View style={styles.timeBlock}>
+              <Text style={styles.timeLabel}>END TIME</Text>
+              <TextInput
+                style={styles.timeInput}
+                value={settings.quietHours.endTime}
+                onChangeText={(val) => updateSettingGroup('quietHours', { endTime: val })}
+                keyboardType="numbers-and-punctuation"
+                maxLength={5}
+              />
+            </View>
+          </View>
+
+          <Text style={styles.quietHoursCopy}>
+            SYSTEM OVERRIDE: ALERTS WILL BE SUPPRESSED EXCEPT FOR HIGH-PRIORITY BEHAVIORAL WARNINGS DURING THIS WINDOW.
           </Text>
-          {!isPro && <ProLockedState onUnlock={handleUnlockPro} />}
         </View>
 
-        <View style={styles.sectionCard}>
-          <SectionHeader isLocked={!isPro} isPro title="Debrief Reminder" />
-          <ReminderRow
-            description="Complete Your Debrief"
-            disabled={!isPro}
-            enabled={isPro && settings.debriefReminderEnabled}
-            onTimeChange={(debriefReminderTime) => applyUpdates({ debriefReminderTime }, 'debrief')}
-            onToggle={(debriefReminderEnabled) => applyUpdates({ debriefReminderEnabled }, 'debrief')}
-            time={settings.debriefReminderTime}
-          />
-          <Text style={styles.reminderCopy}>
-            Log what happened, score your discipline, and close the session right.
-          </Text>
-          {!isPro && <ProLockedState onUnlock={handleUnlockPro} />}
-        </View>
-
-        <View style={styles.sectionCard}>
-          <SectionHeader isLocked={!isPro} isPro title="Advanced Notifications" />
-          <AdvancedToggle
-            disabled={!isPro}
-            enabled={isPro && settings.missedDebriefReminderEnabled}
-            label="Missed Debrief Reminder"
-            onValueChange={(missedDebriefReminderEnabled) =>
-              applyUpdates({ missedDebriefReminderEnabled }, 'missedDebrief')
-            }
-          />
-          <AdvancedToggle
-            disabled={!isPro}
-            enabled={isPro && settings.disciplineResetReminderEnabled}
-            label="Discipline Reset Reminder"
-            onValueChange={(disciplineResetReminderEnabled) =>
-              applyUpdates({ disciplineResetReminderEnabled }, 'disciplineReset')
-            }
-          />
-          <AdvancedToggle
-            disabled={!isPro}
-            enabled={isPro && settings.weeklyRecapEnabled}
-            label="Weekly Performance Recap"
-            onValueChange={(weeklyRecapEnabled) => applyUpdates({ weeklyRecapEnabled }, 'weeklyRecap')}
-          />
-          {!isPro && <ProLockedState onUnlock={handleUnlockPro} compact />}
-        </View>
-
-        <View style={styles.metaCard}>
-          <Text style={styles.metaLabel}>DEVICE TIMEZONE</Text>
-          <Text style={styles.metaValue}>{settings.timezone}</Text>
-        </View>
-
-        {statusMessage ? <Text style={styles.statusMessage}>{statusMessage}</Text> : null}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+    </View>
+  );
+}
+
+function ToggleRow({
+  label,
+  value,
+  onToggle,
+}: {
+  label: string;
+  value: boolean;
+  onToggle: (val: boolean) => void;
+}) {
+  return (
+    <View style={styles.advancedRow}>
+      <Text style={styles.advancedLabel}>{label}</Text>
+      <Switch
+        ios_backgroundColor={inactiveTrackColor}
+        onValueChange={onToggle}
+        thumbColor={value ? activeThumbColor : inactiveThumbColor}
+        trackColor={{ false: inactiveTrackColor, true: activeTrackColor }}
+        value={value}
+      />
+    </View>
+  );
+}
+
+function OptionButton({ 
+  label, 
+  selected, 
+  onPress,
+  style 
+}: { 
+  label: string; 
+  selected: boolean; 
+  onPress: () => void;
+  style?: any;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[
+        styles.optionButton,
+        selected ? styles.optionButtonSelected : styles.optionButtonUnselected,
+        style
+      ]}
+    >
+      <Text style={[
+        styles.optionButtonText,
+        selected ? styles.optionTextSelected : styles.optionTextUnselected
+      ]}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -296,7 +410,7 @@ function PermissionCard({
   isSaving: boolean;
   onRequestPermission: () => void;
   permissionLabel: string;
-  status: NotificationSettings['permissionStatus'];
+  status: NotificationPermissionStatus;
 }) {
   const isGranted = status === 'granted';
 
@@ -323,7 +437,7 @@ function PermissionCard({
   );
 }
 
-function AlertPreview({ settings }: { settings: NotificationSettings }) {
+function AlertPreview() {
   return (
     <View style={styles.previewCard}>
       <Text style={styles.previewKicker}>LOCK SCREEN BRIEFING</Text>
@@ -338,145 +452,13 @@ function AlertPreview({ settings }: { settings: NotificationSettings }) {
           </View>
           <Text style={styles.previewTitle}>Mission Briefing Ready</Text>
           <Text style={styles.previewBody}>
-            Check today's trading mission before you enter the market at {settings.dailyReminderTime}.
+            Check today's trading mission before you enter the market.
           </Text>
         </View>
         <Text style={styles.previewChevron}>›</Text>
       </View>
     </View>
   );
-}
-
-function SectionHeader({
-  isLocked,
-  isPro,
-  kicker,
-  title,
-}: {
-  isLocked?: boolean;
-  isPro?: boolean;
-  kicker?: string;
-  title: string;
-}) {
-  return (
-    <View style={styles.sectionHeader}>
-      <View>
-        {kicker ? <Text style={styles.cardEyebrow}>{kicker}</Text> : null}
-        <Text style={styles.sectionTitle}>{title}</Text>
-      </View>
-      {isPro ? (
-        <View style={styles.lockBadge}>
-          <Text style={styles.lockBadgeText}>{isLocked ? 'PRO LOCK' : 'PRO'}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function ReminderRow({
-  description,
-  disabled,
-  enabled,
-  onTimeChange,
-  onToggle,
-  time,
-}: {
-  description: string;
-  disabled?: boolean;
-  enabled: boolean;
-  onTimeChange: (time: string) => void;
-  onToggle: (enabled: boolean) => void;
-  time: string;
-}) {
-  const [draftTime, setDraftTime] = useState(time);
-
-  useEffect(() => {
-    setDraftTime(time);
-  }, [time]);
-
-  function commitTime() {
-    if (isValidTime(draftTime) && draftTime !== time) {
-      onTimeChange(draftTime);
-    } else {
-      setDraftTime(time);
-    }
-  }
-
-  return (
-    <View style={styles.reminderRow}>
-      <View style={styles.reminderMain}>
-        <Text style={[styles.reminderTitle, disabled && styles.lockedText]}>{description}</Text>
-        <TextInput
-          accessibilityLabel={`${description} time`}
-          editable={!disabled}
-          keyboardType="numbers-and-punctuation"
-          maxLength={5}
-          onBlur={commitTime}
-          onChangeText={setDraftTime}
-          placeholder="06:30"
-          placeholderTextColor="#5b6263"
-          style={[styles.timeInput, disabled && styles.timeInputDisabled]}
-          value={draftTime}
-        />
-      </View>
-      <Switch
-        disabled={disabled}
-        ios_backgroundColor={inactiveTrackColor}
-        onValueChange={onToggle}
-        thumbColor={enabled ? activeThumbColor : inactiveThumbColor}
-        trackColor={{ false: inactiveTrackColor, true: activeTrackColor }}
-        value={enabled}
-      />
-    </View>
-  );
-}
-
-function AdvancedToggle({
-  disabled,
-  enabled,
-  label,
-  onValueChange,
-}: {
-  disabled?: boolean;
-  enabled: boolean;
-  label: string;
-  onValueChange: (enabled: boolean) => void;
-}) {
-  return (
-    <View style={styles.advancedRow}>
-      <Text style={[styles.advancedLabel, disabled && styles.lockedText]}>{label}</Text>
-      <Switch
-        disabled={disabled}
-        ios_backgroundColor={inactiveTrackColor}
-        onValueChange={onValueChange}
-        thumbColor={enabled ? activeThumbColor : inactiveThumbColor}
-        trackColor={{ false: inactiveTrackColor, true: activeTrackColor }}
-        value={enabled}
-      />
-    </View>
-  );
-}
-
-function ProLockedState({ compact, onUnlock }: { compact?: boolean; onUnlock: () => void }) {
-  return (
-    <View style={[styles.proLockedState, compact && styles.compactLockedState]}>
-      <View style={styles.lockCopy}>
-        <Text style={styles.lockTitle}>PROTOCOL LOCKED</Text>
-        <Text style={styles.lockDescription}>Upgrade to Pro to activate this reminder channel.</Text>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onUnlock}
-        style={({ pressed }) => [styles.unlockButton, pressed && styles.buttonPressed]}
-      >
-        <Text style={styles.unlockButtonText}>UNLOCK PRO</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-function isValidTime(value: string): boolean {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
 const styles = StyleSheet.create({
@@ -495,11 +477,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
   },
   topBar: {
     alignItems: 'center',
@@ -553,11 +530,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 23,
   },
-  bodyCopy: {
-    color: '#d8d2c7',
-    fontSize: 15,
-    lineHeight: 23,
-  },
   permissionCard: {
     backgroundColor: '#11181a',
     borderColor: '#2b3334',
@@ -609,6 +581,12 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  buttonDisabled: {
+    opacity: 0.45,
+  },
+  buttonPressed: {
+    opacity: 0.7,
   },
   previewCard: {
     marginBottom: 24,
@@ -690,8 +668,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     borderBottomColor: '#242b2d',
     borderBottomWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 14,
     paddingBottom: 12,
   },
@@ -701,57 +677,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
     textTransform: 'uppercase',
-  },
-  lockBadge: {
-    backgroundColor: 'rgba(233, 193, 118, 0.1)',
-    borderColor: 'rgba(233, 193, 118, 0.5)',
-    borderRadius: 4,
-    borderWidth: 1,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-  },
-  lockBadgeText: {
-    color: '#e9c176',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  reminderRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 14,
-    justifyContent: 'space-between',
-  },
-  reminderMain: {
-    flex: 1,
-  },
-  reminderTitle: {
-    color: '#f8fafc',
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 10,
-  },
-  timeInput: {
-    backgroundColor: '#080c0d',
-    borderColor: '#7f7b71',
-    borderWidth: 1,
-    color: '#f8fafc',
-    fontSize: 18,
-    fontWeight: '900',
-    height: 42,
-    paddingHorizontal: 10,
-    width: 110,
-  },
-  timeInputDisabled: {
-    borderColor: '#30383a',
-    color: '#777f80',
-  },
-  reminderCopy: {
-    color: '#d8d2c7',
-    fontSize: 13,
-    fontWeight: '600',
-    lineHeight: 19,
-    marginTop: 12,
   },
   advancedRow: {
     alignItems: 'center',
@@ -766,82 +691,85 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     paddingRight: 12,
   },
-  lockedText: {
-    color: '#777f80',
-  },
-  proLockedState: {
-    alignItems: 'center',
-    backgroundColor: '#101416',
-    borderColor: 'rgba(233, 193, 118, 0.25)',
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 14,
-    padding: 12,
-  },
-  compactLockedState: {
-    marginTop: 10,
-  },
-  lockCopy: {
-    flex: 1,
-  },
-  lockTitle: {
-    color: '#e9c176',
+  groupLabel: {
+    color: '#d8d2c7',
     fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    marginBottom: 4,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 12,
   },
-  lockDescription: {
-    color: '#a9aaa4',
-    fontSize: 11,
-    fontWeight: '600',
-    lineHeight: 16,
+  buttonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  unlockButton: {
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  optionButton: {
     alignItems: 'center',
-    borderColor: '#e9c176',
+    borderColor: '#2b3334',
     borderWidth: 1,
+    height: 40,
     justifyContent: 'center',
-    minHeight: 36,
-    paddingHorizontal: 12,
+    width: '48%',
   },
-  unlockButtonText: {
-    color: '#e9c176',
-    fontSize: 9,
+  optionButtonSelected: {
+    backgroundColor: '#e9c176',
+    borderColor: '#e9c176',
+  },
+  optionButtonUnselected: {
+    backgroundColor: 'transparent',
+  },
+  optionButtonText: {
+    fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
   },
-  metaCard: {
-    backgroundColor: '#101416',
-    borderColor: '#272f31',
-    borderWidth: 1,
-    marginTop: 4,
-    padding: 14,
+  optionTextSelected: {
+    color: '#070c14',
   },
-  metaLabel: {
-    color: '#8a8f93',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    marginBottom: 5,
-  },
-  metaValue: {
-    color: '#f8fafc',
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  statusMessage: {
+  optionTextUnselected: {
     color: '#e9c176',
-    fontSize: 12,
+  },
+  quietHoursHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 16,
+  },
+  timeBlock: {
+    flex: 1,
+  },
+  timeLabel: {
+    color: '#d8d2c7',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  timeInput: {
+    backgroundColor: '#080c0d',
+    borderColor: '#2b3334',
+    borderWidth: 1,
+    color: '#e9c176',
+    fontSize: 14,
+    fontWeight: '800',
+    height: 44,
+    paddingHorizontal: 12,
+  },
+  quietHoursCopy: {
+    color: '#777f80',
+    fontSize: 9,
     fontWeight: '700',
-    lineHeight: 18,
-    marginTop: 14,
-  },
-  buttonPressed: {
-    opacity: 0.7,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
+    letterSpacing: 0.5,
+    lineHeight: 14,
+    marginTop: 8,
   },
 });

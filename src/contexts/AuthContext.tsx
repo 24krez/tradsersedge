@@ -6,6 +6,44 @@ import { firebaseAuth, firestore } from '../services/firebase';
 
 export type SubscriptionTier = 'free' | 'pro' | 'lifetime' | 'founder';
 
+export interface AlertSettings {
+  behavioral: {
+    missionStatusWarnings: boolean;
+    highRiskAlerts: boolean;
+    lockedInRecognition: boolean;
+    cautionAlerts: boolean;
+  };
+  mission: {
+    missionStart: boolean;
+    midSessionCheckIn: boolean;
+    missionComplete: boolean;
+    fifteenMinutesToClose: boolean;
+    volatilityAlerts: boolean;
+    debriefReminder: boolean;
+  };
+  intelligence: {
+    weeklyIntelligenceReport: boolean;
+    behavioralPatternReports: boolean;
+    monthlyPerformanceSummary: boolean;
+    rankPromotionAlerts: boolean;
+  };
+  lockScreen: {
+    missionBriefings: boolean;
+    lockScreenCoaching: boolean;
+    nookMonitoring: boolean;
+    liveActivityUpdates: boolean;
+  };
+  coaching: {
+    style: 'operator' | 'coach' | 'direct' | 'minimal';
+    frequency: 'low' | 'medium' | 'high';
+  };
+  quietHours: {
+    enabled: boolean;
+    startTime: string;
+    endTime: string;
+  };
+}
+
 export interface UserProfile {
   callsign: string;
   motto: string;
@@ -16,6 +54,7 @@ export interface UserProfile {
     threats: string[];
     coreFocus: string;
   };
+  alertSettings?: AlertSettings;
   uid: string;
   [key: string]: any;
 }
