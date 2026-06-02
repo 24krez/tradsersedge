@@ -204,6 +204,13 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [ ] Empty-state polish for first mission
 - [ ] Better navigation after Free mission completion
 
+**Pro Features**
+- [x] Pro Mission Briefing (Pre-trade checklist & session gate)
+- [x] Pro Mission Cockpit (Live mission tracking, intelligence & coaching)
+- [x] Pro Mission Accomplished (Post-session review & discipline grade preview)
+- [x] Market closed routing & restriction logic
+- [x] Pro UI Intelligence components (coaching messages, mindset status)
+
 ### Epic 6: Notification Engine
 
 **Goal:** Power mission coaching.
