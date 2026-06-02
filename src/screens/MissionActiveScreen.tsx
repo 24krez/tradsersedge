@@ -1,8 +1,8 @@
 import { useNavigation } from '@react-navigation/native';
 import { addDoc, collection, doc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { MissionStackNavigationProp } from '../../App';
 import {
@@ -30,6 +30,117 @@ type UserStats = {
 };
 
 import { MindsetCheckin } from '../logic/missionStatus';
+
+function AnimatedMissionHeader() {
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    const scanLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, {
+          toValue: 1,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanAnim, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    pulseLoop.start();
+    scanLoop.start();
+
+    return () => {
+      pulseLoop.stop();
+      scanLoop.stop();
+    };
+  }, [pulseAnim, scanAnim]);
+
+  const glowOpacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.08, 0.18],
+  });
+
+  const scale = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.015],
+  });
+
+  const scanTranslateX = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-140, 140],
+  });
+
+  const scanOpacity = scanAnim.interpolate({
+    inputRange: [0, 0.2, 0.8, 1],
+    outputRange: [0, 0.8, 0.8, 0],
+  });
+
+  return (
+    <View style={animatedHeaderStyles.container}>
+      <Animated.View
+        style={[
+          animatedHeaderStyles.glowEffect,
+          {
+            opacity: glowOpacity,
+            transform: [{ scale }],
+          },
+        ]}
+      />
+      <View style={animatedHeaderStyles.statusRow}>
+        <Animated.View
+          style={[
+            animatedHeaderStyles.liveDot,
+            {
+              opacity: glowOpacity,
+              transform: [{ scale }],
+            },
+          ]}
+        />
+        <Text style={animatedHeaderStyles.statusText}>SESSION LIVE</Text>
+      </View>
+      <Animated.Text
+        style={[
+          animatedHeaderStyles.title,
+          {
+            transform: [{ scale }],
+          },
+        ]}
+      >
+        ACTIVE MISSION
+      </Animated.Text>
+      <View style={animatedHeaderStyles.underline}>
+        <Animated.View
+          style={[
+            animatedHeaderStyles.scanLine,
+            {
+              opacity: scanOpacity,
+              transform: [{ translateX: scanTranslateX }],
+            },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
 
 export function CompactMindsetModule({ missionId }: { missionId: string }) {
   const { t } = useTranslation('mission');
@@ -341,7 +452,6 @@ export function MissionActiveScreen() {
   const { user } = useAuth();
   const [missionData, setMissionData] = useState<any>(undefined);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
-  const [isLive, setIsLive] = useState(false);
   const [currentSession, setCurrentSession] = useState(getCurrentSession());
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -555,15 +665,19 @@ export function MissionActiveScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
-            <View style={styles.liveIndicator}>
-              <View style={[styles.liveDot, isCompleted && { backgroundColor: '#8a8f93', shadowColor: 'transparent' }]} />
-              <Text style={styles.eyebrow}>
-                {isCompleted ? 'MISSION ARCHIVE' : isPending ? 'MISSION BRIEFING' : t('missionActive.liveFeed')}
-              </Text>
+          {!isPending && !isCompleted ? (
+            <AnimatedMissionHeader />
+          ) : (
+            <View style={styles.header}>
+              <View style={styles.liveIndicator}>
+                <View style={[styles.liveDot, isCompleted && { backgroundColor: '#8a8f93', shadowColor: 'transparent' }]} />
+                <Text style={styles.eyebrow}>
+                  {isCompleted ? 'MISSION ARCHIVE' : isPending ? 'MISSION BRIEFING' : t('missionActive.liveFeed')}
+                </Text>
+              </View>
+              <Text style={styles.title}>{t('missionActive.briefingTitle')}</Text>
             </View>
-            <Text style={styles.title}>{t('missionActive.briefingTitle')}</Text>
-          </View>
+          )}
 
             <View style={styles.objectiveCard}>
               <View style={styles.objectiveTopRow}>
@@ -1603,5 +1717,76 @@ const notesStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.5,
+  },
+});
+
+const animatedHeaderStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    backgroundColor: '#121719',
+    borderColor: 'rgba(233, 193, 118, 0.18)',
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginBottom: 24,
+    overflow: 'hidden',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    position: 'relative',
+  },
+  glowEffect: {
+    backgroundColor: 'rgba(233, 193, 118, 0.22)',
+    borderRadius: 999,
+    height: 28,
+    left: '15%',
+    position: 'absolute',
+    top: 24,
+    width: '70%',
+  },
+  statusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  liveDot: {
+    backgroundColor: '#79d284',
+    borderRadius: 4,
+    height: 8,
+    shadowColor: '#79d284',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    width: 8,
+  },
+  statusText: {
+    color: '#79d284',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  title: {
+    color: '#e9c176',
+    fontFamily: 'Montserrat',
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: 2,
+    textAlign: 'center',
+    textShadowColor: 'rgba(233, 193, 118, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+  },
+  underline: {
+    backgroundColor: '#e9c176',
+    borderRadius: 1.5,
+    height: 3,
+    marginTop: 12,
+    overflow: 'hidden',
+    width: 160,
+  },
+  scanLine: {
+    backgroundColor: '#fff4d8',
+    height: '100%',
+    width: 56,
   },
 });

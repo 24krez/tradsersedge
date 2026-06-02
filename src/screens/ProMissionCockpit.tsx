@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   Pressable,
   SafeAreaView,
@@ -55,6 +56,121 @@ const NOTE_TYPES: Array<{ type: NoteType; label: string; icon: string }> = [
 ];
 
 // Removed MINDSET_BUTTONS
+
+// ---------------------------------------------------------------------------
+// Animated Header Component
+// ---------------------------------------------------------------------------
+
+function AnimatedMissionHeader() {
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const scanAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0,
+          duration: 1400,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    const scanLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(scanAnim, {
+          toValue: 1,
+          duration: 2200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scanAnim, {
+          toValue: 0,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    pulseLoop.start();
+    scanLoop.start();
+
+    return () => {
+      pulseLoop.stop();
+      scanLoop.stop();
+    };
+  }, [pulseAnim, scanAnim]);
+
+  const glowOpacity = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.08, 0.18],
+  });
+
+  const scale = pulseAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.015],
+  });
+
+  const scanTranslateX = scanAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-140, 140],
+  });
+
+  const scanOpacity = scanAnim.interpolate({
+    inputRange: [0, 0.2, 0.8, 1],
+    outputRange: [0, 0.8, 0.8, 0],
+  });
+
+  return (
+    <View style={animatedHeaderStyles.container}>
+      <Animated.View
+        style={[
+          animatedHeaderStyles.glowEffect,
+          {
+            opacity: glowOpacity,
+            transform: [{ scale }],
+          },
+        ]}
+      />
+      <View style={animatedHeaderStyles.statusRow}>
+        <Animated.View
+          style={[
+            animatedHeaderStyles.liveDot,
+            {
+              opacity: glowOpacity,
+              transform: [{ scale }],
+            },
+          ]}
+        />
+        <Text style={animatedHeaderStyles.statusText}>SESSION LIVE</Text>
+      </View>
+      <Animated.Text
+        style={[
+          animatedHeaderStyles.title,
+          {
+            transform: [{ scale }],
+          },
+        ]}
+      >
+        ACTIVE MISSION
+      </Animated.Text>
+      <View style={animatedHeaderStyles.underline}>
+        <Animated.View
+          style={[
+            animatedHeaderStyles.scanLine,
+            {
+              opacity: scanOpacity,
+              transform: [{ translateX: scanTranslateX }],
+            },
+          ]}
+        />
+      </View>
+    </View>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -211,25 +327,20 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ── */}
-        <View style={s.header}>
-          <View style={s.headerTop}>
-            <View style={s.liveRow}>
-              <View style={s.liveDot} />
-              <Text style={s.headerEyebrow}>
-                {SESSION_LABELS[currentSessionKey].toUpperCase()} ACTIVE
-              </Text>
-            </View>
+        {/* ── Animated Active Mission Header (replaces top header) ── */}
+        <AnimatedMissionHeader />
+        
+        {/* ── Session Meta Info ── */}
+        <View style={s.headerMeta}>
+          <View style={s.metaRow}>
+            <Text style={s.metaText}>
+              {SESSION_LABELS[currentSessionKey].toUpperCase()} ACTIVE
+            </Text>
             <View style={s.proBadge}>
               <Text style={s.proBadgeText}>PRO</Text>
             </View>
           </View>
-          <Text style={s.headerObjective}>
-            {objectiveKey
-              ? t(`data.objectives.${objectiveKey}.title`).toUpperCase()
-              : 'MISSION ACTIVE'}
-          </Text>
-          <Text style={s.headerMeta}>
+          <Text style={s.timeRemaining}>
             {remaining.formatted.toUpperCase()} | {progress}% SESSION REMAINING
           </Text>
         </View>
@@ -551,6 +662,26 @@ const s = StyleSheet.create({
     marginBottom: 6,
   },
   headerMeta: {
+    backgroundColor: '#14181a',
+    borderColor: 'rgba(233, 193, 118, 0.1)',
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  metaRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  metaText: {
+    color: '#79d284',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  timeRemaining: {
     color: '#8a8f93',
     fontSize: 11,
     fontWeight: '700',
@@ -1077,5 +1208,76 @@ const modalS = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.7,
+  },
+});
+
+const animatedHeaderStyles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    backgroundColor: '#121719',
+    borderColor: 'rgba(233, 193, 118, 0.18)',
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginBottom: 16,
+    marginHorizontal: 20,
+    overflow: 'hidden',
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    position: 'relative',
+  },
+  glowEffect: {
+    backgroundColor: 'rgba(233, 193, 118, 0.22)',
+    borderRadius: 999,
+    height: 28,
+    left: '15%',
+    position: 'absolute',
+    top: 24,
+    width: '70%',
+  },
+  statusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  liveDot: {
+    backgroundColor: '#79d284',
+    borderRadius: 4,
+    height: 8,
+    shadowColor: '#79d284',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    width: 8,
+  },
+  statusText: {
+    color: '#79d284',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  title: {
+    color: '#e9c176',
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: 2,
+    textAlign: 'center',
+    textShadowColor: 'rgba(233, 193, 118, 0.5)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12,
+  },
+  underline: {
+    backgroundColor: '#e9c176',
+    borderRadius: 1.5,
+    height: 3,
+    marginTop: 12,
+    overflow: 'hidden',
+    width: 160,
+  },
+  scanLine: {
+    backgroundColor: '#fff4d8',
+    height: '100%',
+    width: 56,
   },
 });
