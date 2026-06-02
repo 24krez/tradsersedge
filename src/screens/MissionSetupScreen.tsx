@@ -1,13 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
 
-import { MissionStackNavigationProp } from '../../App';
+import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { firestore } from '../services/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
 
 type Template = {
   key: string;
@@ -56,14 +55,18 @@ export function MissionSetupScreen() {
   const { t } = useTranslation('mission');
   const { user, userProfile } = useAuth();
   const navigation = useNavigation<MissionStackNavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'MissionSetup'>>();
+  const editingMissionId = route.params?.missionId;
   const [selectedObjective, setSelectedObjective] = useState<string>(
-    userProfile?.missionPreferences?.objective || objectiveKeys[2]
+    route.params?.objective || userProfile?.missionPreferences?.objective || objectiveKeys[2]
   );
   const [selectedThreats, setSelectedThreats] = useState<string[]>(
-    userProfile?.missionPreferences?.threats || ['overtrading', 'enteringEarly', 'lackOfPatience']
+    route.params?.threats ||
+      userProfile?.missionPreferences?.threats ||
+      ['overtrading', 'enteringEarly', 'lackOfPatience']
   );
   const [selectedFocus, setSelectedFocus] = useState<string>(
-    userProfile?.missionPreferences?.coreFocus || 'discipline'
+    route.params?.coreFocus || userProfile?.missionPreferences?.coreFocus || 'discipline'
   );
 
   const timestamp = useMemo(() => {
@@ -90,15 +93,20 @@ export function MissionSetupScreen() {
         coreFocus: selectedFocus,
       };
 
-      // 1. Create the new pending mission
-      await addDoc(collection(firestore, 'missions'), {
-        userId: user.uid,
-        ...newPreferences,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
+      if (editingMissionId) {
+        await updateDoc(doc(firestore, 'missions', editingMissionId), {
+          ...newPreferences,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await addDoc(collection(firestore, 'missions'), {
+          userId: user.uid,
+          ...newPreferences,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+        });
+      }
 
-      // 2. Save preferences to user profile for future defaults
       await updateDoc(doc(firestore, 'users', user.uid), {
         missionPreferences: newPreferences,
       });

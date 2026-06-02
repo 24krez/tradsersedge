@@ -22,7 +22,14 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
 export type RootStackParamList = {
   ReadinessCheck: undefined;
-  MissionSetup: undefined;
+  MissionSetup:
+    | {
+        missionId?: string;
+        objective?: string;
+        threats?: string[];
+        coreFocus?: string;
+      }
+    | undefined;
   MissionActive: undefined;
   MissionDebrief: { missionId?: string; readOnly?: boolean } | undefined;
   MissionResults: { debriefId?: string; missionId?: string } | undefined;

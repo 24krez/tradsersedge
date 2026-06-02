@@ -201,6 +201,15 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
     }
   };
 
+  const handleChangeMission = () => {
+    navigation.navigate('MissionSetup', {
+      missionId: mission.id,
+      objective: mission.objective,
+      threats: mission.threats || [],
+      coreFocus: mission.coreFocus,
+    });
+  };
+
   // Session details
   const currentSessionKey = sessionInfo.session || 'new_york';
   const remaining = getTimeRemaining(currentSessionKey);
@@ -255,17 +264,26 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
         </View>
 
         {/* ── Primary Objective Card (Cockpit Style) ── */}
-        <View style={s.objectiveCard}>
+        <Pressable
+          accessibilityHint="Opens mission setup to change your objective, threats, and focus."
+          accessibilityRole="button"
+          onPress={handleChangeMission}
+          style={({ pressed }) => [
+            s.objectiveCard,
+            pressed && s.objectiveCardPressed,
+          ]}
+        >
           <View style={s.goldAccent} />
           <View style={s.objectiveTop}>
             <Text style={s.objectiveEyebrow}>PRIMARY OBJECTIVE</Text>
-            <Text style={s.objectiveIcon}>◎</Text>
+            <Text style={s.objectiveIcon}>›</Text>
           </View>
           <Text style={s.objectiveText}>
             {objectiveKey
               ? t(`data.objectives.${objectiveKey}.title`).toUpperCase()
               : '—'}
           </Text>
+          <Text style={s.objectiveChangeHint}>TAP TO CHANGE MISSION</Text>
           <View style={s.progressTrack}>
             <View style={[s.progressFill, { width: `0%` }]} />
           </View>
@@ -273,7 +291,7 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
             <Text style={s.progressLabel}>SESSION PROGRESS: 0%</Text>
             <Text style={s.stateLabel}>OPERATIONAL STATE: PENDING</Text>
           </View>
-        </View>
+        </Pressable>
 
         {/* ── Threat + Focus Split (Cockpit Style) ── */}
         <View style={s.splitRow}>
@@ -618,6 +636,10 @@ const s = StyleSheet.create({
     padding: 22,
     position: 'relative',
   },
+  objectiveCardPressed: {
+    borderColor: 'rgba(233, 193, 118, 0.55)',
+    opacity: 0.82,
+  },
   goldAccent: {
     backgroundColor: '#e9c176',
     bottom: 0,
@@ -641,13 +663,21 @@ const s = StyleSheet.create({
   objectiveIcon: {
     color: 'rgba(233, 193, 118, 0.35)',
     fontSize: 24,
+    lineHeight: 24,
   },
   objectiveText: {
     color: '#f8fafc',
     fontSize: 26,
     fontWeight: '900',
     letterSpacing: 0.5,
-    marginBottom: 18,
+    marginBottom: 8,
+  },
+  objectiveChangeHint: {
+    color: '#e9c176',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    marginBottom: 16,
   },
   progressTrack: {
     backgroundColor: 'rgba(233, 193, 118, 0.12)',
