@@ -456,12 +456,19 @@ function PerformanceInsightsCard({ model }: { model: ProgressModel }) {
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>PERFORMANCE INSIGHTS</Text>
-      <View style={styles.performanceGrid}>
+      
+      {/* Most Used Row */}
+      <View style={styles.performanceRow}>
         <PerformanceItem label="MOST USED OBJECTIVE" value={model.mostUsedObjective} />
         <PerformanceItem label="MOST USED FOCUS" value={model.mostUsedFocus} />
+      </View>
+      
+      {/* Highest Scoring Row */}
+      <View style={styles.performanceRow}>
         <PerformanceItem label="HIGHEST SCORING OBJECTIVE" value={model.highestScoringObjective} />
         <PerformanceItem label="HIGHEST SCORING FOCUS" value={model.highestScoringFocus} />
       </View>
+      
       <View style={styles.scoreGrid}>
         <ScoreLine label="AVG OBJ SCORE" value={model.averageObjectiveScore} />
         <ScoreLine label="AVG FOCUS SCORE" value={model.averageFocusScore} />
@@ -494,23 +501,52 @@ function ScoreLine({ label, value }: { label: string; value: number }) {
 }
 
 function TradeMixCard({ model }: { model: ProgressModel }) {
+  const total = model.tradeDays + model.noTradeDays + model.incompleteMissions;
+  const tradePercent = total > 0 ? (model.tradeDays / total) * 100 : 0;
+  const noTradePercent = total > 0 ? (model.noTradeDays / total) * 100 : 0;
+  const missedPercent = total > 0 ? (model.incompleteMissions / total) * 100 : 0;
+
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>TRADE / NO-TRADE MIX</Text>
-      <View style={styles.mixGrid}>
-        <MixItem label="TRADE" value={model.tradeDays} />
-        <MixItem label="NO TRADE" value={model.noTradeDays} />
-        <MixItem label="MISSED" value={model.incompleteMissions} />
+      
+      <View style={styles.mixVisualContainer}>
+        {total === 0 ? (
+          <View style={[styles.mixVisualSegment, styles.mixVisualEmpty, { width: '100%' }]} />
+        ) : (
+          <>
+            {tradePercent > 0 && <View style={[styles.mixVisualSegment, styles.mixVisualTrade, { width: `${tradePercent}%` }]} />}
+            {noTradePercent > 0 && <View style={[styles.mixVisualSegment, styles.mixVisualNoTrade, { width: `${noTradePercent}%` }]} />}
+            {missedPercent > 0 && <View style={[styles.mixVisualSegment, styles.mixVisualMissed, { width: `${missedPercent}%` }]} />}
+          </>
+        )}
+      </View>
+
+      <View style={styles.mixLegendRow}>
+        <MixLegendItem label="TRADE" type="trade" value={model.tradeDays} />
+        <MixLegendItem label="NO TRADE" type="notrade" value={model.noTradeDays} />
+        <MixLegendItem label="MISSED" type="missed" value={model.incompleteMissions} />
       </View>
     </View>
   );
 }
 
-function MixItem({ label, value }: { label: string; value: number }) {
+function MixLegendItem({ label, value, type }: { label: string; type: 'missed' | 'notrade' | 'trade'; value: number }) {
+  const getDotStyle = () => {
+    switch (type) {
+      case 'trade': return styles.mixVisualTrade;
+      case 'notrade': return styles.mixVisualNoTrade;
+      case 'missed': return styles.mixVisualMissed;
+    }
+  };
+
   return (
-    <View style={styles.mixItem}>
-      <Text style={styles.mixValue}>{value}</Text>
-      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.mixLabel}>{label}</Text>
+    <View style={styles.mixLegendItem}>
+      <View style={styles.mixLegendTop}>
+        <View style={[styles.mixLegendDot, getDotStyle()]} />
+        <Text style={styles.mixLegendValue}>{value}</Text>
+      </View>
+      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.mixLegendLabel}>{label}</Text>
     </View>
   );
 }
@@ -1474,9 +1510,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     rowGap: 16,
   },
+  performanceRow: {
+    flexDirection: 'row',
+    columnGap: 20,
+    marginBottom: 16,
+  },
   performanceItem: {
     minHeight: 70,
-    width: '47%',
+    flex: 1,
   },
   performanceLabel: {
     color: '#8f8981',
@@ -1508,29 +1549,68 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '900',
   },
-  mixGrid: {
+  mixVisualContainer: {
+    backgroundColor: '#121617',
+    borderRadius: 4,
     flexDirection: 'row',
-    gap: 10,
+    gap: 2,
+    height: 8,
+    marginBottom: 24,
+    overflow: 'hidden',
   },
-  mixItem: {
+  mixVisualSegment: {
+    height: '100%',
+  },
+  mixVisualEmpty: {
+    backgroundColor: '#2b3031',
+  },
+  mixVisualTrade: {
+    backgroundColor: '#e9c176',
+  },
+  mixVisualNoTrade: {
+    backgroundColor: '#4a5052',
+  },
+  mixVisualMissed: {
+    backgroundColor: '#f3a0a4',
+  },
+  mixLegendRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'space-between',
+  },
+  mixLegendItem: {
+    alignItems: 'center',
     backgroundColor: '#121617',
     borderColor: '#2b3031',
+    borderRadius: 8,
     borderWidth: 1,
     flex: 1,
-    minHeight: 118,
-    padding: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
   },
-  mixValue: {
-    color: '#ffdda1',
-    fontSize: 28,
-    fontWeight: '900',
+  mixLegendTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
     marginBottom: 8,
   },
-  mixLabel: {
-    color: '#9f978d',
-    fontSize: 11,
+  mixLegendDot: {
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  mixLegendValue: {
+    color: '#f8fafc',
+    fontSize: 22,
     fontWeight: '900',
-    letterSpacing: 1.2,
+    lineHeight: 22,
+  },
+  mixLegendLabel: {
+    color: '#8f8981',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   lastDaysHeader: {
     alignItems: 'flex-start',
