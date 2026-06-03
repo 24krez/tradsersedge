@@ -1,5 +1,5 @@
 import { signOut } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, doc, limit, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -29,6 +29,7 @@ export function ProfileScreen() {
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isShowingNotifications, setIsShowingNotifications] = useState(false);
+  const [recentCompletedCount, setRecentCompletedCount] = useState(0);
 
   useEffect(() => {
     if (userProfile) {
@@ -56,6 +57,27 @@ export function ProfileScreen() {
         setHasLoadedStats(true);
       },
     );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setRecentCompletedCount(0);
+      return;
+    }
+
+    const missionsQuery = query(
+      collection(firestore, 'missions'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(100),
+    );
+
+    const unsubscribe = onSnapshot(missionsQuery, (snapshot) => {
+      const count = snapshot.docs.filter((doc) => doc.data().status === 'completed').length;
+      setRecentCompletedCount(count);
+    });
 
     return () => unsubscribe();
   }, [user]);
@@ -146,7 +168,7 @@ export function ProfileScreen() {
           {hasLoadedStats && hasStats(userStats) ? (
             <>
               <View style={styles.statsGrid}>
-                <StatWidget label="MISSIONS COMPLETED" value={String(numberFrom(userStats?.totalMissionsCompleted))} />
+                <StatWidget label="MISSIONS COMPLETED" value={String(Math.max(numberFrom(userStats?.totalMissionsCompleted), recentCompletedCount))} />
                 <StatWidget
                   label="AVG DISCIPLINE"
                   value={`${Math.round(numberFrom(userStats?.averageDisciplineScore))}%`}

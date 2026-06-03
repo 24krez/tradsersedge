@@ -452,6 +452,7 @@ export function MissionActiveScreen() {
   const { user } = useAuth();
   const [missionData, setMissionData] = useState<any>(undefined);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [recentCompletedCount, setRecentCompletedCount] = useState(0);
   const [currentSession, setCurrentSession] = useState(getCurrentSession());
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -556,6 +557,23 @@ export function MissionActiveScreen() {
       },
     );
 
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setRecentCompletedCount(0);
+      return;
+    }
+    const q = query(
+      collection(firestore, 'missions'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(100)
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setRecentCompletedCount(snapshot.docs.filter((doc) => doc.data().status === 'completed').length);
+    });
     return () => unsubscribe();
   }, [user]);
 
@@ -708,7 +726,7 @@ export function MissionActiveScreen() {
 
             {shouldShowStats && (
               <View style={styles.activeStatsRow}>
-                <ActiveStatWidget label="MISSIONS COMPLETED" value={String(numberFrom(userStats?.totalMissionsCompleted))} />
+                <ActiveStatWidget label="MISSIONS COMPLETED" value={String(Math.max(numberFrom(userStats?.totalMissionsCompleted), recentCompletedCount))} />
                 <ActiveStatWidget label="BEST GRADE" value={bestGradeFromStats(userStats)} />
               </View>
             )}

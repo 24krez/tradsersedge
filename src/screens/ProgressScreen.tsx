@@ -628,7 +628,7 @@ function buildProgressModel(userStats: UserStats | null, missions: MissionRecord
   const scoreDebriefs = debriefs.filter((debrief) => isNumber(debrief.discipline?.score));
   const scores = scoreDebriefs.map((debrief) => numberFrom(debrief.discipline?.score));
   const completedMissionRecords = missions.filter((mission) => mission.status === 'completed');
-  const completedMissionsCount = completedMissionRecords.length;
+  const completedMissionsCount = Math.max(numberFrom(userStats?.totalMissionsCompleted), completedMissionRecords.length);
   const totalMissionsStarted = missions.length;
   const averageScore = Math.round(numberFrom(userStats?.averageDisciplineScore) || average(scores));
   const completionRate = clampPercent(totalMissionsStarted ? (completedMissionsCount / totalMissionsStarted) * 100 : 0);
