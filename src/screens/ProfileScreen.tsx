@@ -198,6 +198,7 @@ export function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.label}>{t('callsignLabel')}</Text>
           <TextInput
+            maxLength={9}
             onChangeText={setCallsign}
             placeholder={t('callsignPlaceholder')}
             placeholderTextColor="#4e4639"
