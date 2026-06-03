@@ -41,7 +41,7 @@
       "objective": "Objective",
       "defaultObjective": "Protect Capital",
       "threats": "Threats",
-      "defaultThreats": "FOMO • OVERTRADING",
+      "defaultThreats": "NO THREATS SELECTED",
       "focus": "Core Focus",
       "defaultFocus": "Patience",
       "tapHint": "Tap to edit mission"
@@ -75,6 +75,8 @@
       "timestamp": "TIMESTAMP:",
       "operator": "OPERATOR ID:",
       "operatorPlaceholder": "UNKNOWN_OP",
+      "objective": "Objective",
+      "threats": "Threats",
       "objectiveLabel": "PRIMARY OBJECTIVE",
       "threatsLabel": "KNOWN THREATS",
       "focusLabel": "CORE FOCUS"

@@ -114,6 +114,7 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
   const objectiveKey = mission.objective;
   const focusKey = mission.coreFocus;
   const threats: string[] = mission.threats || [];
+  const hasSelectedThreats = threats.length > 0;
 
   // Session timer
   useEffect(() => {
@@ -194,7 +195,12 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
         preTradeChecklist: checklist,
       });
       setIsStarting(false);
-      navigation.navigate('ReadinessCheck');
+      navigation.navigate('ReadinessCheck', {
+        missionId: mission.id,
+        objective: mission.objective,
+        threats: mission.threats || [],
+        coreFocus: mission.coreFocus,
+      });
     } catch (e) {
       console.error('Error starting trading session:', e);
       setIsStarting(false);
@@ -301,15 +307,20 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
               <Text style={s.threatCardTitle}>THREAT{'\n'}ASSESSMENT</Text>
             </View>
             <Text style={s.splitLabel}>THREAT LEVEL</Text>
-            <Text style={s.splitValue}>EVALUATING</Text>
+            <Text style={s.splitValue}>{hasSelectedThreats ? 'EVALUATING' : 'LOW'}</Text>
             <Text style={s.splitLabel}>STATE</Text>
-            <Text style={s.splitValue}>PENDING</Text>
-            {threats.length > 0 && (
+            <Text style={s.splitValue}>{hasSelectedThreats ? 'PENDING' : 'ON TRACK'}</Text>
+            {hasSelectedThreats ? (
               <>
                 <Text style={s.splitLabel}>WATCH FOR</Text>
                 <Text style={s.watchForText}>
                   {t(`data.threats.${threats[0]}`).toUpperCase()}
                 </Text>
+              </>
+            ) : (
+              <>
+                <Text style={s.splitLabel}>WATCH FOR</Text>
+                <Text style={s.noThreatsText}>NO THREATS SELECTED</Text>
               </>
             )}
           </View>
@@ -390,9 +401,9 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
           icon="⚡"
           title="PRIMARY RISK"
           body={
-            threats.length > 0
+            hasSelectedThreats
               ? `Watch for ${t(`data.threats.${threats[0]}`).toLowerCase()}. This is your highest-probability failure mode today.`
-              : 'No specific threats identified. Maintain general discipline.'
+              : 'No specific threats selected. Threat level is low; stay on track and maintain standard discipline.'
           }
         />
 
@@ -771,6 +782,11 @@ const s = StyleSheet.create({
   },
   watchForText: {
     color: '#e27b7b',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  noThreatsText: {
+    color: '#8a8f93',
     fontSize: 12,
     fontWeight: '800',
   },

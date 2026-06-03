@@ -21,7 +21,14 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
 export type RootStackParamList = {
-  ReadinessCheck: undefined;
+  ReadinessCheck:
+    | {
+        missionId?: string;
+        objective?: string;
+        threats?: string[];
+        coreFocus?: string;
+      }
+    | undefined;
   MissionSetup:
     | {
         missionId?: string;
@@ -104,7 +111,7 @@ function AppContent() {
             <MissionStackNavigator />
           </NavigationContainer>
         )}
-        {activeTab === 'progress' && <ProgressScreen />}
+        {activeTab === 'progress' && <ProgressScreen onStartMission={() => setActiveTab('mission')} />}
         {activeTab === 'vault' && <VaultScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </View>

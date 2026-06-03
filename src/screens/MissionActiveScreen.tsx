@@ -753,7 +753,12 @@ export function MissionActiveScreen() {
                   styles.startTradingButton,
                   pressed && styles.startTradingButtonPressed,
                 ]}
-                onPress={() => navigation.navigate('ReadinessCheck')}
+                onPress={() => navigation.navigate('ReadinessCheck', {
+                  missionId: missionData.id,
+                  objective: missionData.objective,
+                  threats: missionData.threats || [],
+                  coreFocus: missionData.coreFocus,
+                })}
               >
                 <Text style={styles.startTradingButtonText}>START TRADING</Text>
               </Pressable>

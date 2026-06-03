@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
-import { MissionStackNavigationProp } from '../../App';
+import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateMissionStatus } from '../logic/missionStatus';
@@ -14,9 +14,31 @@ type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
 
 const levels: ReadinessLevel[] = ['Low', 'Medium', 'High'];
 
+function getMissionCreatedTime(mission: any) {
+  const createdAt = mission?.createdAt;
+
+  if (createdAt?.toMillis) return createdAt.toMillis();
+  if (createdAt?.toDate) return createdAt.toDate().getTime();
+  if (typeof createdAt === 'string') {
+    const parsed = Date.parse(createdAt);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
+}
+
+function getMissionThreats(mission: any): string[] {
+  if (Array.isArray(mission?.threats)) return mission.threats;
+  if (Array.isArray(mission?.selectedThreats)) return mission.selectedThreats;
+  if (mission?.primaryThreat) return [mission.primaryThreat];
+  if (mission?.threat) return [mission.threat];
+  return [];
+}
+
 export function ReadinessCheckScreen() {
   const { t } = useTranslation('mission');
   const navigation = useNavigation<MissionStackNavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'ReadinessCheck'>>();
   
   const assessmentItems: Array<{
     key: AssessmentKey;
@@ -52,6 +74,30 @@ export function ReadinessCheckScreen() {
   useEffect(() => {
     if (!user) return;
 
+    if (route.params?.missionId) {
+      setMissionData({
+        id: route.params.missionId,
+        objective: route.params.objective,
+        threats: route.params.threats || [],
+        coreFocus: route.params.coreFocus,
+      });
+
+      const unsubscribe = onSnapshot(
+        doc(firestore, 'missions', route.params.missionId),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            console.log('Found pending mission by param:', docSnap.id);
+            setMissionData({ id: docSnap.id, ...docSnap.data() });
+          }
+        },
+        (error) => {
+          console.error('onSnapshot error in ReadinessCheckScreen mission doc:', error);
+        }
+      );
+
+      return () => unsubscribe();
+    }
+
     const q = query(
       collection(firestore, 'missions'),
       where('userId', '==', user.uid),
@@ -63,11 +109,14 @@ export function ReadinessCheckScreen() {
       (snapshot) => {
         console.log('ReadinessCheckScreen onSnapshot fired. Docs count:', snapshot.size);
         if (!snapshot.empty) {
-          const docSnap = snapshot.docs[0];
-          console.log('Found active mission:', docSnap.id);
-          setMissionData({ id: docSnap.id, ...docSnap.data() });
+          const latestPendingMission = snapshot.docs
+            .map((docSnap) => ({ docSnap, data: docSnap.data() }))
+            .sort((a, b) => getMissionCreatedTime(b.data) - getMissionCreatedTime(a.data))[0];
+
+          console.log('Found pending mission:', latestPendingMission.docSnap.id);
+          setMissionData({ id: latestPendingMission.docSnap.id, ...latestPendingMission.data });
         } else {
-          console.log('No active missions found for user:', user.uid);
+          console.log('No pending missions found for user:', user.uid);
           setMissionData(null);
         }
       },
@@ -77,7 +126,7 @@ export function ReadinessCheckScreen() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [route.params, user]);
 
   const isLockedIn = useMemo(() => {
     return Object.values(ratings).every((rating) => rating !== 'Low');
@@ -92,6 +141,17 @@ export function ReadinessCheckScreen() {
 
   const [showEditModal, setShowEditModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const displayedThreats = getMissionThreats(missionData);
+
+  function handleEditMission() {
+    setShowEditModal(false);
+    navigation.navigate('MissionSetup', missionData?.id ? {
+      missionId: missionData.id,
+      objective: missionData.objective,
+      threats: displayedThreats,
+      coreFocus: missionData.coreFocus,
+    } : undefined);
+  }
 
   async function handleBeginSession() {
     if (isSaving || !missionData || !user) {
@@ -233,7 +293,7 @@ export function ReadinessCheckScreen() {
           <View>
             <Text style={styles.summaryLabel}>{t('readinessCheck.summary.threats')}</Text>
             <Text style={styles.summaryThreats}>
-              {missionData?.threats?.length > 0 ? missionData.threats.map((tKey: string) => t(`data.threats.${tKey}`).toUpperCase()).join(' • ') : t('readinessCheck.summary.defaultThreats')}
+              {displayedThreats.length > 0 ? displayedThreats.map((threatKey: string) => t(`data.threats.${threatKey}`).toUpperCase()).join(' • ') : t('readinessCheck.summary.defaultThreats')}
             </Text>
           </View>
 
@@ -284,10 +344,7 @@ export function ReadinessCheckScreen() {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => {
-                  setShowEditModal(false);
-                  navigation.navigate('MissionSetup');
-                }}
+                onPress={handleEditMission}
                 style={({ pressed }) => [styles.modalConfirmButton, pressed && styles.modalButtonPressed]}
               >
                 <Text style={styles.modalConfirmText}>Edit Mission</Text>

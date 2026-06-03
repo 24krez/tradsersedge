@@ -92,16 +92,22 @@ export function MissionSetupScreen() {
         threats: selectedThreats,
         coreFocus: selectedFocus,
       };
+      const missionParameters = {
+        ...newPreferences,
+        selectedThreats,
+        primaryThreat: selectedThreats[0] || null,
+        threat: selectedThreats[0] || null,
+      };
 
       if (editingMissionId) {
         await updateDoc(doc(firestore, 'missions', editingMissionId), {
-          ...newPreferences,
+          ...missionParameters,
           updatedAt: serverTimestamp(),
         });
       } else {
         await addDoc(collection(firestore, 'missions'), {
           userId: user.uid,
-          ...newPreferences,
+          ...missionParameters,
           status: 'pending',
           createdAt: serverTimestamp(),
         });
@@ -259,11 +265,17 @@ export function MissionSetupScreen() {
 
         <Text style={[styles.briefLabel, styles.briefThreatLabel]}>{t('setup.brief.threats')}</Text>
         <View style={styles.briefThreatList}>
-          {selectedThreats.map((threat) => (
-            <Text key={threat} style={styles.briefThreat}>
-              {t(`data.threats.${threat}`).toUpperCase()}
+          {selectedThreats.length > 0 ? (
+            selectedThreats.map((threat) => (
+              <Text key={threat} style={styles.briefThreat}>
+                {t(`data.threats.${threat}`).toUpperCase()}
+              </Text>
+            ))
+          ) : (
+            <Text style={styles.briefNoThreats}>
+              NO THREATS SELECTED
             </Text>
-          ))}
+          )}
         </View>
 
         <Text style={[styles.briefLabel, styles.briefFocusLabel]}>{t('setup.brief.focusLabel')}</Text>
@@ -624,6 +636,13 @@ const styles = StyleSheet.create({
     color: '#ff6b5f',
     fontSize: 12,
     fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  briefNoThreats: {
+    color: '#8a8f93',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   briefFocus: {
