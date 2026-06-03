@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   brand: {
-    color: '#ffdda1',
+    color: '#e9c176',
     fontSize: 25,
     fontWeight: '900',
     letterSpacing: 7,
@@ -1086,7 +1086,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   rankTitle: {
-    color: '#f8fafc',
+    color: '#e9c176',
     fontSize: 24,
     fontWeight: '900',
     lineHeight: 29,
@@ -1094,7 +1094,7 @@ const styles = StyleSheet.create({
   },
   rankBadge: {
     alignItems: 'center',
-    backgroundColor: '#ffdda1',
+    backgroundColor: '#e9c176',
     height: 28,
     justifyContent: 'center',
     marginTop: 8,
@@ -1126,11 +1126,10 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   rankStatValue: {
-    color: '#ffdda1',
-    fontSize: 34,
+    color: '#e9c176',
+    fontSize: 32,
     fontWeight: '900',
-    lineHeight: 40,
-    marginTop: 6,
+    lineHeight: 38,
   },
   rankMetricRow: {
     flexDirection: 'row',
