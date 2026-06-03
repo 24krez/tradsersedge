@@ -555,13 +555,13 @@ function LastSevenDaysCard({ days }: { days: DayDot[] }) {
   return (
     <View style={styles.card}>
       <View style={styles.lastDaysHeader}>
-        <View>
-          <Text style={styles.sectionTitle}>LAST 7 DAYS</Text>
-          <Text style={styles.tapHint}>Tap Any Day To View Summary</Text>
+        <View style={styles.lastDaysTitleRow}>
+          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>LAST 7 DAYS</Text>
+          <Pressable style={({ pressed }) => [styles.calendarButton, pressed && styles.buttonPressed]}>
+            <Text style={styles.calendarText}>VIEW CALENDAR</Text>
+          </Pressable>
         </View>
-        <Pressable style={({ pressed }) => [styles.calendarButton, pressed && styles.buttonPressed]}>
-          <Text style={styles.calendarText}>VIEW CALENDAR</Text>
-        </Pressable>
+        <Text style={styles.tapHint}>Tap Any Day To View Summary</Text>
       </View>
       <View style={styles.dayRow}>
         {days.map((day) => (
@@ -1613,24 +1613,24 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   lastDaysHeader: {
-    alignItems: 'flex-start',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  lastDaysTitleRow: {
+    alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
     justifyContent: 'space-between',
   },
   tapHint: {
     color: '#5d554d',
     fontSize: 12,
     fontWeight: '800',
-    marginTop: -14,
   },
   calendarButton: {
-    alignSelf: 'flex-end',
     borderColor: '#6d6048',
     borderWidth: 1,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   calendarText: {
     color: '#e9c176',
