@@ -279,17 +279,23 @@ function RankCard({ model }: { model: ProgressModel }) {
   return (
     <View style={styles.rankCard}>
       <View style={styles.rankHeader}>
-        <View>
+        <View style={styles.rankIdentity}>
           <Text style={styles.rankKicker}>CURRENT RANK</Text>
           <Text style={styles.rankTitle}>{model.currentRank.toUpperCase()}</Text>
-          <Text style={styles.gradeLine}>DISCIPLINE GRADE: <Text style={styles.gradeValue}>{model.grade}</Text></Text>
         </View>
         <View style={styles.rankBadge}>
           <Text style={styles.rankBadgeText}>{model.currentRank.split(' ')[0].toUpperCase()}</Text>
         </View>
-        <View style={styles.completionBlock}>
-          <Text adjustsFontSizeToFit numberOfLines={1} style={styles.completionTopLabel}>COMPLETION RATE</Text>
-          <Text style={styles.completionTopValue}>{model.completionRate}%</Text>
+      </View>
+
+      <View style={styles.rankStatsRow}>
+        <View style={styles.rankStatBlock}>
+          <Text adjustsFontSizeToFit numberOfLines={1} style={styles.rankStatLabel}>DISCIPLINE GRADE</Text>
+          <Text style={styles.rankStatValue}>{model.grade}</Text>
+        </View>
+        <View style={styles.rankStatBlock}>
+          <Text adjustsFontSizeToFit numberOfLines={1} style={styles.rankStatLabel}>COMPLETION RATE</Text>
+          <Text style={styles.rankStatValue}>{model.completionRate}%</Text>
         </View>
       </View>
 
@@ -413,6 +419,9 @@ function ImprovementCard({ improvement }: { improvement: ImprovementModel | null
     );
   }
 
+  const signalPressure = improvement.count >= 10 ? 'HIGH' : improvement.count >= 4 ? 'BUILDING' : 'EARLY';
+  const filledSegments = improvement.count >= 10 ? 4 : improvement.count >= 7 ? 3 : improvement.count >= 3 ? 2 : 1;
+
   return (
     <View style={[styles.card, styles.improvementCard]}>
       <View style={styles.improvementTextBlock}>
@@ -420,10 +429,24 @@ function ImprovementCard({ improvement }: { improvement: ImprovementModel | null
         <Text style={styles.improvementTitle}>{improvement.label}</Text>
         {improvement.isEarly ? <Text style={styles.earlyPatternText}>Early Pattern</Text> : null}
         <Text style={styles.recommendation}>Recommended Focus: {improvement.recommendation}</Text>
+        <Text style={styles.improvementAction}>Make this the first checkpoint before every setup.</Text>
       </View>
       <View style={styles.occurrenceBox}>
+        <Text style={styles.occurrenceKicker}>PATTERN PRESSURE</Text>
         <Text style={styles.occurrenceNumber}>{improvement.count}</Text>
-        <Text style={styles.occurrenceLabel}>{improvement.count === 1 ? 'SIGNAL' : 'SIGNALS'}</Text>
+        <Text style={styles.occurrenceLabel}>{improvement.count === 1 ? 'SIGNAL LOGGED' : 'SIGNALS LOGGED'}</Text>
+        <View style={styles.pressureMeter}>
+          {[0, 1, 2, 3].map((segment) => (
+            <View
+              key={segment}
+              style={[
+                styles.pressureSegment,
+                segment < filledSegments && styles.pressureSegmentActive,
+              ]}
+            />
+          ))}
+        </View>
+        <Text style={styles.pressureLabel}>{signalPressure}</Text>
       </View>
     </View>
   );
@@ -999,10 +1022,14 @@ const styles = StyleSheet.create({
     padding: 28,
   },
   rankHeader: {
+    alignItems: 'flex-start',
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  rankIdentity: {
+    flex: 1,
+    minWidth: 0,
   },
   rankKicker: {
     color: '#8f8981',
@@ -1016,18 +1043,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     lineHeight: 29,
-    maxWidth: 175,
-  },
-  gradeLine: {
-    color: '#e9c176',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 2,
-    marginTop: 18,
-  },
-  gradeValue: {
-    color: '#f8fafc',
-    fontSize: 20,
+    maxWidth: 205,
   },
   rankBadge: {
     alignItems: 'center',
@@ -1043,22 +1059,31 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
   },
-  completionBlock: {
-    alignItems: 'flex-end',
-    minWidth: 118,
+  rankStatsRow: {
+    borderTopColor: 'rgba(233, 193, 118, 0.22)',
+    borderTopWidth: 1,
+    columnGap: 14,
+    flexDirection: 'row',
+    marginTop: 24,
+    paddingTop: 18,
   },
-  completionTopLabel: {
+  rankStatBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  rankStatLabel: {
     color: '#8f8981',
     fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontWeight: '900',
+    letterSpacing: 1.2,
     lineHeight: 14,
-    textAlign: 'right',
   },
-  completionTopValue: {
+  rankStatValue: {
     color: '#ffdda1',
     fontSize: 34,
     fontWeight: '900',
+    lineHeight: 40,
+    marginTop: 6,
   },
   rankMetricRow: {
     flexDirection: 'row',
@@ -1340,13 +1365,15 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   improvementCard: {
+    alignItems: 'stretch',
     borderLeftColor: '#f3a0a4',
     flexDirection: 'row',
+    gap: 18,
     justifyContent: 'space-between',
   },
   improvementTextBlock: {
     flex: 1,
-    paddingRight: 18,
+    minWidth: 0,
   },
   improvementEyebrow: {
     color: '#f3a0a4',
@@ -1376,6 +1403,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 23,
   },
+  improvementAction: {
+    color: '#8f8981',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 18,
+    marginTop: 14,
+  },
   noPatternText: {
     color: '#c7bfb5',
     fontSize: 15,
@@ -1383,22 +1417,56 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   occurrenceBox: {
+    alignItems: 'flex-start',
     borderColor: '#694b4d',
     borderWidth: 1,
     justifyContent: 'center',
+    minHeight: 178,
     padding: 16,
-    width: 130,
+    width: 138,
+  },
+  occurrenceKicker: {
+    color: '#8f8981',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+    lineHeight: 12,
+    marginBottom: 12,
   },
   occurrenceNumber: {
     color: '#f3a0a4',
-    fontSize: 15,
+    fontSize: 42,
     fontWeight: '900',
-    marginBottom: 16,
+    lineHeight: 46,
+    marginBottom: 4,
   },
   occurrenceLabel: {
     color: '#f3a0a4',
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '900',
+    letterSpacing: 1,
+    lineHeight: 13,
+  },
+  pressureMeter: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 16,
+    width: '100%',
+  },
+  pressureSegment: {
+    backgroundColor: '#2c3031',
+    flex: 1,
+    height: 5,
+  },
+  pressureSegmentActive: {
+    backgroundColor: '#f3a0a4',
+  },
+  pressureLabel: {
+    color: '#f8fafc',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginTop: 10,
   },
   performanceGrid: {
     columnGap: 20,
