@@ -124,7 +124,7 @@ const improvementRecommendations: Record<string, string> = {
 };
 
 export function ProgressScreen({ onStartMission }: ProgressScreenProps) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [missions, setMissions] = useState<MissionRecord[]>([]);
   const [debriefs, setDebriefs] = useState<DebriefRecord[]>([]);
@@ -261,7 +261,7 @@ export function ProgressScreen({ onStartMission }: ProgressScreenProps) {
           </View>
         </View>
 
-        <RankCard model={model} />
+        <RankCard model={model} callsign={userProfile?.activeCallsign || userProfile?.callsign || ''} />
         <MissionCompletionCard completed={model.completedMissions} completionRate={model.completionRate} />
         <MissionInsightsCard hasLowData={model.hasLowData} signalContext={model.threatSignalContext} strongestTraits={model.strongestTraits} threats={model.commonThreats} />
         <ImprovementCard improvement={model.primaryImprovement} />
@@ -275,7 +275,7 @@ export function ProgressScreen({ onStartMission }: ProgressScreenProps) {
   );
 }
 
-function RankCard({ model }: { model: ProgressModel }) {
+function RankCard({ model, callsign }: { model: ProgressModel; callsign: string }) {
   return (
     <View style={styles.rankCard}>
       <View style={styles.rankHeader}>
@@ -283,9 +283,11 @@ function RankCard({ model }: { model: ProgressModel }) {
           <Text style={styles.rankKicker}>CURRENT RANK</Text>
           <Text style={styles.rankTitle}>{model.currentRank.toUpperCase()}</Text>
         </View>
-        <View style={styles.rankBadge}>
-          <Text style={styles.rankBadgeText}>{model.currentRank.split(' ')[0].toUpperCase()}</Text>
-        </View>
+        {callsign ? (
+          <View style={[styles.rankBadge, { borderRadius: 4, paddingHorizontal: 16, marginTop: 0 }]}>
+            <Text style={[styles.rankBadgeText, { color: '#101415' }]}>{callsign.toUpperCase()}</Text>
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.rankStatsRow}>
