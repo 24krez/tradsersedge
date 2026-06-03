@@ -707,20 +707,10 @@ export function MissionActiveScreen() {
               </Text>
               <View style={styles.goldDivider} />
               <View style={styles.objectiveBottomRow}>
-                <Text style={styles.priorityText}>{t('missionActive.priorityMax')}</Text>
-                {isPending || !missionData.missionStatus ? (
-                  <Text style={styles.stateText}>{isPending ? 'PENDING READINESS' : t('missionActive.operationalStateReady')}</Text>
-                ) : (
-                  <View style={styles.headerStatusChip}>
-                    <Text style={styles.headerStatusText}>
-                      {missionData.missionStatus === 'Locked In' ? '🔒 ' : ''}
-                      {missionData.missionStatus === 'On Track' ? '🟢 ' : ''}
-                      {missionData.missionStatus === 'Caution' ? '🟡 ' : ''}
-                      {missionData.missionStatus === 'High Risk' ? '🔴 ' : ''}
-                      {missionData.missionStatus.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
+                <Text style={styles.priorityText}>SESSION PROGRESS: {progress || 0}%</Text>
+                <Text style={styles.stateText}>
+                  OPERATIONAL STATE: <Text style={{ color: isPending ? '#e9c176' : '#79d284' }}>{isPending ? 'PENDING' : 'ACTIVE'}</Text>
+                </Text>
               </View>
             </View>
 
@@ -1186,8 +1176,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   objectiveBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: 4,
   },
   priorityText: {
     color: '#e9c176',

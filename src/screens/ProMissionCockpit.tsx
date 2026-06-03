@@ -362,7 +362,7 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
           </View>
           <View style={s.objectiveBottom}>
             <Text style={s.progressLabel}>SESSION PROGRESS: {progress}%</Text>
-            <Text style={s.stateLabel}>OPERATIONAL STATE: ACTIVE</Text>
+            <Text style={s.stateLabel}>OPERATIONAL STATE: <Text style={{ color: '#79d284' }}>ACTIVE</Text></Text>
           </View>
         </View>
 
@@ -743,8 +743,8 @@ const s = StyleSheet.create({
     height: '100%',
   },
   objectiveBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: 4,
   },
   progressLabel: {
     color: '#e9c176',

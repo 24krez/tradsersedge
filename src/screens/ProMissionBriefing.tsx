@@ -295,7 +295,7 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
           </View>
           <View style={s.objectiveBottom}>
             <Text style={s.progressLabel}>SESSION PROGRESS: 0%</Text>
-            <Text style={s.stateLabel}>OPERATIONAL STATE: PENDING</Text>
+            <Text style={s.stateLabel}>OPERATIONAL STATE: <Text style={{ color: '#e9c176' }}>PENDING</Text></Text>
           </View>
         </Pressable>
 
@@ -703,8 +703,8 @@ const s = StyleSheet.create({
     height: '100%',
   },
   objectiveBottom: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
+    gap: 4,
   },
   progressLabel: {
     color: '#8a8f93',

@@ -157,7 +157,7 @@ export function ProMissionAccomplished({
         <View style={s.summaryCard}>
           <View style={s.goldAccent} />
           <View style={s.summaryRow}>
-            <Text style={s.summaryLabel}>OBJECTIVE COMPLETED</Text>
+            <Text style={s.summaryLabel}>OBJECTIVE</Text>
             <Text style={s.summaryValue}>
               {objectiveKey
                 ? t(`data.objectives.${objectiveKey}.title`).toUpperCase()
