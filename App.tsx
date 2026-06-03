@@ -42,6 +42,7 @@ export type RootStackParamList = {
   MissionResults: { debriefId?: string; missionId?: string } | undefined;
   Welcome: undefined;
   ProUpsell: undefined;
+  Vault: undefined;
 };
 
 export type MissionStackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -62,6 +63,7 @@ function MissionStackNavigator() {
       <Stack.Screen name="MissionResults" component={MissionResultsScreen} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="ProUpsell" component={ProUpsellScreen} />
+      <Stack.Screen name="Vault" component={VaultScreen} />
     </Stack.Navigator>
   );
 }

@@ -262,15 +262,10 @@ export function MissionResultsScreen() {
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
-              onPress={() =>
-                navigation.navigate('MissionDebrief', {
-                  missionId: routeMissionId || debrief.missionId,
-                  readOnly: true,
-                })
-              }
+              onPress={() => navigation.navigate('Vault')}
               style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
             >
-              <Text style={styles.primaryButtonText}>VIEW MISSION REPORT</Text>
+              <Text style={styles.primaryButtonText}>VIEW VAULT</Text>
             </Pressable>
 
             <Pressable
