@@ -9,7 +9,7 @@ type ProgressScreenProps = {
   onStartMission?: () => void;
 };
 
-type UserStats = {
+export type UserStats = {
   averageDisciplineScore?: number;
   bestDisciplineScore?: number;
   bestGrade?: string;
@@ -31,7 +31,7 @@ type UserStats = {
   noTradeSessionsCount?: number;
 };
 
-type MissionRecord = {
+export type MissionRecord = {
   id: string;
   objective?: string;
   coreFocus?: string;
@@ -45,7 +45,7 @@ type MissionRecord = {
   disciplineScore?: number;
 };
 
-type DebriefRecord = {
+export type DebriefRecord = {
   id: string;
   createdAt?: unknown;
   date?: string;
@@ -594,7 +594,7 @@ type ImprovementModel = {
   recommendation: string;
 };
 
-type ProgressModel = {
+export type ProgressModel = {
   averageFocusScore: number;
   averageObjectiveScore: number;
   averageScore: number;
@@ -624,7 +624,7 @@ type ProgressModel = {
   trendScores: number[];
 };
 
-function buildProgressModel(userStats: UserStats | null, missions: MissionRecord[], debriefs: DebriefRecord[]): ProgressModel {
+export function buildProgressModel(userStats: UserStats | null, missions: MissionRecord[], debriefs: DebriefRecord[]): ProgressModel {
   const scoreDebriefs = debriefs.filter((debrief) => isNumber(debrief.discipline?.score));
   const scores = scoreDebriefs.map((debrief) => numberFrom(debrief.discipline?.score));
   const completedMissionRecords = missions.filter((mission) => mission.status === 'completed');
@@ -812,7 +812,7 @@ function buildTrendBars(scores: number[]): TrendBar[] {
   }));
 }
 
-function rankFromCompletedMissions(completedMissions: number) {
+export function rankFromCompletedMissions(completedMissions: number) {
   const bands = [
     { rank: 'Recruit', min: 0 },
     { rank: 'Operator', min: 3 },
@@ -824,11 +824,20 @@ function rankFromCompletedMissions(completedMissions: number) {
   const currentIndex = bands.reduce((bestIndex, band, index) => completedMissions >= band.min ? index : bestIndex, 0);
   const currentRank = bands[currentIndex].rank;
   const next = bands[currentIndex + 1] || null;
+  const currentMin = bands[currentIndex].min;
+  
+  let progressPercentage = 100;
+  if (next) {
+    const diff = next.min - currentMin;
+    const progressInBand = completedMissions - currentMin;
+    progressPercentage = Math.max(0, Math.min(100, Math.round((progressInBand / diff) * 100)));
+  }
 
   return {
     currentRank,
     nextRank: next?.rank || null,
-    remainingRequirement: next ? `${completedMissions} / ${next.min} missions completed` : 'Rank requirements complete',
+    progressPercentage,
+    remainingRequirement: next ? `${next.min - completedMissions} missions remaining to next rank` : 'Rank requirements complete',
   };
 }
 

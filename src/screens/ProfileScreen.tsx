@@ -7,17 +7,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View 
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
-
-type UserStats = {
-  averageDisciplineScore?: number;
-  bestDisciplineScore?: number;
-  bestGrade?: string;
-  currentStreak?: number;
-  longestStreak?: number;
-  totalDebriefs?: number;
-  totalDebriefsCompleted?: number;
-  totalMissionsCompleted?: number;
-};
+import { buildProgressModel, DebriefRecord, MissionRecord, rankFromCompletedMissions, UserStats } from './ProgressScreen';
 
 export function ProfileScreen() {
   const { t } = useTranslation('profile');
@@ -25,27 +15,32 @@ export function ProfileScreen() {
 
   const [callsign, setCallsign] = useState('');
   const [motto, setMotto] = useState('');
+  const [activeCallsign, setActiveCallsign] = useState('');
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [missions, setMissions] = useState<MissionRecord[]>([]);
+  const [debriefs, setDebriefs] = useState<DebriefRecord[]>([]);
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isShowingNotifications, setIsShowingNotifications] = useState(false);
-  const [recentCompletedCount, setRecentCompletedCount] = useState(0);
 
   useEffect(() => {
     if (userProfile) {
       setCallsign(userProfile.callsign || '');
       setMotto(userProfile.motto || '');
+      setActiveCallsign(userProfile.activeCallsign || '');
     }
   }, [userProfile]);
 
   useEffect(() => {
     if (!user) {
       setUserStats(null);
+      setMissions([]);
+      setDebriefs([]);
       setHasLoadedStats(true);
       return;
     }
 
-    const unsubscribe = onSnapshot(
+    const unsubStats = onSnapshot(
       doc(firestore, 'user_stats', user.uid),
       (snapshot) => {
         setUserStats(snapshot.exists() ? (snapshot.data() as UserStats) : null);
@@ -58,15 +53,6 @@ export function ProfileScreen() {
       },
     );
 
-    return () => unsubscribe();
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setRecentCompletedCount(0);
-      return;
-    }
-
     const missionsQuery = query(
       collection(firestore, 'missions'),
       where('userId', '==', user.uid),
@@ -74,12 +60,26 @@ export function ProfileScreen() {
       limit(100),
     );
 
-    const unsubscribe = onSnapshot(missionsQuery, (snapshot) => {
-      const count = snapshot.docs.filter((doc) => doc.data().status === 'completed').length;
-      setRecentCompletedCount(count);
+    const unsubMissions = onSnapshot(missionsQuery, (snapshot) => {
+      setMissions(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as MissionRecord)));
     });
 
-    return () => unsubscribe();
+    const debriefsQuery = query(
+      collection(firestore, 'mission_debriefs'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc'),
+      limit(100),
+    );
+
+    const unsubDebriefs = onSnapshot(debriefsQuery, (snapshot) => {
+      setDebriefs(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DebriefRecord)));
+    });
+
+    return () => {
+      unsubStats();
+      unsubMissions();
+      unsubDebriefs();
+    };
   }, [user]);
 
   async function handleSave() {
@@ -87,14 +87,15 @@ export function ProfileScreen() {
     
     const trimmedCallsign = callsign.trim();
     const trimmedMotto = motto.trim();
+    const trimmedActive = activeCallsign.trim();
 
     setIsSaving(true);
     try {
       await updateDoc(doc(firestore, 'users', user.uid), {
         callsign: trimmedCallsign,
         motto: trimmedMotto,
+        activeCallsign: trimmedActive,
       });
-      // Optionally show a success toast here
     } catch (e) {
       console.error('Error saving profile:', e);
     } finally {
@@ -114,11 +115,27 @@ export function ProfileScreen() {
     return <NotificationSettingsScreen onBack={() => setIsShowingNotifications(false)} />;
   }
 
+  const progress = buildProgressModel(userStats, missions, debriefs);
+  const rank = rankFromCompletedMissions(progress.completedMissions);
+
+  const displayCallsign = activeCallsign || callsign || 'OPERATOR';
+  const displayRank = rank.currentRank || 'Recruit';
+  const displayScore = progress.completedMissions > 0 ? progress.averageScore : '--';
+  const displayStreak = progress.currentStreak || 0;
+
+  const predefinedCallsigns = ['RAVEN', 'GHOST', 'ATLAS', 'SENTINEL'];
+  const customCallsign = callsign.trim().toUpperCase();
+  const activeOptions = [...predefinedCallsigns];
+  if (customCallsign && !activeOptions.includes(customCallsign)) {
+    activeOptions.push(customCallsign);
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        {/* Page Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>{t('title')}</Text>
+          <Text style={styles.title}>OPERATOR DOSSIER</Text>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
               {userProfile?.subscriptionTier === 'founder' 
@@ -128,6 +145,56 @@ export function ProfileScreen() {
           </View>
         </View>
 
+        {/* Dossier Header Card */}
+        <View style={styles.dossierCard}>
+          <View style={styles.dossierTop}>
+            <View style={styles.avatarPlaceholder}>
+              <Text style={styles.avatarText}>TE</Text>
+            </View>
+            <View style={styles.dossierTitles}>
+              <Text style={styles.dossierCallsign}>{displayCallsign.toUpperCase()}</Text>
+              <Text style={styles.dossierRank}>{displayRank.toUpperCase()}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.dossierStatsDivider} />
+          
+          <View style={styles.dossierStatsRow}>
+            <View style={styles.dossierStatBlock}>
+              <Text style={styles.dossierStatLabel}>DISCIPLINE SCORE</Text>
+              <View style={styles.dossierScoreRow}>
+                <Text style={styles.dossierStatValue}>{displayScore}</Text>
+                {displayScore !== '--' && <Text style={styles.dossierScoreSuffix}>/100</Text>}
+              </View>
+            </View>
+            <View style={styles.dossierStatBlock}>
+              <Text style={styles.dossierStatLabel}>STREAK</Text>
+              <View style={styles.dossierScoreRow}>
+                <Text style={styles.dossierStatValue}>{displayStreak}</Text>
+                <Text style={styles.dossierScoreSuffix}>DAYS</Text>
+              </View>
+            </View>
+          </View>
+          
+          <View style={styles.dossierPromoBox}>
+            <View style={styles.rankHeaderRow}>
+              <Text style={styles.dossierPromoLabel}>FIELD RANK PROGRESSION</Text>
+              <Text style={styles.rankPercentText}>{rank.progressPercentage}%</Text>
+            </View>
+            <View style={styles.rankTrack}>
+              <View style={[styles.rankFill, { width: `${rank.progressPercentage}%` }]} />
+            </View>
+            <View style={styles.rankLabelsRow}>
+              <Text style={styles.rankLabelText}>{rank.currentRank.toUpperCase()}</Text>
+              {rank.nextRank && <Text style={styles.rankLabelText}>{rank.nextRank.toUpperCase()}</Text>}
+            </View>
+            <Text style={[styles.dossierPromoText, { marginTop: 12, color: '#e9c176' }]}>
+              {rank.remainingRequirement.toUpperCase()}
+            </Text>
+          </View>
+        </View>
+
+        {/* Editable Fields */}
         <View style={styles.section}>
           <Text style={styles.label}>{t('callsignLabel')}</Text>
           <TextInput
@@ -151,43 +218,35 @@ export function ProfileScreen() {
           />
         </View>
 
-        <View style={styles.readOnlySection}>
-          <View style={styles.readOnlyRow}>
-            <Text style={styles.label}>{t('rankLabel')}</Text>
-            <Text style={styles.readOnlyValue}>{userProfile?.rank || t('defaultRank')}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.readOnlyRow}>
-            <Text style={styles.label}>{t('classificationLabel')}</Text>
-            <Text style={styles.readOnlyValue}>{userProfile?.classification || t('defaultClassification')}</Text>
+        {/* Active Callsign */}
+        <View style={styles.section}>
+          <Text style={styles.label}>ACTIVE CALLSIGN</Text>
+          <View style={styles.callsignGrid}>
+            {activeOptions.map(opt => {
+              const isActive = activeCallsign.toUpperCase() === opt;
+              return (
+                <Pressable 
+                  key={opt}
+                  style={[styles.callsignChip, isActive && styles.callsignChipActive]}
+                  onPress={() => setActiveCallsign(opt)}
+                >
+                  <Text style={[styles.callsignChipText, isActive && styles.callsignChipTextActive]}>{opt}</Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
+        {/* Operator Stats */}
         <View style={styles.statsSection}>
           <Text style={styles.statsSectionTitle}>OPERATOR STATS</Text>
-          {hasLoadedStats && hasStats(userStats) ? (
-            <>
-              <View style={styles.statsGrid}>
-                <StatWidget label="MISSIONS COMPLETED" value={String(Math.max(numberFrom(userStats?.totalMissionsCompleted), recentCompletedCount))} />
-                <StatWidget
-                  label="AVG DISCIPLINE"
-                  value={`${Math.round(numberFrom(userStats?.averageDisciplineScore))}%`}
-                />
-                <StatWidget label="CURRENT STREAK" value={`${numberFrom(userStats?.currentStreak)} DAYS`} />
-                <StatWidget label="BEST GRADE" value={bestGradeFromStats(userStats)} />
-              </View>
-              <View style={styles.previewRow}>
-                <View style={styles.previewItem}>
-                  <Text style={styles.previewLabel}>TRADER CLASSIFICATION</Text>
-                  <Text style={styles.previewValue}>{userProfile?.classification || t('defaultClassification')}</Text>
-                </View>
-                <View style={styles.previewDivider} />
-                <View style={styles.previewItem}>
-                  <Text style={styles.previewLabel}>RANK PREVIEW</Text>
-                  <Text style={styles.previewValue}>{userProfile?.rank || t('defaultRank')}</Text>
-                </View>
-              </View>
-            </>
+          {hasLoadedStats && progress.completedMissions > 0 ? (
+            <View style={styles.statsGrid}>
+              <StatWidget label="MISSIONS" value={String(progress.completedMissions)} />
+              <StatWidget label="HIGHEST SCORE" value={String(userStats?.bestDisciplineScore || '--')} />
+              <StatWidget label="LONGEST STREAK" value={String(userStats?.longestStreak || 0)} />
+              <StatWidget label="BEST GRADE" value={progress.grade} />
+            </View>
           ) : (
             <View style={styles.emptyStatsCard}>
               <Text style={styles.emptyStatsTitle}>NO MISSIONS ARCHIVED YET</Text>
@@ -198,17 +257,37 @@ export function ProfileScreen() {
           )}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setIsShowingNotifications(true)}
-          style={({ pressed }) => [styles.alertsButton, pressed && styles.buttonPressed]}
-        >
-          <View>
-            <Text style={styles.alertsEyebrow}>DAY 5 NOTIFICATION ENGINE</Text>
-            <Text style={styles.alertsTitle}>MISSION ALERTS</Text>
+        {/* Mission Parameters */}
+        <View style={styles.section}>
+          <Text style={styles.statsSectionTitle}>MISSION PARAMETERS</Text>
+          <View style={styles.parametersCard}>
+            <ParameterRow label="PRIMARY OBJECTIVE" value={progress.mostUsedObjective.toUpperCase()} />
+            <ParameterRow label="PRIMARY FOCUS" value={progress.mostUsedFocus.toUpperCase()} />
+            <ParameterRow label="STRONGEST TRAIT" value={progress.strongestTraits[0] ? progress.strongestTraits[0].label.toUpperCase() : 'BUILDING PROFILE'} />
+            <ParameterRow label="BIGGEST THREAT" value={progress.commonThreats[0] ? progress.commonThreats[0].label.toUpperCase() : 'NOT ENOUGH DATA'} isThreat />
+            <ParameterRow label="SUCCESS RATE" value={`${progress.completionRate}%`} noBorder />
           </View>
-          <Text style={styles.alertsAction}>OPEN</Text>
-        </Pressable>
+        </View>
+
+        {/* Mission Intelligence Protocols */}
+        <View style={styles.section}>
+          <Text style={styles.statsSectionTitle}>MISSION INTELLIGENCE PROTOCOLS</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setIsShowingNotifications(true)}
+            style={({ pressed }) => [styles.alertsCard, pressed && styles.buttonPressed]}
+          >
+            <View style={styles.alertsContent}>
+              <Text style={styles.alertsEyebrow}>ALERTS & AUTOMATION</Text>
+              <Text style={styles.alertsTitle}>ACTIVE PROTOCOLS</Text>
+            </View>
+            <View style={styles.alertsActionColumn}>
+              <Text style={styles.alertsActionText}>MANAGE</Text>
+              <Text style={styles.alertsActionText}>BEHAVIORAL</Text>
+              <Text style={styles.alertsActionText}>NOTIFICATIONS</Text>
+            </View>
+          </Pressable>
+        </View>
 
         <Pressable
           accessibilityRole="button"
@@ -238,34 +317,19 @@ export function ProfileScreen() {
 function StatWidget({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.statWidget}>
-      <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
     </View>
   );
 }
 
-function bestGradeFromStats(stats: UserStats | null): string {
-  if (stats?.bestGrade) return stats.bestGrade === 'Recovery Required' ? 'F' : stats.bestGrade;
-  return gradeFromScore(numberFrom(stats?.bestDisciplineScore));
-}
-
-function gradeFromScore(score: number): string {
-  if (score >= 95) return 'S';
-  if (score >= 90) return 'A+';
-  if (score >= 85) return 'A';
-  if (score >= 80) return 'A-';
-  if (score >= 75) return 'B+';
-  if (score >= 70) return 'B';
-  if (score >= 60) return 'C';
-  return '--';
-}
-
-function hasStats(stats: UserStats | null): boolean {
-  return numberFrom(stats?.totalMissionsCompleted) > 0 || numberFrom(stats?.totalDebriefsCompleted ?? stats?.totalDebriefs) > 0;
-}
-
-function numberFrom(value: unknown): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+function ParameterRow({ label, value, isThreat, noBorder }: { label: string; value: string; isThreat?: boolean; noBorder?: boolean }) {
+  return (
+    <View style={[styles.parameterRow, !noBorder && styles.parameterRowBorder]}>
+      <Text style={styles.parameterLabel}>{label}</Text>
+      <Text style={[styles.parameterValue, isThreat && styles.parameterValueThreat]}>{value}</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -281,14 +345,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 32,
+    marginBottom: 24,
     marginTop: 16,
   },
   title: {
-    color: '#f8fafc',
-    fontSize: 24,
+    color: '#e9c176',
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   badge: {
     backgroundColor: 'rgba(233, 193, 118, 0.1)',
@@ -304,15 +368,112 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1,
   },
+  dossierCard: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    marginBottom: 32,
+    padding: 20,
+  },
+  dossierTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  avatarPlaceholder: {
+    width: 64,
+    height: 64,
+    backgroundColor: '#0a0f10',
+    borderColor: '#e9c176',
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  avatarText: {
+    color: '#e9c176',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  dossierTitles: {
+    flex: 1,
+  },
+  dossierCallsign: {
+    color: '#e9c176',
+    fontSize: 24,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  dossierRank: {
+    color: '#8a8f93',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  dossierStatsDivider: {
+    backgroundColor: '#2a3135',
+    height: 1,
+    marginBottom: 16,
+  },
+  dossierStatsRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  dossierStatBlock: {
+    flex: 1,
+  },
+  dossierStatLabel: {
+    color: '#8a8f93',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  dossierScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  dossierStatValue: {
+    color: '#e9c176',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  dossierScoreSuffix: {
+    color: '#e9c176',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 4,
+    opacity: 0.8,
+  },
+  dossierPromoBox: {
+    backgroundColor: '#1b2022',
+    borderRadius: 4,
+    padding: 12,
+  },
+  dossierPromoLabel: {
+    color: '#e9c176',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 4,
+  },
+  dossierPromoText: {
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   section: {
-    marginBottom: 24,
+    marginBottom: 32,
   },
   label: {
     color: '#e9c176',
     fontSize: 10,
     fontWeight: '800',
     letterSpacing: 1.5,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   input: {
     backgroundColor: '#0a0f10',
@@ -329,73 +490,67 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     textAlignVertical: 'top',
   },
-  readOnlySection: {
+  callsignGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  callsignChip: {
     backgroundColor: '#14181a',
     borderColor: '#2a3135',
     borderWidth: 1,
-    marginBottom: 32,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '45%',
+    flexGrow: 1,
+  },
+  callsignChipActive: {
+    borderColor: '#e9c176',
+  },
+  callsignChipText: {
+    color: '#8a8f93',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+  },
+  callsignChipTextActive: {
+    color: '#e9c176',
   },
   statsSection: {
     marginBottom: 32,
   },
   statsSectionTitle: {
-    color: '#e9c176',
-    fontSize: 11,
-    fontWeight: '900',
+    color: '#8a8f93',
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 2,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 12,
   },
   statWidget: {
     backgroundColor: '#14181a',
     borderColor: '#2a3135',
-    borderLeftColor: '#e9c176',
-    borderLeftWidth: 3,
     borderWidth: 1,
-    minHeight: 82,
-    padding: 14,
+    padding: 16,
     width: '48%',
-  },
-  statValue: {
-    color: '#f8fafc',
-    fontSize: 22,
-    fontWeight: '900',
-    marginBottom: 6,
   },
   statLabel: {
     color: '#8a8f93',
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '800',
     letterSpacing: 1,
+    marginBottom: 12,
   },
-  previewRow: {
-    backgroundColor: '#0a0f10',
-    borderColor: '#2a3135',
-    borderWidth: 1,
-  },
-  previewItem: {
-    padding: 16,
-  },
-  previewLabel: {
+  statValue: {
     color: '#e9c176',
-    fontSize: 9,
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 1.5,
-    marginBottom: 6,
-  },
-  previewValue: {
-    color: '#d1c5b4',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  previewDivider: {
-    backgroundColor: '#2a3135',
-    height: 1,
   },
   emptyStatsCard: {
     backgroundColor: '#14181a',
@@ -415,51 +570,101 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
-  alertsButton: {
-    alignItems: 'center',
+  parametersCard: {
     backgroundColor: '#14181a',
     borderColor: '#2a3135',
-    borderLeftColor: '#e9c176',
-    borderLeftWidth: 3,
     borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    minHeight: 76,
     padding: 16,
   },
-  alertsEyebrow: {
+  parameterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  parameterRowBorder: {
+    borderBottomColor: '#2a3135',
+    borderBottomWidth: 1,
+  },
+  parameterLabel: {
+    color: '#8a8f93',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  parameterValue: {
     color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  parameterValueThreat: {
+    color: '#ff6b6b',
+  },
+  rankHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 8,
+  },
+  rankPercentText: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  rankTrack: {
+    height: 4,
+    backgroundColor: '#2a3135',
+    marginBottom: 8,
+  },
+  rankFill: {
+    height: '100%',
+    backgroundColor: '#e9c176',
+  },
+  rankLabelsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  rankLabelText: {
+    color: '#8a8f93',
     fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.4,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  alertsCard: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    minHeight: 80,
+  },
+  alertsContent: {
+    flex: 1,
+  },
+  alertsEyebrow: {
+    color: '#8a8f93',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
     marginBottom: 6,
   },
   alertsTitle: {
-    color: '#f8fafc',
-    fontSize: 16,
+    color: '#e9c176',
+    fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1,
   },
-  alertsAction: {
+  alertsActionColumn: {
+    alignItems: 'flex-end',
+  },
+  alertsActionText: {
     color: '#e9c176',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.5,
-  },
-  readOnlyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-  },
-  readOnlyValue: {
-    color: '#8a8f93',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  divider: {
-    backgroundColor: '#2a3135',
-    height: 1,
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 1,
+    lineHeight: 12,
   },
   saveButton: {
     alignItems: 'center',
