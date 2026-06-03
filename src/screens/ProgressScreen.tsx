@@ -253,11 +253,15 @@ export function ProgressScreen({ onStartMission }: ProgressScreenProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <Text style={styles.menuIcon}>☰</Text>
-          <Text style={styles.brand}>TRADER'S EDGE</Text>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>TE</Text>
+        {/* Page Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>PROGRESS CENTER</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {userProfile?.subscriptionTier === 'founder' 
+                ? 'FOUNDER' 
+                : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
+            </Text>
           </View>
         </View>
 
@@ -1025,45 +1029,38 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2,
   },
-  topBar: {
+  header: {
     alignItems: 'center',
-    backgroundColor: '#111617',
-    borderBottomColor: '#252a2b',
-    borderBottomWidth: 1,
     flexDirection: 'row',
-    height: 88,
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    marginBottom: 16,
+    marginTop: 24,
+    paddingHorizontal: 22,
   },
-  menuIcon: {
-    color: '#ffdda1',
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  brand: {
+  title: {
     color: '#e9c176',
-    fontSize: 25,
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 7,
+    letterSpacing: 1.5,
   },
-  avatar: {
-    alignItems: 'center',
-    borderColor: '#b28d43',
-    borderRadius: 28,
-    borderWidth: 2,
-    height: 56,
-    justifyContent: 'center',
-    width: 56,
+  badge: {
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: 'rgba(233, 193, 118, 0.3)',
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  avatarText: {
+  badgeText: {
     color: '#e9c176',
-    fontSize: 12,
-    fontWeight: '900',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   rankCard: {
     backgroundColor: '#191d1e',
-    borderLeftColor: '#e9c176',
-    borderLeftWidth: 5,
+    borderColor: '#2a3135',
+    borderWidth: 1,
     margin: 22,
     marginBottom: 16,
     padding: 28,
@@ -1139,8 +1136,8 @@ const styles = StyleSheet.create({
   scorePanel: {
     alignItems: 'center',
     backgroundColor: '#141819',
-    borderLeftColor: '#6d6048',
-    borderLeftWidth: 3,
+    borderColor: '#2a3135',
+    borderWidth: 1,
     flex: 1,
     flexDirection: 'column',
     gap: 12,
@@ -1177,8 +1174,8 @@ const styles = StyleSheet.create({
   streakPanel: {
     alignItems: 'center',
     backgroundColor: '#141819',
-    borderLeftColor: '#6d6048',
-    borderLeftWidth: 3,
+    borderColor: '#2a3135',
+    borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1271,8 +1268,8 @@ const styles = StyleSheet.create({
   centerCard: {
     alignItems: 'center',
     backgroundColor: '#191d1e',
-    borderLeftColor: '#e9c176',
-    borderLeftWidth: 5,
+    borderColor: '#2a3135',
+    borderWidth: 1,
     marginHorizontal: 22,
     marginBottom: 16,
     padding: 34,
@@ -1325,8 +1322,8 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: '#191d1e',
-    borderLeftColor: '#e9c176',
-    borderLeftWidth: 5,
+    borderColor: '#2a3135',
+    borderWidth: 1,
     marginHorizontal: 22,
     marginBottom: 16,
     padding: 28,
