@@ -255,14 +255,21 @@ export function ProgressScreen({ onStartMission }: ProgressScreenProps) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Page Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>PROGRESS CENTER</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {userProfile?.subscriptionTier === 'founder' 
-                ? 'FOUNDER' 
-                : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
-            </Text>
+          <View style={styles.statusRow}>
+            <View style={styles.statusLeft}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>OPERATOR ONLINE</Text>
+            </View>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {userProfile?.subscriptionTier === 'founder' 
+                  ? 'FOUNDER' 
+                  : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
+              </Text>
+            </View>
           </View>
+          <Text style={styles.title}>PROGRESS CENTER</Text>
+          <Text style={styles.subtitle}>PERFORMANCE REVIEW | DISCIPLINE INTEL</Text>
         </View>
 
         <RankCard model={model} callsign={userProfile?.activeCallsign || userProfile?.callsign || ''} />
@@ -982,7 +989,7 @@ function formatDateKey(date: Date) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#050707',
+    backgroundColor: '#101415',
     flex: 1,
   },
   content: {
@@ -1030,36 +1037,64 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   header: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: 16,
     marginTop: 24,
     paddingHorizontal: 22,
   },
-  title: {
+  statusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  statusLeft: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  statusDot: {
+    backgroundColor: '#72c875',
+    height: 8,
+    marginRight: 8,
+    width: 8,
+  },
+  statusText: {
     color: '#e9c176',
-    fontSize: 20,
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
+  title: {
+    color: '#f8fafc',
+    fontSize: 32,
     fontWeight: '900',
-    letterSpacing: 1.5,
+    letterSpacing: 1,
   },
   badge: {
     backgroundColor: 'rgba(233, 193, 118, 0.1)',
     borderColor: 'rgba(233, 193, 118, 0.3)',
     borderRadius: 4,
     borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   badgeText: {
     color: '#e9c176',
-    fontSize: 10,
-    fontWeight: '800',
+    fontSize: 9,
+    fontWeight: '900',
     letterSpacing: 1,
+  },
+  subtitle: {
+    color: '#8a8f93',
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginTop: 8,
   },
   rankCard: {
     backgroundColor: '#191d1e',
     borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
     borderWidth: 1,
     margin: 22,
     marginBottom: 16,
@@ -1137,6 +1172,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#141819',
     borderColor: '#2a3135',
+    borderLeftColor: '#6d6048',
+    borderLeftWidth: 3,
     borderWidth: 1,
     flex: 1,
     flexDirection: 'column',
@@ -1175,6 +1212,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#141819',
     borderColor: '#2a3135',
+    borderLeftColor: '#6d6048',
+    borderLeftWidth: 3,
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
