@@ -428,6 +428,7 @@ export function MissionDebriefScreen() {
               }
 
               const disciplineOutput = buildDisciplineOutput(completedScore);
+              const savedEmotion = emotion || 'neutral';
       
       // 1. Save massive debrief document
       const debriefRef = await addDoc(collection(firestore, 'mission_debriefs'), {
@@ -461,7 +462,7 @@ export function MissionDebriefScreen() {
         psychology: {
           stateScore: pulseScore,
           stateLabel: getPulseLabel(pulseScore),
-          emotions: emotion ? [emotion] : []
+          emotions: [savedEmotion]
         },
         lesson: { text: notes },
         summary: {

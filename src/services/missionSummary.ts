@@ -26,6 +26,7 @@ export type MissionSummary = {
   };
   coachMessage?: unknown;
   coachingStyle?: CoachingStyle | null;
+  missionReflection?: unknown;
 };
 
 export function buildMissionSummary({
@@ -64,7 +65,7 @@ export function buildMissionSummary({
     readiness: {
       missionStatus: mission?.missionStatus,
       currentMindsetStatus: mission?.currentMindsetStatus,
-      score: mission?.lastMindsetScore,
+      score: mission?.readinessScore ?? mission?.lastMindsetScore ?? mission?.readinessCheck?.score,
     },
     discipline: discipline
       ? {

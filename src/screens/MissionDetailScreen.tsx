@@ -5,7 +5,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
-import { COACHING_STYLE_LABELS, CoachingStyle } from '../features/coaching/coachTypes';
+import { getCoachMessage } from '../features/coaching/coachEngine';
 import { firestore } from '../services/firebase';
 import type { MissionSummary } from '../services/missionSummary';
 
@@ -151,10 +151,29 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
     : '—';
   const discipline = debrief?.discipline || debrief?.result || {};
   const score = numberLabel(summaryDiscipline.score ?? discipline.score);
+  const rawScore = summaryDiscipline.score ?? discipline.score;
   const grade = summaryDiscipline.grade || discipline.grade || '—';
   const strongestBehavior = summaryDiscipline.strongestBehavior || discipline.strongestBehavior;
-  const coachingStyle = (summary?.coachingStyle || mission?.coachingStyle || debrief?.coachingStyle || 'tactical') as CoachingStyle;
-  const coachMessage = messageText(summary?.coachMessage || mission?.coachMessage || debrief?.coachMessage);
+  const hasDebrief = Boolean(summary?.debriefId || mission?.debriefId || debrief || rawScore !== undefined || grade !== '—');
+  const savedReflection = messageText(summary?.missionReflection || mission?.missionReflection);
+  const fallbackReflection = getCoachMessage({
+    alertType: 'missionReflection',
+    coachingStyle: 'tactical',
+    coreFocus: summary?.coreFocus || mission?.coreFocus,
+    disciplineScore: typeof rawScore === 'number' ? rawScore : undefined,
+    grade,
+    hasDebrief,
+    missionStatus: (summaryReadiness.missionStatus || readiness?.missionStatus || mission?.missionStatus) as any,
+    objective: summary?.objective || mission?.objective,
+    screenContext: 'vault_reflection',
+    threat: summaryThreats[0],
+  }).body;
+  const missionReflection = savedReflection || fallbackReflection;
+  const sessionStartedAt = dateFromUnknown(mission?.sessionStartedAt || mission?.startedAt);
+  const sessionEndedAt = dateFromUnknown(mission?.sessionEndedAt || mission?.endedAt || summary?.completedAt || mission?.completedAt);
+  const sessionDuration = formatDuration(sessionStartedAt, sessionEndedAt, debrief?.summary?.sessionLengthMinutes);
+  const sessionLabel = (debrief?.session || mission?.session || 'new_york').toString().replace(/_/g, ' ').toUpperCase();
+  const tradeStatus = (summary?.tradeStatus || debrief?.execution?.tradeStatus || '—').toString().replace(/_/g, ' ').toUpperCase();
 
   if (isLoading) {
     return (
@@ -206,6 +225,18 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
         </View>
 
         <View style={styles.card}>
+          <Text style={styles.sectionTitle}>SESSION DETAILS</Text>
+          <View style={styles.grid}>
+            <Metric label="SESSION" value={sessionLabel} />
+            <Metric label="TRADE STATUS" value={tradeStatus} />
+            <Metric label="STARTED" value={formatTime(sessionStartedAt)} />
+            <Metric label="ENDED" value={formatTime(sessionEndedAt)} />
+            <Metric label="DURATION" value={sessionDuration} />
+            <Metric label="PHASE" value={(mission?.missionPhase || mission?.status || '—').toString().replace(/_/g, ' ').toUpperCase()} />
+          </View>
+        </View>
+
+        <View style={styles.card}>
           <Text style={styles.sectionTitle}>READINESS CHECK</Text>
           <View style={styles.grid}>
             <Metric label="CONFIDENCE" value={readiness?.confidence || '—'} />
@@ -216,11 +247,8 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>COACHING SNAPSHOT</Text>
-          <View style={styles.styleBadge}>
-            <Text style={styles.styleBadgeText}>{COACHING_STYLE_LABELS[coachingStyle] || COACHING_STYLE_LABELS.tactical}</Text>
-          </View>
-          <Text style={styles.coachText}>{coachMessage || 'No coaching message was saved for this session.'}</Text>
+          <Text style={styles.sectionTitle}>MISSION REFLECTION</Text>
+          <Text style={styles.coachText}>{missionReflection}</Text>
         </View>
 
         <View style={styles.card}>
@@ -289,7 +317,7 @@ function labelFor(value: unknown, labels: Record<string, string>): string {
 }
 
 function formatDate(value: any): string {
-  const date = value?.toDate?.() || (value instanceof Date ? value : null);
+  const date = dateFromUnknown(value);
   if (!date) return '';
 
   return new Intl.DateTimeFormat('en-US', {
@@ -301,6 +329,33 @@ function formatDate(value: any): string {
 
 function numberLabel(value: unknown): string {
   return typeof value === 'number' && Number.isFinite(value) ? `${value}/100` : '—';
+}
+
+function dateFromUnknown(value: any): Date | null {
+  const date = value?.toDate?.() || (value instanceof Date ? value : null);
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function formatTime(date: Date | null): string {
+  if (!date) return '—';
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).toUpperCase();
+}
+
+function formatDuration(start: Date | null, end: Date | null, fallbackMinutes?: number): string {
+  const minutes = start && end
+    ? Math.max(0, Math.round((end.getTime() - start.getTime()) / 60_000))
+    : fallbackMinutes;
+
+  if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return '—';
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours <= 0) return `${remainder}M`;
+  if (remainder === 0) return `${hours}H`;
+  return `${hours}H ${remainder}M`;
 }
 
 function messageText(value: any): string | null {
@@ -440,22 +495,6 @@ const styles = StyleSheet.create({
     color: '#e9c176',
     fontSize: 14,
     fontWeight: '900',
-  },
-  styleBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(233, 193, 118, 0.1)',
-    borderColor: 'rgba(233, 193, 118, 0.3)',
-    borderRadius: 4,
-    borderWidth: 1,
-    marginBottom: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  styleBadgeText: {
-    color: '#e9c176',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1,
   },
   coachText: {
     color: '#d1c5b4',

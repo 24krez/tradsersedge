@@ -19,6 +19,10 @@ type MissionArchiveRecord = {
   createdAt?: any;
   completedAt?: any;
   readinessScore?: number;
+  lastMindsetScore?: number;
+  readinessCheck?: {
+    score?: number;
+  };
   coachMessage?: any;
   disciplineScore?: number;
   disciplineGrade?: string;
@@ -33,6 +37,9 @@ type SessionNoteRecord = {
   text?: string;
   [key: string]: any;
 };
+
+type VaultQuickFilter = 'all' | 'debriefed' | 'missing' | 'best';
+type VaultListRange = 'recent10' | 'last30';
 
 const objectiveLabels: Record<string, string> = {
   protectCapital: 'PROTECT CAPITAL',
@@ -68,6 +75,9 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
   const [hasLoadedMissions, setHasLoadedMissions] = useState(false);
   const [hasLoadedNotes, setHasLoadedNotes] = useState(false);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [quickFilter, setQuickFilter] = useState<VaultQuickFilter>('all');
+  const [listRange, setListRange] = useState<VaultListRange>('recent10');
 
   useEffect(() => {
     if (!user) {
@@ -143,6 +153,34 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
     }));
   }, [missions, notesByMissionId]);
 
+  const calendarDays = useMemo(() => buildCalendarDays(archive.map((item) => item.mission)), [archive]);
+
+  const filteredArchive = useMemo(() => {
+    return archive.filter(({ mission }) => {
+      if (selectedDateKey && missionDateKey(mission) !== selectedDateKey) return false;
+
+      if (quickFilter === 'debriefed') return missionHasDebrief(mission);
+      if (quickFilter === 'missing') return !missionHasDebrief(mission);
+      if (quickFilter === 'best') return missionIsBestScore(mission);
+
+      return true;
+    });
+  }, [archive, quickFilter, selectedDateKey]);
+
+  const visibleArchive = useMemo(() => {
+    if (listRange === 'last30') {
+      const cutoff = new Date();
+      cutoff.setHours(0, 0, 0, 0);
+      cutoff.setDate(cutoff.getDate() - 29);
+      return filteredArchive.filter(({ mission }) => {
+        const date = missionCompletedDate(mission);
+        return date ? date >= cutoff : false;
+      });
+    }
+
+    return filteredArchive.slice(0, 10);
+  }, [filteredArchive, listRange]);
+
   const stats = useMemo(() => {
     const scores = archive
       .map((item) => item.mission.missionSummary?.discipline?.score ?? item.mission.disciplineScore)
@@ -181,6 +219,18 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
           <StatBox label="BEST GRADE" value={stats.bestGrade || '—'} />
         </View>
 
+        {!isLoading && archive.length > 0 && (
+          <MissionCalendar
+            days={calendarDays}
+            onSelectDate={setSelectedDateKey}
+            onSelectListRange={setListRange}
+            onSelectQuickFilter={setQuickFilter}
+            listRange={listRange}
+            quickFilter={quickFilter}
+            selectedDateKey={selectedDateKey}
+          />
+        )}
+
         {isLoading ? (
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>LOADING ARCHIVE</Text>
@@ -193,9 +243,14 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
               Finish your first trading session to unlock your mission history.
             </Text>
           </View>
+        ) : visibleArchive.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>NO MATCHING RECORDS</Text>
+            <Text style={styles.emptyText}>Clear the calendar or filter selection to review more missions.</Text>
+          </View>
         ) : (
           <View style={styles.list}>
-            {archive.map(({ mission, notes }) => (
+            {visibleArchive.map(({ mission, notes }) => (
               <VaultCard
                 key={mission.id}
                 mission={mission}
@@ -234,7 +289,7 @@ function VaultCard({
     : '—';
   const score = summary?.discipline?.score ?? mission.disciplineScore;
   const grade = summary?.discipline?.grade ?? mission.disciplineGrade;
-  const readinessScore = summary?.readiness?.score ?? mission.readinessScore;
+  const readinessScore = summary?.readiness?.score ?? mission.readinessScore ?? mission.lastMindsetScore ?? mission.readinessCheck?.score;
   const hasDebrief = Boolean(summary?.debriefId || mission.debriefId || grade || typeof score === 'number');
   const noteText = notes.map(noteSnippet).filter(Boolean).join(' ');
 
@@ -248,7 +303,7 @@ function VaultCard({
         </View>
         <View style={[styles.gradeBadge, !hasDebrief && styles.noDebriefBadge]}>
           <Text style={[styles.gradeText, !hasDebrief && styles.noDebriefText]}>
-            {hasDebrief ? grade || '—' : 'NO DEBRIEF'}
+            {hasDebrief ? grade || '—' : 'DEBRIEF MISSING'}
           </Text>
         </View>
       </View>
@@ -274,6 +329,96 @@ function VaultCard({
       <Pressable onPress={onView} style={({ pressed }) => [styles.viewButton, pressed && styles.buttonPressed]}>
         <Text style={styles.viewButtonText}>VIEW DETAILS</Text>
       </Pressable>
+    </View>
+  );
+}
+
+function MissionCalendar({
+  days,
+  listRange,
+  onSelectDate,
+  onSelectListRange,
+  onSelectQuickFilter,
+  quickFilter,
+  selectedDateKey,
+}: {
+  days: CalendarDay[];
+  listRange: VaultListRange;
+  onSelectDate: (dateKey: string) => void;
+  onSelectListRange: (range: VaultListRange) => void;
+  onSelectQuickFilter: (filter: VaultQuickFilter) => void;
+  quickFilter: VaultQuickFilter;
+  selectedDateKey: string | null;
+}) {
+  const filters: Array<{ key: VaultQuickFilter; label: string }> = [
+    { key: 'all', label: 'ALL' },
+    { key: 'debriefed', label: 'DEBRIEFED' },
+    { key: 'missing', label: 'NO DEBRIEF' },
+    { key: 'best', label: 'BEST SCORES' },
+  ];
+
+  return (
+    <View style={styles.calendarSection}>
+      <View style={styles.calendarHeader}>
+        <View>
+          <Text style={styles.calendarTitle}>MISSION CALENDAR</Text>
+          <Text style={styles.calendarHelper}>Tap a day to review completed sessions.</Text>
+        </View>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarStrip}>
+        {days.map((day) => {
+          const isSelected = selectedDateKey === day.key;
+          return (
+            <Pressable
+              key={day.key}
+              onPress={() => onSelectDate(day.key)}
+              style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+            >
+              <Text style={[styles.dayName, isSelected && styles.dayNameSelected]}>{day.weekday}</Text>
+              <Text style={[styles.dayNumber, isSelected && styles.dayNumberSelected]}>{day.day}</Text>
+              <View style={styles.dayIndicatorRow}>
+                {day.hasCompleted && (
+                  <View
+                    style={[
+                      styles.dayIndicator,
+                      day.hasBestScore && styles.dayIndicatorBest,
+                      day.hasMissingDebrief && styles.dayIndicatorWarning,
+                    ]}
+                  />
+                )}
+              </View>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <View style={styles.quickFilters}>
+        <Pressable
+          onPress={() => onSelectListRange('recent10')}
+          style={[styles.quickFilterButton, listRange === 'recent10' && styles.quickFilterButtonActive]}
+        >
+          <Text style={[styles.quickFilterText, listRange === 'recent10' && styles.quickFilterTextActive]}>LATEST 10</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => onSelectListRange('last30')}
+          style={[styles.quickFilterButton, listRange === 'last30' && styles.quickFilterButtonActive]}
+        >
+          <Text style={[styles.quickFilterText, listRange === 'last30' && styles.quickFilterTextActive]}>LAST 30 DAYS</Text>
+        </Pressable>
+        {filters.map((filter) => {
+          const isActive = quickFilter === filter.key;
+          return (
+            <Pressable
+              key={filter.key}
+              onPress={() => onSelectQuickFilter(filter.key)}
+              style={[styles.quickFilterButton, isActive && styles.quickFilterButtonActive]}
+            >
+              <Text style={[styles.quickFilterText, isActive && styles.quickFilterTextActive]}>{filter.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -329,6 +474,70 @@ function bestGrade(grades: string[]): string | null {
   if (grades.length === 0) return null;
   const order = ['S', 'A+', 'A', 'A-', 'B+', 'B', 'C', 'Recovery Required'];
   return [...grades].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || grades[0];
+}
+
+type CalendarDay = {
+  key: string;
+  weekday: string;
+  day: string;
+  hasCompleted: boolean;
+  hasBestScore: boolean;
+  hasMissingDebrief: boolean;
+};
+
+function buildCalendarDays(missions: MissionArchiveRecord[]): CalendarDay[] {
+  return Array.from({ length: 14 }).map((_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (13 - index));
+    const key = formatDateKey(date);
+    const dayMissions = missions.filter((mission) => missionDateKey(mission) === key);
+
+    return {
+      key,
+      weekday: date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3).toUpperCase(),
+      day: String(date.getDate()),
+      hasCompleted: dayMissions.length > 0,
+      hasBestScore: dayMissions.some(missionIsBestScore),
+      hasMissingDebrief: dayMissions.some((mission) => !missionHasDebrief(mission)),
+    };
+  });
+}
+
+function missionDateKey(mission: MissionArchiveRecord): string {
+  const date = missionCompletedDate(mission);
+  return date ? formatDateKey(date) : '';
+}
+
+function missionCompletedDate(mission: MissionArchiveRecord): Date | null {
+  const summary = mission.missionSummary;
+  return dateFromUnknown(summary?.completedAt || mission.completedAt || summary?.createdAt || mission.createdAt);
+}
+
+function missionHasDebrief(mission: MissionArchiveRecord): boolean {
+  const summary = mission.missionSummary;
+  const score = summary?.discipline?.score ?? mission.disciplineScore;
+  const grade = summary?.discipline?.grade ?? mission.disciplineGrade;
+  return Boolean(summary?.debriefId || mission.debriefId || grade || typeof score === 'number');
+}
+
+function missionIsBestScore(mission: MissionArchiveRecord): boolean {
+  const summary = mission.missionSummary;
+  const score = summary?.discipline?.score ?? mission.disciplineScore;
+  const grade = summary?.discipline?.grade ?? mission.disciplineGrade;
+  return (typeof score === 'number' && score >= 85) || ['S', 'A+', 'A', 'A-'].includes(grade || '');
+}
+
+function dateFromUnknown(value: any): Date | null {
+  const date = value?.toDate?.() || (value instanceof Date ? value : null);
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function formatDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 const styles = StyleSheet.create({
@@ -390,6 +599,111 @@ const styles = StyleSheet.create({
     color: '#e9c176',
     fontSize: 22,
     fontWeight: '900',
+  },
+  calendarSection: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginBottom: 18,
+    padding: 14,
+  },
+  calendarHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  calendarTitle: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 5,
+  },
+  calendarHelper: {
+    color: '#8a8f93',
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  calendarStrip: {
+    gap: 8,
+    paddingBottom: 12,
+  },
+  dayCell: {
+    alignItems: 'center',
+    backgroundColor: '#0a0f10',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    minWidth: 48,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+  },
+  dayCellSelected: {
+    borderColor: '#e9c176',
+  },
+  dayName: {
+    color: '#8a8f93',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  dayNameSelected: {
+    color: '#e9c176',
+  },
+  dayNumber: {
+    color: '#f8fafc',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  dayNumberSelected: {
+    color: '#e9c176',
+  },
+  dayIndicatorRow: {
+    alignItems: 'center',
+    height: 8,
+    justifyContent: 'center',
+    marginTop: 5,
+  },
+  dayIndicator: {
+    backgroundColor: '#e9c176',
+    borderRadius: 3,
+    height: 6,
+    width: 6,
+  },
+  dayIndicatorBest: {
+    backgroundColor: '#79d284',
+  },
+  dayIndicatorWarning: {
+    backgroundColor: '#f0c978',
+    borderRadius: 0,
+  },
+  quickFilters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingTop: 2,
+  },
+  quickFilterButton: {
+    backgroundColor: '#0a0f10',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  quickFilterButtonActive: {
+    borderColor: '#e9c176',
+  },
+  quickFilterText: {
+    color: '#8a8f93',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  quickFilterTextActive: {
+    color: '#e9c176',
   },
   emptyCard: {
     backgroundColor: '#14181a',

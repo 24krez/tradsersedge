@@ -10,7 +10,8 @@ export type AlertType =
   | 'mission_complete'
   | 'debrief_reminder'
   | 'widget'
-  | 'lock_screen';
+  | 'lock_screen'
+  | 'missionReflection';
 
 export type MissionStatus =
   | 'briefing'
@@ -28,6 +29,7 @@ export type ScreenContext =
   | 'post_session'
   | 'lock_screen'
   | 'widget'
+  | 'vault_reflection'
   | 'idle';
 
 export type CoachEngineInput = {
@@ -40,6 +42,7 @@ export type CoachEngineInput = {
   lastLesson?: string;
   disciplineScore?: number;
   grade?: string;
+  hasDebrief?: boolean;
   screenContext?: ScreenContext;
 };
 

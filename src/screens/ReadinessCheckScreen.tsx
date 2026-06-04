@@ -175,6 +175,7 @@ export function ReadinessCheckScreen() {
         confidence: ratings.executionConfidence,
         patience: ratings.patienceReserve,
         focus: ratings.marketFocus,
+        score: newStatusResult.score,
         missionStatus: newStatusResult.status,
         createdAt: serverTimestamp(),
       });
@@ -185,6 +186,15 @@ export function ReadinessCheckScreen() {
         missionStatus: newStatusResult.status,
         missionPhase: 'active',
         sessionStartedAt: serverTimestamp(),
+        readinessScore: newStatusResult.score,
+        lastMindsetScore: newStatusResult.score,
+        readinessCheck: {
+          confidence: ratings.executionConfidence,
+          patience: ratings.patienceReserve,
+          focus: ratings.marketFocus,
+          score: newStatusResult.score,
+          missionStatus: newStatusResult.status,
+        },
         currentMindsetStatus: newStatusResult.status === 'Locked In' ? 'locked_in' : newStatusResult.status === 'On Track' ? 'on_track' : newStatusResult.status === 'Caution' ? 'caution' : 'high_risk',
       });
 
