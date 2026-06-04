@@ -22,11 +22,11 @@ import { useTranslation } from 'react-i18next';
 
 import { MissionStackNavigationProp } from '../../App';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
+import { useCoachMessage } from '../features/coaching/useCoachMessage';
 import {
   CockpitMindsetStatus,
   cockpitStatusToDisplayLabel,
   cockpitStatusToLevels,
-  getCoachingMessage,
   mapMissionStatusToCockpit,
 } from '../logic/missionPhase';
 import {
@@ -319,7 +319,16 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
     }
   };
 
-  const coachingMessage = getCoachingMessage(currentMindset);
+  // Coach engine integration
+  const { message: coachMsg, styleLabel: coachStyleLabel } = useCoachMessage({
+    screenContext: 'during_trading',
+    missionData: {
+      ...mission,
+      currentMindsetStatus: currentMindset,
+    },
+  });
+
+  const coachingMessage = coachMsg?.text || 'Stay disciplined. Follow the plan.';
 
   return (
     <SafeAreaView style={s.safeArea}>
@@ -442,7 +451,12 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
             currentMindset === 'caution' && s.coachingCardWarning,
           ]}
         >
-          <Text style={s.coachingEyebrow}>MISSION INTELLIGENCE</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={s.coachingEyebrow}>MISSION INTELLIGENCE</Text>
+            <View style={{ backgroundColor: 'rgba(233, 193, 118, 0.1)', borderColor: 'rgba(233, 193, 118, 0.3)', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ color: '#e9c176', fontSize: 8, fontWeight: '900', letterSpacing: 1 }}>{coachStyleLabel}</Text>
+            </View>
+          </View>
           <Text style={s.coachingText}>{coachingMessage}</Text>
         </View>
 

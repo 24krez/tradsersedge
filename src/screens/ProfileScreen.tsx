@@ -7,6 +7,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View 
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
+import { LockScreenBriefingScreen } from './LockScreenBriefingScreen';
 import { buildProgressModel, DebriefRecord, MissionRecord, rankFromCompletedMissions, UserStats } from './ProgressScreen';
 
 export function ProfileScreen() {
@@ -20,8 +21,14 @@ export function ProfileScreen() {
   const [missions, setMissions] = useState<MissionRecord[]>([]);
   const [debriefs, setDebriefs] = useState<DebriefRecord[]>([]);
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const hasChanges =
+    callsign.trim() !== (userProfile?.callsign || '') ||
+    motto.trim() !== (userProfile?.motto || '') ||
+    activeCallsign.trim() !== (userProfile?.activeCallsign || '');
   const [isShowingNotifications, setIsShowingNotifications] = useState(false);
+  const [isShowingBriefing, setIsShowingBriefing] = useState(false);
 
   useEffect(() => {
     if (userProfile) {
@@ -83,23 +90,24 @@ export function ProfileScreen() {
   }, [user]);
 
   async function handleSave() {
-    if (!user || isSaving) return;
+    if (!user || saveStatus === 'saving' || !hasChanges) return;
     
     const trimmedCallsign = callsign.trim();
     const trimmedMotto = motto.trim();
     const trimmedActive = activeCallsign.trim();
 
-    setIsSaving(true);
+    setSaveStatus('saving');
     try {
       await updateDoc(doc(firestore, 'users', user.uid), {
         callsign: trimmedCallsign,
         motto: trimmedMotto,
         activeCallsign: trimmedActive,
       });
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (e) {
       console.error('Error saving profile:', e);
-    } finally {
-      setIsSaving(false);
+      setSaveStatus('idle');
     }
   }
 
@@ -115,6 +123,10 @@ export function ProfileScreen() {
     return <NotificationSettingsScreen onBack={() => setIsShowingNotifications(false)} />;
   }
 
+  if (isShowingBriefing) {
+    return <LockScreenBriefingScreen onBack={() => setIsShowingBriefing(false)} />;
+  }
+
   const progress = buildProgressModel(userStats, missions, debriefs);
   const rank = rankFromCompletedMissions(progress.completedMissions);
 
@@ -123,7 +135,7 @@ export function ProfileScreen() {
   const displayScore = progress.completedMissions > 0 ? progress.averageScore : '--';
   const displayStreak = progress.currentStreak || 0;
 
-  const predefinedCallsigns = ['RAVEN', 'GHOST', 'ATLAS', 'SENTINEL'];
+  const predefinedCallsigns = ['RAVEN', 'GHOST', 'ATLAS', 'SENTINEL', 'GOAT'];
   const customCallsign = callsign.trim().toUpperCase();
   const activeOptions = [...predefinedCallsigns];
   if (customCallsign && !activeOptions.includes(customCallsign)) {
@@ -241,32 +253,23 @@ export function ProfileScreen() {
         {/* Operator Stats */}
         <View style={styles.statsSection}>
           <Text style={styles.statsSectionTitle}>OPERATOR STATS</Text>
-          {hasLoadedStats && progress.completedMissions > 0 ? (
-            <View style={styles.statsGrid}>
-              <StatWidget label="MISSIONS" value={String(progress.completedMissions)} />
-              <StatWidget label="HIGHEST SCORE" value={String(userStats?.bestDisciplineScore || '--')} />
-              <StatWidget label="LONGEST STREAK" value={String(userStats?.longestStreak || 0)} />
-              <StatWidget label="BEST GRADE" value={progress.grade} />
-            </View>
-          ) : (
-            <View style={styles.emptyStatsCard}>
-              <Text style={styles.emptyStatsTitle}>NO MISSIONS ARCHIVED YET</Text>
-              <Text style={styles.emptyStatsText}>
-                Complete a mission debrief to unlock performance stats.
-              </Text>
-            </View>
-          )}
+          <View style={styles.statsGrid}>
+            <StatWidget label="MISSIONS COMPLETED" value={String(progress.completedMissions)} />
+            <StatWidget label="HIGHEST DISCIPLINE SCORE" value={userStats?.bestDisciplineScore ? String(userStats.bestDisciplineScore) : '—'} />
+            <StatWidget label="LONGEST STREAK" value={String(userStats?.longestStreak || 0)} />
+            <StatWidget label="BEST GRADE" value={progress.completedMissions > 0 ? progress.grade : '—'} />
+          </View>
         </View>
 
         {/* Mission Parameters */}
         <View style={styles.section}>
           <Text style={styles.statsSectionTitle}>MISSION PARAMETERS</Text>
           <View style={styles.parametersCard}>
-            <ParameterRow label="PRIMARY OBJECTIVE" value={progress.mostUsedObjective.toUpperCase()} />
-            <ParameterRow label="PRIMARY FOCUS" value={progress.mostUsedFocus.toUpperCase()} />
-            <ParameterRow label="STRONGEST TRAIT" value={progress.strongestTraits[0] ? progress.strongestTraits[0].label.toUpperCase() : 'BUILDING PROFILE'} />
+            <ParameterRow label="PRIMARY OBJECTIVE" value={progress.mostUsedObjective !== 'Not Enough Data' ? progress.mostUsedObjective.toUpperCase() : 'TAKE ONLY A+ SETUPS'} />
+            <ParameterRow label="PRIMARY FOCUS" value={progress.mostUsedFocus !== 'Not Enough Data' ? progress.mostUsedFocus.toUpperCase() : 'DISCIPLINE'} />
+            <ParameterRow label="STRONGEST BEHAVIOR" value={progress.strongestTraits[0] ? progress.strongestTraits[0].label.toUpperCase() : 'BUILDING PROFILE'} />
             <ParameterRow label="BIGGEST THREAT" value={progress.commonThreats[0] ? progress.commonThreats[0].label.toUpperCase() : 'NOT ENOUGH DATA'} isThreat />
-            <ParameterRow label="SUCCESS RATE" value={`${progress.completionRate}%`} noBorder />
+            <ParameterRow label="DISCIPLINE RATE" value={progress.completedMissions > 0 ? `${progress.completionRate}%` : '—'} noBorder />
           </View>
         </View>
 
@@ -284,23 +287,38 @@ export function ProfileScreen() {
             </View>
             <View style={styles.alertsActionColumn}>
               <Text style={styles.alertsActionText}>MANAGE</Text>
-              <Text style={styles.alertsActionText}>BEHAVIORAL</Text>
-              <Text style={styles.alertsActionText}>NOTIFICATIONS</Text>
+              <Text style={styles.alertsActionText}>ALERTS</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setIsShowingBriefing(true)}
+            style={({ pressed }) => [styles.alertsCard, pressed && styles.buttonPressed, { marginTop: 12 }]}
+          >
+            <View style={styles.alertsContent}>
+              <Text style={styles.alertsEyebrow}>LOCK SCREEN COACHING</Text>
+              <Text style={styles.alertsTitle}>BRIEFING PREVIEW</Text>
+            </View>
+            <View style={styles.alertsActionColumn}>
+              <Text style={styles.alertsActionText}>OPEN</Text>
             </View>
           </Pressable>
         </View>
 
         <Pressable
           accessibilityRole="button"
-          disabled={isSaving}
+          disabled={!hasChanges || saveStatus === 'saving'}
           onPress={handleSave}
           style={({ pressed }) => [
             styles.saveButton,
+            (!hasChanges || saveStatus === 'saving') && styles.saveButtonDisabled,
             pressed && styles.buttonPressed,
-            isSaving && styles.buttonDisabled,
           ]}
         >
-          <Text style={styles.saveButtonText}>{isSaving ? t('saving') : t('saveBtn')}</Text>
+          <Text style={[styles.saveButtonText, (!hasChanges || saveStatus === 'saving') && styles.saveButtonTextDisabled]}>
+            {saveStatus === 'saving' ? t('saving') : saveStatus === 'saved' ? 'DOSSIER UPDATED' : 'SAVE DOSSIER'}
+          </Text>
         </Pressable>
 
         <Pressable
@@ -674,11 +692,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     minHeight: 56,
   },
+  saveButtonDisabled: {
+    backgroundColor: '#1b2022',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+  },
   saveButtonText: {
     color: '#101415',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1.5,
+  },
+  saveButtonTextDisabled: {
+    color: '#8a8f93',
   },
   signOutButton: {
     alignItems: 'center',

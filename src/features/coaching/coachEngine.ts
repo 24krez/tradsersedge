@@ -1,5 +1,12 @@
 import { coachMessages } from './coachMessages';
-import type { AlertType, CoachEngineInput, CoachMessage, CoachingStyle } from './coachTypes';
+import type {
+  AlertType,
+  CoachEngineInput,
+  CoachMessage,
+  CoachMessageState,
+  CoachingStyle,
+  ScreenContext,
+} from './coachTypes';
 
 const defaultAlertType: AlertType = 'daily_mission';
 const defaultCoachingStyle: CoachingStyle = 'tactical';
@@ -30,6 +37,18 @@ const priorityByAlertType: Record<AlertType, 'low' | 'normal' | 'high'> = {
   lock_screen: 'low',
 };
 
+// ── Module-level current message state ──
+let _currentCoachMessage: CoachMessageState | null = null;
+
+export function getCurrentCoachMessage(): CoachMessageState | null {
+  return _currentCoachMessage;
+}
+
+export function setCurrentCoachMessage(message: CoachMessageState): void {
+  _currentCoachMessage = message;
+}
+
+// ── Original getCoachMessage (deterministic, always first) ──
 export function getCoachMessage(input: CoachEngineInput): CoachMessage {
   const alertType = input.alertType ?? defaultAlertType;
   const coachingStyle = input.coachingStyle ?? defaultCoachingStyle;
@@ -46,6 +65,73 @@ export function getCoachMessage(input: CoachEngineInput): CoachMessage {
     alertType,
     priority: priorityByAlertType[alertType],
   };
+}
+
+// ── New: Random message selection for rotation ──
+export function getRandomCoachMessage(input: CoachEngineInput): CoachMessage {
+  const alertType = input.alertType ?? defaultAlertType;
+  const coachingStyle = input.coachingStyle ?? defaultCoachingStyle;
+  const messages =
+    coachMessages[coachingStyle]?.[alertType] ??
+    coachMessages[defaultCoachingStyle][alertType] ??
+    coachMessages[defaultCoachingStyle][defaultAlertType];
+
+  const pool = messages ?? ['Mission briefing ready. Protect capital and follow the plan.'];
+  const index = Math.floor(Math.random() * pool.length);
+  const baseBody = pool[index];
+
+  return {
+    title: alertTitles[alertType],
+    body: personalizeMessage(baseBody, input, alertType),
+    tone: coachingStyle,
+    alertType,
+    priority: priorityByAlertType[alertType],
+  };
+}
+
+// ── Build a CoachMessageState from a CoachMessage ──
+export function buildCoachMessageState(
+  msg: CoachMessage,
+  screenContext: ScreenContext,
+  missionId?: string,
+): CoachMessageState {
+  return {
+    text: msg.body,
+    title: msg.title,
+    style: msg.tone,
+    category: msg.alertType,
+    screenContext,
+    missionId,
+    updatedAt: Date.now(),
+  };
+}
+
+// ── Resolve which alert type to use given a screen context ──
+export function alertTypeForContext(
+  screenContext: ScreenContext,
+  missionStatus?: string,
+): AlertType {
+  switch (screenContext) {
+    case 'before_trading':
+      return 'session_start';
+    case 'during_trading':
+      if (missionStatus === 'high_risk') return 'high_risk';
+      if (missionStatus === 'caution') return 'caution';
+      if (missionStatus === 'locked_in') return 'locked_in';
+      return 'mid_session_checkin';
+    case 'risk_state':
+      if (missionStatus === 'high_risk') return 'high_risk';
+      return 'caution';
+    case 'post_session':
+      return 'mission_complete';
+    case 'lock_screen':
+      return 'lock_screen';
+    case 'widget':
+      return 'widget';
+    case 'idle':
+    default:
+      return 'daily_mission';
+  }
 }
 
 function personalizeMessage(baseBody: string, input: CoachEngineInput, alertType: AlertType): string {

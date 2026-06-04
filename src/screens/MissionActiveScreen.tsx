@@ -15,6 +15,7 @@ import {
 import { firebaseAuth, firestore } from '../services/firebase';
 import { calculateMissionStatus } from '../logic/missionStatus';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
+import { useCoachMessage } from '../features/coaching/useCoachMessage';
 import { ProMissionBriefing } from './ProMissionBriefing';
 import { ProMissionCockpit } from './ProMissionCockpit';
 import { ProMissionAccomplished } from './ProMissionAccomplished';
@@ -655,6 +656,13 @@ export function MissionActiveScreen() {
   const objectiveKey = objective;
   const focusKey = coreFocus;
   const shouldShowStats = hasStats(userStats);
+  const progress = getSessionProgress(currentSession.session || 'new_york');
+
+  // Coach engine for free users
+  const { message: freeCoachMessage } = useCoachMessage({
+    screenContext: isPending ? 'before_trading' : isCompleted ? 'post_session' : 'during_trading',
+    missionData: missionData,
+  });
 
   // ── Pro Phase Routing ──
   // Pro users get Briefing for pending missions, and Cockpit for active missions.
@@ -713,6 +721,14 @@ export function MissionActiveScreen() {
                 </Text>
               </View>
             </View>
+
+            {/* Mission Signal (Free users) */}
+            {freeCoachMessage && (
+              <View style={styles.coachSignalCard}>
+                <Text style={styles.coachSignalEyebrow}>MISSION SIGNAL</Text>
+                <Text style={styles.coachSignalText}>{freeCoachMessage.text}</Text>
+              </View>
+            )}
 
             {shouldShowStats && (
               <View style={styles.activeStatsRow}>
@@ -1178,6 +1194,28 @@ const styles = StyleSheet.create({
   objectiveBottomRow: {
     flexDirection: 'column',
     gap: 4,
+  },
+  coachSignalCard: {
+    backgroundColor: '#1a1e1f',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginBottom: 24,
+    padding: 16,
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
+  },
+  coachSignalEyebrow: {
+    color: '#e9c176',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  coachSignalText: {
+    color: '#f8fafc',
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   priorityText: {
     color: '#e9c176',

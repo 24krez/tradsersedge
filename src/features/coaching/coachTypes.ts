@@ -21,6 +21,15 @@ export type MissionStatus =
   | 'high_risk'
   | 'locked_in';
 
+export type ScreenContext =
+  | 'before_trading'
+  | 'during_trading'
+  | 'risk_state'
+  | 'post_session'
+  | 'lock_screen'
+  | 'widget'
+  | 'idle';
+
 export type CoachEngineInput = {
   alertType?: AlertType;
   coachingStyle?: CoachingStyle;
@@ -31,6 +40,7 @@ export type CoachEngineInput = {
   lastLesson?: string;
   disciplineScore?: number;
   grade?: string;
+  screenContext?: ScreenContext;
 };
 
 export type CoachMessage = {
@@ -39,4 +49,20 @@ export type CoachMessage = {
   tone: CoachingStyle;
   alertType: AlertType;
   priority: 'low' | 'normal' | 'high';
+};
+
+export type CoachMessageState = {
+  text: string;
+  title: string;
+  style: CoachingStyle;
+  category: AlertType;
+  screenContext: ScreenContext;
+  missionId?: string;
+  updatedAt: number;
+};
+
+/** Display labels for coaching styles */
+export const COACHING_STYLE_LABELS: Record<CoachingStyle, string> = {
+  tactical: 'CALM OPERATOR',
+  positive: 'HYPE COACH',
 };

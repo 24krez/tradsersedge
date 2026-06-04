@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 
 import { MissionStackNavigationProp } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
+import { useCoachMessage } from '../features/coaching/useCoachMessage';
 import {
   DEFAULT_CHECKLIST,
   PreTradeChecklist,
@@ -228,6 +229,12 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
 
   const isMarketClosed = sessionInfo.session === null;
 
+  // Coach engine integration
+  const { message: coachMessage, styleLabel: coachStyleLabel } = useCoachMessage({
+    screenContext: 'before_trading',
+    missionData: mission,
+  });
+
   return (
     <SafeAreaView style={s.safeArea}>
       <ScrollView
@@ -339,12 +346,16 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
           </View>
         </View>
 
-        {/* ── Quote ── */}
+        {/* ── Mission Signal ── */}
         <View style={s.quoteCard}>
-          <Text style={s.quoteMark}>❞</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <Text style={s.factEyebrow}>MISSION SIGNAL</Text>
+            <View style={{ backgroundColor: 'rgba(233, 193, 118, 0.1)', borderColor: 'rgba(233, 193, 118, 0.3)', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
+              <Text style={{ color: '#e9c176', fontSize: 8, fontWeight: '900', letterSpacing: 1 }}>{coachStyleLabel}</Text>
+            </View>
+          </View>
           <Text style={s.quoteText}>
-            Your discipline is your edge. The market pays the patient and
-            punishes the impulsive.
+            {coachMessage?.text || 'Preparing mission signal...'}
           </Text>
         </View>
 
