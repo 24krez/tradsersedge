@@ -124,7 +124,15 @@ export function ProfileScreen() {
   }
 
   if (isShowingBriefing) {
-    return <LockScreenBriefingScreen onBack={() => setIsShowingBriefing(false)} />;
+    return (
+      <LockScreenBriefingScreen
+        onBack={() => setIsShowingBriefing(false)}
+        onNavigateToActiveProtocols={() => {
+          setIsShowingBriefing(false);
+          setIsShowingNotifications(true);
+        }}
+      />
+    );
   }
 
   const progress = buildProgressModel(userStats, missions, debriefs);

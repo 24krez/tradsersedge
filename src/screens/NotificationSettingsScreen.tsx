@@ -185,7 +185,7 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
           ) : (
             <View style={styles.backButtonPlaceholder} />
           )}
-          <Text style={styles.topBarTitle}>ALERTS COMMAND CENTER</Text>
+          <Text style={styles.topBarTitle}>ALERT PROTOCOLS</Text>
           <View style={styles.statusDot} />
         </View>
 

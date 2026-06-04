@@ -6,13 +6,13 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { MissionStackNavigationProp } from '../../App';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
 import { useCoachMessage } from '../features/coaching/useCoachMessage';
-import { COACHING_STYLE_LABELS } from '../features/coaching/coachTypes';
 import { getCurrentSession, getSessionProgress, SESSION_LABELS } from '../logic/sessionEngine';
 import { firestore } from '../services/firebase';
 
 type LockScreenBriefingProps = {
   onBack: () => void;
   onNavigateToMission?: () => void;
+  onNavigateToActiveProtocols?: () => void;
 };
 
 export function LockScreenBriefingRouteScreen() {
@@ -26,7 +26,7 @@ export function LockScreenBriefingRouteScreen() {
   );
 }
 
-export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockScreenBriefingProps) {
+export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNavigateToActiveProtocols }: LockScreenBriefingProps) {
   const { user } = useAuth();
   const isPro = useIsPro();
   const [missionData, setMissionData] = useState<any>(null);
@@ -137,7 +137,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
             </View>
             {isPro && (
               <View style={s.proBadge}>
-                <Text style={s.proBadgeText}>PRO</Text>
+                <Text style={s.proBadgeText}>{styleLabel.toUpperCase()}</Text>
               </View>
             )}
           </View>
@@ -145,6 +145,16 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
           <Text style={s.subtitle}>
             Your mission stays visible when the market gets loud.
           </Text>
+          {onNavigateToActiveProtocols && (
+            <Pressable
+              onPress={onNavigateToActiveProtocols}
+              style={({ pressed }) => [s.activeProtocolsButton, pressed && s.buttonPressed]}
+            >
+              <Text style={s.activeProtocolsButtonText}>
+                CHANGE COACHING STYLE IN ACTIVE PROTOCOLS
+              </Text>
+            </Pressable>
+          )}
         </View>
 
         {/* ── No Mission Empty State ── */}
@@ -312,30 +322,6 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
                 <Text style={s.rotateButtonText}>↻ ROTATE MESSAGE</Text>
               </Pressable>
             </View>
-
-            {/* ── Coaching Style Info ── */}
-            <View style={s.styleInfoCard}>
-              <Text style={s.sectionEyebrow}>COACHING STYLE</Text>
-              <View style={s.styleInfoRow}>
-                <View style={[s.styleChip, coachingStyle === 'tactical' && s.styleChipActive]}>
-                  <Text style={[s.styleChipText, coachingStyle === 'tactical' && s.styleChipTextActive]}>
-                    {COACHING_STYLE_LABELS.tactical}
-                  </Text>
-                  {!isPro && <Text style={s.freeLabel}>FREE</Text>}
-                </View>
-                <View style={[s.styleChip, coachingStyle === 'positive' && s.styleChipActive]}>
-                  <Text style={[s.styleChipText, coachingStyle === 'positive' && s.styleChipTextActive]}>
-                    {COACHING_STYLE_LABELS.positive}
-                  </Text>
-                  {!isPro && <Text style={s.proLabel}>PRO</Text>}
-                </View>
-              </View>
-              {!isPro && (
-                <Text style={s.proHint}>
-                  Upgrade to Pro to unlock Hype Coach style and advanced message filtering.
-                </Text>
-              )}
-            </View>
           </>
         )}
       </ScrollView>
@@ -449,6 +435,25 @@ const s = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.5,
     marginTop: 8,
+  },
+
+  // Active protocols button
+  activeProtocolsButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: '#e9c176',
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  activeProtocolsButtonText: {
+    color: '#e9c176',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
 
   // Section eyebrow
@@ -915,58 +920,6 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1.5,
-  },
-
-  // Coaching style info
-  styleInfoCard: {
-    backgroundColor: '#1a1e1f',
-    borderColor: '#2a3135',
-    borderWidth: 1,
-    marginBottom: 16,
-    marginHorizontal: 22,
-    padding: 20,
-  },
-  styleInfoRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  styleChip: {
-    backgroundColor: '#14181a',
-    borderColor: '#2a3135',
-    borderWidth: 1,
-    flex: 1,
-    padding: 14,
-  },
-  styleChipActive: {
-    borderColor: '#e9c176',
-  },
-  styleChipText: {
-    color: '#8a8f93',
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  styleChipTextActive: {
-    color: '#e9c176',
-  },
-  freeLabel: {
-    color: '#72c875',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  proLabel: {
-    color: '#e9c176',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  proHint: {
-    color: '#5a5f63',
-    fontSize: 11,
-    lineHeight: 16,
   },
 
   buttonPressed: {
