@@ -7,6 +7,7 @@ import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { firestore } from '../services/firebase';
+import { buildMissionSummary } from '../services/missionSummary';
 import { updateUserStatsAfterDebrief } from '../services/userStats';
 import { calculateDisciplineScore, DisciplineScoreResult, YesMostlyNo } from '../logic/disciplineScore';
 
@@ -493,15 +494,29 @@ export function MissionDebriefScreen() {
       });
 
       // 2. Update existing Mission doc
+      const tradeStatus = traded ? 'traded' : 'no_trade';
+      const completedAt = serverTimestamp();
+      const completedMissionStatus = traded ? 'TRADED' : 'NO TRADE DAY';
+
       await updateDoc(doc(firestore, 'missions', missionData.id), {
         status: 'completed',
-        completedAt: serverTimestamp(),
+        completedAt,
         debriefId: debriefRef.id,
         disciplineScore: disciplineOutput.score,
         disciplineGrade: disciplineOutput.grade,
         strongestBehavior: disciplineOutput.strongestBehavior,
         improvementArea: disciplineOutput.improvementArea,
-        missionStatus: traded ? 'TRADED' : 'NO TRADE DAY'
+        missionStatus: completedMissionStatus,
+        missionSummary: buildMissionSummary({
+          completedAt,
+          debriefId: debriefRef.id,
+          discipline: disciplineOutput,
+          mission: {
+            ...missionData,
+            missionStatus: completedMissionStatus,
+          },
+          tradeStatus,
+        }),
       });
 
       // 3. Update User Stats
@@ -509,7 +524,7 @@ export function MissionDebriefScreen() {
         completedAt: now,
         debriefId: debriefRef.id,
         score: disciplineOutput.score,
-        tradeStatus: traded ? 'traded' : 'no_trade',
+        tradeStatus,
         userId: user.uid,
       });
       

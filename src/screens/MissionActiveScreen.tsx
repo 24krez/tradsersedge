@@ -13,6 +13,7 @@ import {
   TradingSession,
 } from '../logic/sessionEngine';
 import { firebaseAuth, firestore } from '../services/firebase';
+import { buildMissionSummary } from '../services/missionSummary';
 import { calculateMissionStatus } from '../logic/missionStatus';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
 import { useCoachMessage } from '../features/coaching/useCoachMessage';
@@ -463,11 +464,20 @@ export function MissionActiveScreen() {
     if (!missionData?.id || isCompleting) return;
     setIsCompleting(true);
     try {
+      const completedAt = serverTimestamp();
       await updateDoc(doc(firestore, 'missions', missionData.id), {
         status: 'completed',
-        endedAt: serverTimestamp(),
+        endedAt: completedAt,
         coachMessage: freeCoachMessage || null,
         coachingStyle: freeCoachMessage?.style || null,
+        missionSummary: buildMissionSummary({
+          completedAt,
+          mission: {
+            ...missionData,
+            coachMessage: freeCoachMessage || missionData.coachMessage,
+            coachingStyle: freeCoachMessage?.style || missionData.coachingStyle,
+          },
+        }),
       });
       // TODO: Close iOS Live Activity
       setShowCompleteModal(false);
@@ -649,7 +659,7 @@ export function MissionActiveScreen() {
   const isCompletedForCoach = missionStatusForCoach === 'completed';
 
   // Coach engine for free users. Keep this before early returns so hook order stays stable.
-  const { message: freeCoachMessage } = useCoachMessage({
+  const { message: freeCoachMessage, styleLabel: freeCoachStyleLabel } = useCoachMessage({
     alertType: !isPendingForCoach && !isCompletedForCoach ? 'widget' : undefined,
     screenContext: isPendingForCoach ? 'before_trading' : isCompletedForCoach ? 'post_session' : 'during_trading',
     missionData: missionData || null,
@@ -732,7 +742,12 @@ export function MissionActiveScreen() {
             {/* Mission Signal (Free users) */}
             {freeCoachMessage && (
               <View style={styles.coachSignalCard}>
-                <Text style={styles.coachSignalEyebrow}>MISSION SIGNAL</Text>
+                <View style={styles.coachSignalHeader}>
+                  <Text style={styles.coachSignalEyebrow}>MISSION SIGNAL</Text>
+                  <View style={styles.coachSignalBadge}>
+                    <Text style={styles.coachSignalBadgeText}>{freeCoachStyleLabel}</Text>
+                  </View>
+                </View>
                 <Text style={styles.coachSignalText}>{freeCoachMessage.text}</Text>
               </View>
             )}
@@ -1211,12 +1226,36 @@ const styles = StyleSheet.create({
     borderLeftColor: '#e9c176',
     borderLeftWidth: 3,
   },
+  coachSignalHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   coachSignalEyebrow: {
     color: '#e9c176',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.5,
-    marginBottom: 6,
+  },
+  coachSignalBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: 'rgba(233, 193, 118, 0.3)',
+    borderRadius: 4,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+    paddingTop: 2,
+    paddingBottom: 3,
+    transform: [{ translateY: -2 }],
+  },
+  coachSignalBadgeText: {
+    color: '#e9c176',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    lineHeight: 9,
   },
   coachSignalText: {
     color: '#f8fafc',

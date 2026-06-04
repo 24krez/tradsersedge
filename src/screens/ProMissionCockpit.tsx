@@ -36,6 +36,7 @@ import {
   SESSION_LABELS,
 } from '../logic/sessionEngine';
 import { firestore } from '../services/firebase';
+import { buildMissionSummary } from '../services/missionSummary';
 import { CompactMindsetModule } from './MissionActiveScreen';
 
 // ---------------------------------------------------------------------------
@@ -300,13 +301,22 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
 
     setIsCompleting(true);
     try {
+      const completedAt = serverTimestamp();
       await updateDoc(doc(firestore, 'missions', mission.id), {
         status: 'completed',
         missionPhase: 'completed',
-        endedAt: serverTimestamp(),
-        sessionEndedAt: serverTimestamp(),
+        endedAt: completedAt,
+        sessionEndedAt: completedAt,
         coachMessage: coachMsg || null,
         coachingStyle: coachMsg?.style || null,
+        missionSummary: buildMissionSummary({
+          completedAt,
+          mission: {
+            ...mission,
+            coachMessage: coachMsg || mission.coachMessage,
+            coachingStyle: coachMsg?.style || mission.coachingStyle,
+          },
+        }),
       });
       setShowCompleteModal(false);
 
@@ -453,10 +463,10 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
             currentMindset === 'caution' && s.coachingCardWarning,
           ]}
         >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={s.coachingEyebrow}>MISSION INTELLIGENCE</Text>
-            <View style={{ backgroundColor: 'rgba(233, 193, 118, 0.1)', borderColor: 'rgba(233, 193, 118, 0.3)', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={{ color: '#e9c176', fontSize: 8, fontWeight: '900', letterSpacing: 1 }}>{coachStyleLabel}</Text>
+          <View style={s.coachingHeader}>
+            <Text style={s.coachingEyebrow}>MISSION SIGNAL</Text>
+            <View style={s.coachingStyleBadge}>
+              <Text style={s.coachingStyleBadgeText}>{coachStyleLabel}</Text>
             </View>
           </View>
           <Text style={s.coachingText}>{coachingMessage}</Text>
@@ -913,12 +923,37 @@ const s = StyleSheet.create({
   coachingCardDanger: {
     borderLeftColor: '#e27b7b',
   },
+  coachingHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
   coachingEyebrow: {
     color: '#e9c176',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.5,
-    marginBottom: 8,
+    lineHeight: 12,
+  },
+  coachingStyleBadge: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: 'rgba(233, 193, 118, 0.3)',
+    borderRadius: 4,
+    borderWidth: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 7,
+    paddingTop: 2,
+    paddingBottom: 3,
+    transform: [{ translateY: -1 }],
+  },
+  coachingStyleBadgeText: {
+    color: '#e9c176',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    lineHeight: 9,
   },
   coachingText: {
     color: '#d1c5b4',

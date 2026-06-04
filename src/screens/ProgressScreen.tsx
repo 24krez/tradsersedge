@@ -4,6 +4,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { useAuth } from '../contexts/AuthContext';
 import { firestore } from '../services/firebase';
+import type { MissionSummary } from '../services/missionSummary';
 
 type ProgressScreenProps = {
   onStartMission?: () => void;
@@ -43,6 +44,7 @@ export type MissionRecord = {
   createdAt?: unknown;
   completedAt?: unknown;
   disciplineScore?: number;
+  missionSummary?: MissionSummary;
 };
 
 export type DebriefRecord = {
@@ -704,8 +706,8 @@ function buildPerformanceInsights(debriefs: DebriefRecord[], missions: MissionRe
   const focusScores = new Map<string, number[]>();
 
   missions.forEach((mission) => {
-    increment(objectiveCounts, labelObjective(mission.objective));
-    increment(focusCounts, labelFocus(mission.coreFocus));
+    increment(objectiveCounts, labelObjective(mission.missionSummary?.objective || mission.objective));
+    increment(focusCounts, labelFocus(mission.missionSummary?.coreFocus || mission.coreFocus));
   });
 
   debriefs.forEach((debrief) => {
@@ -759,7 +761,7 @@ function calculateThreatSignals(missions: MissionRecord[], debriefs: DebriefReco
     addThreatSignalSet(
       sessionSignals,
       mission.id,
-      selectedValues(mission.selectedThreats, mission.threats, mission.primaryThreat, mission.threat),
+      selectedValues(mission.missionSummary?.threats, mission.selectedThreats, mission.threats, mission.primaryThreat, mission.threat),
     );
   });
   debriefs.forEach((debrief) => {
@@ -793,7 +795,8 @@ function countTraits(debriefs: DebriefRecord[], completedMissions: MissionRecord
     });
   });
   completedMissions.forEach((mission) => {
-    if (mission.coreFocus) increment(counts, labelFocus(mission.coreFocus));
+    const focus = mission.missionSummary?.coreFocus || mission.coreFocus;
+    if (focus) increment(counts, labelFocus(focus));
   });
   return counts;
 }

@@ -7,6 +7,7 @@ import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
 import { COACHING_STYLE_LABELS, CoachingStyle } from '../features/coaching/coachTypes';
 import { firestore } from '../services/firebase';
+import type { MissionSummary } from '../services/missionSummary';
 
 type MissionDetailProps = {
   missionId: string;
@@ -138,17 +139,22 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
   }, [missionId, user]);
 
   const { mission, debrief, readiness, notes } = state;
-  const dateLabel = formatDate(mission?.createdAt || debrief?.createdAt);
-  const objective = labelFor(mission?.objective, objectiveLabels);
-  const focus = labelFor(mission?.coreFocus, focusLabels);
-  const threat = Array.isArray(mission?.threats) && mission.threats.length > 0
-    ? labelFor(mission.threats[0], threatLabels)
+  const summary = mission?.missionSummary as MissionSummary | undefined;
+  const summaryReadiness = summary?.readiness || {};
+  const summaryDiscipline = summary?.discipline || {};
+  const summaryThreats = summary?.threats || mission?.threats || [];
+  const dateLabel = formatDate(summary?.completedAt || mission?.completedAt || summary?.createdAt || mission?.createdAt || debrief?.createdAt);
+  const objective = labelFor(summary?.objective || mission?.objective, objectiveLabels);
+  const focus = labelFor(summary?.coreFocus || mission?.coreFocus, focusLabels);
+  const threat = Array.isArray(summaryThreats) && summaryThreats.length > 0
+    ? labelFor(summaryThreats[0], threatLabels)
     : '—';
   const discipline = debrief?.discipline || debrief?.result || {};
-  const score = numberLabel(discipline.score);
-  const grade = discipline.grade || '—';
-  const coachingStyle = (mission?.coachingStyle || debrief?.coachingStyle || 'tactical') as CoachingStyle;
-  const coachMessage = mission?.coachMessage?.text || mission?.coachMessage || debrief?.coachMessage?.text || null;
+  const score = numberLabel(summaryDiscipline.score ?? discipline.score);
+  const grade = summaryDiscipline.grade || discipline.grade || '—';
+  const strongestBehavior = summaryDiscipline.strongestBehavior || discipline.strongestBehavior;
+  const coachingStyle = (summary?.coachingStyle || mission?.coachingStyle || debrief?.coachingStyle || 'tactical') as CoachingStyle;
+  const coachMessage = messageText(summary?.coachMessage || mission?.coachMessage || debrief?.coachMessage);
 
   if (isLoading) {
     return (
@@ -205,7 +211,7 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
             <Metric label="CONFIDENCE" value={readiness?.confidence || '—'} />
             <Metric label="PATIENCE" value={readiness?.patience || '—'} />
             <Metric label="FOCUS" value={readiness?.focus || '—'} />
-            <Metric label="STATE" value={(readiness?.missionStatus || mission.missionStatus || '—').toString().toUpperCase()} />
+            <Metric label="STATE" value={(summaryReadiness.missionStatus || readiness?.missionStatus || mission.missionStatus || '—').toString().toUpperCase()} />
           </View>
         </View>
 
@@ -233,8 +239,8 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
             </View>
           </View>
           <Text style={styles.rewardText}>
-            {discipline.strongestBehavior
-              ? `Strongest behavior: ${discipline.strongestBehavior}`
+            {strongestBehavior
+              ? `Strongest behavior: ${strongestBehavior}`
               : 'Complete debriefs to build a stronger archive.'}
           </Text>
         </View>
@@ -295,6 +301,14 @@ function formatDate(value: any): string {
 
 function numberLabel(value: unknown): string {
   return typeof value === 'number' && Number.isFinite(value) ? `${value}/100` : '—';
+}
+
+function messageText(value: any): string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+  if (typeof value.text === 'string') return value.text;
+  if (typeof value.body === 'string') return value.body;
+  return null;
 }
 
 const styles = StyleSheet.create({

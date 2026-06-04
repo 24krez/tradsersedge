@@ -4,6 +4,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { useAuth } from '../contexts/AuthContext';
 import { firestore } from '../services/firebase';
+import type { MissionSummary } from '../services/missionSummary';
 import { MissionDetailScreen } from './MissionDetailScreen';
 
 type VaultScreenProps = {
@@ -16,19 +17,20 @@ type MissionArchiveRecord = {
   coreFocus?: string;
   threats?: string[];
   createdAt?: any;
+  completedAt?: any;
   readinessScore?: number;
   coachMessage?: any;
+  disciplineScore?: number;
+  disciplineGrade?: string;
+  missionSummary?: MissionSummary;
   [key: string]: any;
 };
 
-type DebriefArchiveRecord = {
+type SessionNoteRecord = {
   id: string;
   missionId?: string;
-  discipline?: {
-    score?: number;
-    grade?: string;
-  };
-  coachMessage?: any;
+  content?: string;
+  text?: string;
   [key: string]: any;
 };
 
@@ -62,17 +64,17 @@ const threatLabels: Record<string, string> = {
 export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
   const { user } = useAuth();
   const [missions, setMissions] = useState<MissionArchiveRecord[]>([]);
-  const [debriefs, setDebriefs] = useState<DebriefArchiveRecord[]>([]);
+  const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([]);
   const [hasLoadedMissions, setHasLoadedMissions] = useState(false);
-  const [hasLoadedDebriefs, setHasLoadedDebriefs] = useState(false);
+  const [hasLoadedNotes, setHasLoadedNotes] = useState(false);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
       setMissions([]);
-      setDebriefs([]);
+      setSessionNotes([]);
       setHasLoadedMissions(true);
-      setHasLoadedDebriefs(true);
+      setHasLoadedNotes(true);
       return;
     }
 
@@ -84,11 +86,11 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
       limit(100),
     );
 
-    const debriefsQuery = query(
-      collection(firestore, 'mission_debriefs'),
+    const notesQuery = query(
+      collection(firestore, 'session_notes'),
       where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
-      limit(100),
+      limit(200),
     );
 
     const unsubscribeMissions = onSnapshot(
@@ -104,48 +106,49 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
       },
     );
 
-    const unsubscribeDebriefs = onSnapshot(
-      debriefsQuery,
+    const unsubscribeNotes = onSnapshot(
+      notesQuery,
       (snapshot) => {
-        setDebriefs(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as DebriefArchiveRecord)));
-        setHasLoadedDebriefs(true);
+        setSessionNotes(snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as SessionNoteRecord)));
+        setHasLoadedNotes(true);
       },
       (error) => {
-        console.error('Error loading vault debriefs:', error);
-        setDebriefs([]);
-        setHasLoadedDebriefs(true);
+        console.error('Error loading vault session notes:', error);
+        setSessionNotes([]);
+        setHasLoadedNotes(true);
       },
     );
 
     return () => {
       unsubscribeMissions();
-      unsubscribeDebriefs();
+      unsubscribeNotes();
     };
   }, [user]);
 
-  const debriefByMissionId = useMemo(() => {
-    const map = new Map<string, DebriefArchiveRecord>();
-    debriefs.forEach((debrief) => {
-      if (debrief.missionId && !map.has(debrief.missionId)) {
-        map.set(debrief.missionId, debrief);
-      }
+  const notesByMissionId = useMemo(() => {
+    const map = new Map<string, SessionNoteRecord[]>();
+    sessionNotes.forEach((note) => {
+      if (!note.missionId) return;
+      const existing = map.get(note.missionId) || [];
+      existing.push(note);
+      map.set(note.missionId, existing);
     });
     return map;
-  }, [debriefs]);
+  }, [sessionNotes]);
 
   const archive = useMemo(() => {
     return missions.map((mission) => ({
       mission,
-      debrief: debriefByMissionId.get(mission.id) || null,
+      notes: notesByMissionId.get(mission.id) || [],
     }));
-  }, [missions, debriefByMissionId]);
+  }, [missions, notesByMissionId]);
 
   const stats = useMemo(() => {
     const scores = archive
-      .map((item) => item.debrief?.discipline?.score)
+      .map((item) => item.mission.missionSummary?.discipline?.score ?? item.mission.disciplineScore)
       .filter((score): score is number => typeof score === 'number' && Number.isFinite(score));
     const grades = archive
-      .map((item) => item.debrief?.discipline?.grade)
+      .map((item) => item.mission.missionSummary?.discipline?.grade ?? item.mission.disciplineGrade)
       .filter((grade): grade is string => typeof grade === 'string' && grade.length > 0);
 
     return {
@@ -159,7 +162,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
     return <MissionDetailScreen missionId={selectedMissionId} onBack={() => setSelectedMissionId(null)} />;
   }
 
-  const isLoading = !hasLoadedMissions || !hasLoadedDebriefs;
+  const isLoading = !hasLoadedMissions || !hasLoadedNotes;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -192,11 +195,11 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
           </View>
         ) : (
           <View style={styles.list}>
-            {archive.map(({ mission, debrief }) => (
+            {archive.map(({ mission, notes }) => (
               <VaultCard
-                debrief={debrief}
                 key={mission.id}
                 mission={mission}
+                notes={notes}
                 onView={() => {
                   if (onNavigateToMission) {
                     onNavigateToMission(mission.id);
@@ -215,21 +218,25 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
 
 function VaultCard({
   mission,
-  debrief,
+  notes,
   onView,
 }: {
   mission: MissionArchiveRecord;
-  debrief: DebriefArchiveRecord | null;
+  notes: SessionNoteRecord[];
   onView: () => void;
 }) {
-  const objective = labelFor(mission.objective, objectiveLabels);
-  const focus = labelFor(mission.coreFocus, focusLabels);
-  const threat = Array.isArray(mission.threats) && mission.threats.length > 0
-    ? labelFor(mission.threats[0], threatLabels)
+  const summary = mission.missionSummary;
+  const threats = summary?.threats || mission.threats || [];
+  const objective = labelFor(summary?.objective || mission.objective, objectiveLabels);
+  const focus = labelFor(summary?.coreFocus || mission.coreFocus, focusLabels);
+  const threat = Array.isArray(threats) && threats.length > 0
+    ? labelFor(threats[0], threatLabels)
     : '—';
-  const score = debrief?.discipline?.score;
-  const grade = debrief?.discipline?.grade;
-  const messageText = messageSnippet(mission.coachMessage || debrief?.coachMessage);
+  const score = summary?.discipline?.score ?? mission.disciplineScore;
+  const grade = summary?.discipline?.grade ?? mission.disciplineGrade;
+  const readinessScore = summary?.readiness?.score ?? mission.readinessScore;
+  const hasDebrief = Boolean(summary?.debriefId || mission.debriefId || grade || typeof score === 'number');
+  const noteText = notes.map(noteSnippet).filter(Boolean).join(' ');
 
   return (
     <View style={styles.card}>
@@ -237,13 +244,13 @@ function VaultCard({
       <View style={styles.cardHeader}>
         <View>
           <Text style={styles.cardEyebrow}>MISSION RECORD</Text>
-          <Text style={styles.cardDate}>{formatDate(mission.createdAt)}</Text>
+          <Text style={styles.cardDate}>{formatDate(summary?.completedAt || mission.completedAt || summary?.createdAt || mission.createdAt)}</Text>
         </View>
-        {grade && (
-          <View style={styles.gradeBadge}>
-            <Text style={styles.gradeText}>{grade}</Text>
-          </View>
-        )}
+        <View style={[styles.gradeBadge, !hasDebrief && styles.noDebriefBadge]}>
+          <Text style={[styles.gradeText, !hasDebrief && styles.noDebriefText]}>
+            {hasDebrief ? grade || '—' : 'NO DEBRIEF'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.parameters}>
@@ -254,15 +261,15 @@ function VaultCard({
 
       <View style={styles.metricsRow}>
         <SmallMetric label="DISCIPLINE" value={typeof score === 'number' ? `${score}/100` : '—'} />
-        <SmallMetric label="READINESS" value={typeof mission.readinessScore === 'number' ? `${mission.readinessScore}/100` : '—'} />
+        <SmallMetric label="READINESS" value={typeof readinessScore === 'number' ? `${readinessScore}/100` : '—'} />
       </View>
 
-      {messageText && (
-        <View style={styles.messageBox}>
-          <Text style={styles.messageLabel}>SAVED SIGNAL</Text>
-          <Text style={styles.messageText} numberOfLines={2}>{messageText}</Text>
-        </View>
-      )}
+      <View style={styles.messageBox}>
+        <Text style={styles.messageLabel}>SESSION NOTES</Text>
+        <Text style={styles.messageText} numberOfLines={2}>
+          {noteText || 'No session notes.'}
+        </Text>
+      </View>
 
       <Pressable onPress={onView} style={({ pressed }) => [styles.viewButton, pressed && styles.buttonPressed]}>
         <Text style={styles.viewButtonText}>VIEW DETAILS</Text>
@@ -314,12 +321,8 @@ function formatDate(value: any): string {
   }).format(date).toUpperCase();
 }
 
-function messageSnippet(value: any): string {
-  if (!value) return '';
-  if (typeof value === 'string') return value;
-  if (typeof value.text === 'string') return value.text;
-  if (typeof value.body === 'string') return value.body;
-  return '';
+function noteSnippet(note: SessionNoteRecord): string {
+  return note.content || note.text || '';
 }
 
 function bestGrade(grades: string[]): string | null {
@@ -448,11 +451,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+  noDebriefBadge: {
+    backgroundColor: '#1b2022',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+  },
   gradeText: {
     color: '#101415',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+  noDebriefText: {
+    color: '#8a8f93',
+    fontSize: 9,
   },
   parameters: {
     gap: 8,
