@@ -162,7 +162,7 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
   const handleEnableLockScreen = async () => {
     const updates = isPro
       ? { missionBriefings: true, lockScreenCoaching: true, nookMonitoring: true, liveActivityUpdates: true }
-      : { missionBriefings: true, nookMonitoring: true };
+      : { missionBriefings: true, lockScreenCoaching: true, nookMonitoring: true };
     await updateSettingGroup('lockScreen', updates);
   };
 
@@ -355,9 +355,6 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
             label="Lock Screen Coaching"
             value={settings.lockScreen.lockScreenCoaching}
             onToggle={(val) => updateSettingGroup('lockScreen', { lockScreenCoaching: val })}
-            isProOnly
-            isProUser={isPro}
-            onProUpsell={handleProUpsell}
           />
           <ToggleRow
             label="Nook Monitoring"
@@ -759,25 +756,27 @@ function AlertPreview({
           onPress={isLocked ? onProUpsell : undefined}
           style={[styles.previewContent, isLocked && styles.previewContentLocked]}
         >
-          <View style={styles.previewIcon}>
-            <Text style={styles.previewIconText}>◎</Text>
-          </View>
-          <View style={styles.previewTextBlock}>
-            <View style={styles.previewHeader}>
-              <View style={styles.previewLabelRow}>
-                <Text style={styles.previewEyebrow}>{activeItem.label}</Text>
-                {activeItem.isProOnly && (
-                  <View style={styles.previewProPill}>
-                    <Text style={styles.previewProPillText}>PRO</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.previewNow}>Now</Text>
+          <View style={styles.previewWidgetHeader}>
+            <View style={styles.previewWidgetLogo}>
+              <Text style={styles.previewWidgetLogoText}>TE</Text>
             </View>
-            <Text style={[styles.previewTitle, isLocked && styles.lockedText]}>{message.title}</Text>
-            <Text style={[styles.previewBody, isLocked && styles.lockedText]}>{message.body}</Text>
+            <Text style={styles.previewWidgetAppName}>TRADER'S EDGE</Text>
+            {activeItem.isProOnly && (
+              <View style={styles.previewProPill}>
+                <Text style={styles.previewProPillText}>PRO</Text>
+              </View>
+            )}
           </View>
-          <Text style={[styles.previewChevron, isLocked && styles.lockedText]}>›</Text>
+          <Text style={[styles.previewWidgetObjective, isLocked && styles.lockedText]}>
+            {message.title.toUpperCase()}
+          </Text>
+          <Text style={[styles.previewWidgetMessage, isLocked && styles.lockedText]} numberOfLines={3}>
+            {message.body}
+          </Text>
+          <View style={styles.previewWidgetFooter}>
+            <Text style={styles.previewWidgetFooterLabel}>{activeItem.label.toUpperCase()}</Text>
+            <Text style={styles.previewNow}>NOW</Text>
+          </View>
         </Pressable>
         <View style={styles.previewDots}>
           {previewItems.map((item, index) => {
@@ -950,54 +949,41 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   previewContent: {
-    alignItems: 'center',
     backgroundColor: '#181d20',
     borderColor: '#2b3334',
-    borderRadius: 8,
+    borderRadius: 16,
     borderWidth: 1,
-    flexDirection: 'row',
-    gap: 14,
     padding: 16,
   },
   previewContentLocked: {
     backgroundColor: '#111719',
     borderColor: '#1f2628',
   },
-  previewIcon: {
+  previewWidgetHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  previewWidgetLogo: {
     alignItems: 'center',
     backgroundColor: '#e9c176',
-    borderRadius: 4,
-    height: 44,
+    borderRadius: 6,
+    height: 24,
     justifyContent: 'center',
-    width: 32,
+    marginRight: 8,
+    width: 24,
   },
-  previewIconText: {
-    color: '#070c14',
-    fontSize: 18,
-    fontWeight: '900',
-  },
-  previewTextBlock: {
-    flex: 1,
-  },
-  previewHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 3,
-  },
-  previewLabelRow: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingRight: 8,
-  },
-  previewEyebrow: {
-    color: '#e9c176',
-    flexShrink: 1,
+  previewWidgetLogoText: {
+    color: '#101415',
     fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 1.6,
+  },
+  previewWidgetAppName: {
+    color: '#8a8f93',
+    flex: 1,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
   },
   previewProPill: {
     backgroundColor: 'rgba(233, 193, 118, 0.1)',
@@ -1014,25 +1000,38 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   previewNow: {
-    color: '#f8fafc',
-    fontSize: 10,
+    color: '#8a8f93',
+    fontSize: 9,
     fontWeight: '900',
+    letterSpacing: 1,
   },
-  previewTitle: {
+  previewWidgetObjective: {
     color: '#f8fafc',
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '900',
-    marginBottom: 4,
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
-  previewBody: {
-    color: '#f8fafc',
-    fontSize: 13,
+  previewWidgetMessage: {
+    color: '#b0b5b8',
+    fontSize: 12,
     lineHeight: 18,
+    marginBottom: 12,
   },
-  previewChevron: {
-    color: '#f8fafc',
-    fontSize: 22,
-    fontWeight: '700',
+  previewWidgetFooter: {
+    alignItems: 'center',
+    borderColor: '#2a3135',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+  },
+  previewWidgetFooterLabel: {
+    color: '#e9c176',
+    flex: 1,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.2,
   },
   previewDots: {
     alignItems: 'center',

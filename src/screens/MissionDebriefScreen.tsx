@@ -151,6 +151,22 @@ function formatDebriefDate(date: Date | null): string {
   }).format(date).toUpperCase();
 }
 
+function formatSessionLength(mission: MissionData | null, fallbackMinutes?: number): string {
+  const startedAt = dateFromFirestoreValue((mission as any)?.sessionStartedAt || (mission as any)?.startedAt);
+  const endedAt = dateFromFirestoreValue((mission as any)?.sessionEndedAt || (mission as any)?.endedAt || (mission as any)?.completedAt);
+  const minutes = startedAt && endedAt
+    ? Math.max(0, Math.round((endedAt.getTime() - startedAt.getTime()) / 60_000))
+    : fallbackMinutes;
+
+  if (typeof minutes !== 'number' || !Number.isFinite(minutes)) return '—';
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (hours <= 0) return `${remainingMinutes}M`;
+  if (remainingMinutes === 0) return `${hours}H`;
+  return `${hours}H ${remainingMinutes}M`;
+}
+
 export function MissionDebriefScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'MissionDebrief'>>();
@@ -377,6 +393,9 @@ export function MissionDebriefScreen() {
   const headerDate = useMemo(() => {
     return formatDebriefDate(debriefDate || dateFromFirestoreValue(missionData?.createdAt));
   }, [debriefDate, missionData?.createdAt]);
+  const sessionLengthDisplay = useMemo(() => {
+    return formatSessionLength(missionData, 120);
+  }, [missionData]);
 
   const handleSubmit = async () => {
     if (existingDebriefId) {
@@ -708,7 +727,7 @@ export function MissionDebriefScreen() {
                 <Text style={styles.todayIFeltLabel}>TODAY I FELT</Text>
                 <View style={styles.emojiGrid}>
                   {EMOTIONS.map(e => (
-                    <Pressable key={e.id} style={[styles.emojiButton, emotion === e.id && styles.emojiButtonActive]} onPress={() => setEmotion(e.id)}>
+                    <Pressable key={e.id} style={[styles.emojiButton, emotion === e.id && styles.emojiButtonActive]} onPress={() => setEmotion((current) => current === e.id ? null : e.id)}>
                       <Text style={[styles.emojiButtonText, emotion === e.id && styles.emojiButtonTextActive]}>{e.icon} {e.label}</Text>
                     </Pressable>
                   ))}
@@ -744,7 +763,7 @@ export function MissionDebriefScreen() {
                 <View style={styles.goldDot} />
                 <Text style={styles.missionSummaryTitle}>MISSION SUMMARY</Text>
               </View>
-              <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>SESSION LENGTH</Text><Text style={styles.summaryItemValue}>--:--</Text></View>
+              <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>SESSION LENGTH</Text><Text style={styles.summaryItemValue}>{sessionLengthDisplay}</Text></View>
               <View style={styles.summaryItemRow}><Text style={styles.summaryItemLabel}>OBJECTIVE</Text><Text style={styles.summaryItemValue}>{t(`data.objectives.${missionData.objective}.title`, missionData.objective.replace(/_/g, ' ')).toUpperCase()}</Text></View>
               <View style={[styles.summaryItemRow, { marginTop: 12 }]}><Text style={styles.summaryItemLabel}>MISSION STATUS</Text>
                 <View style={styles.statusChip}><Text style={styles.statusChipText}>{traded ? 'TRADED' : 'NO TRADE DAY'}</Text></View>

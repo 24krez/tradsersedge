@@ -27,7 +27,7 @@ export const defaultAlertSettings: AlertSettings = {
   },
   lockScreen: {
     missionBriefings: true,
-    lockScreenCoaching: false,
+    lockScreenCoaching: true,
     nookMonitoring: true,
     liveActivityUpdates: false,
   },

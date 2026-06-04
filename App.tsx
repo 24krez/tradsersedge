@@ -119,7 +119,12 @@ function AppContent() {
             <MissionStackNavigator />
           </NavigationContainer>
         )}
-        {activeTab === 'progress' && <ProgressScreen onStartMission={() => setActiveTab('mission')} />}
+        {activeTab === 'progress' && (
+          <ProgressScreen
+            onOpenVault={() => setActiveTab('vault')}
+            onStartMission={() => setActiveTab('mission')}
+          />
+        )}
         {activeTab === 'vault' && <VaultScreen />}
         {activeTab === 'profile' && <ProfileScreen />}
       </View>

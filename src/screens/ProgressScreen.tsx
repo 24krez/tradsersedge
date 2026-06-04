@@ -7,6 +7,7 @@ import { firestore } from '../services/firebase';
 import type { MissionSummary } from '../services/missionSummary';
 
 type ProgressScreenProps = {
+  onOpenVault?: () => void;
   onStartMission?: () => void;
 };
 
@@ -125,7 +126,7 @@ const improvementRecommendations: Record<string, string> = {
   'Self-Awareness': 'Journal The Lesson',
 };
 
-export function ProgressScreen({ onStartMission }: ProgressScreenProps) {
+export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenProps) {
   const { user, userProfile } = useAuth();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [missions, setMissions] = useState<MissionRecord[]>([]);
@@ -280,7 +281,7 @@ export function ProgressScreen({ onStartMission }: ProgressScreenProps) {
         <ImprovementCard improvement={model.primaryImprovement} />
         <PerformanceInsightsCard model={model} />
         <TradeMixCard model={model} />
-        <LastSevenDaysCard days={model.lastSevenDays} />
+        <LastSevenDaysCard days={model.lastSevenDays} onOpenVault={onOpenVault} />
 
         <Text style={styles.footerMotto}>PRECISION IS THE ONLY MEASURE OF SUCCESS</Text>
       </ScrollView>
@@ -566,27 +567,31 @@ function MixLegendItem({ label, value, type }: { label: string; type: 'missed' |
   );
 }
 
-function LastSevenDaysCard({ days }: { days: DayDot[] }) {
+function LastSevenDaysCard({ days, onOpenVault }: { days: DayDot[]; onOpenVault?: () => void }) {
   return (
     <View style={styles.card}>
       <View style={styles.lastDaysHeader}>
         <View style={styles.lastDaysTitleRow}>
           <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>LAST 7 DAYS</Text>
-          <Pressable style={({ pressed }) => [styles.calendarButton, pressed && styles.buttonPressed]}>
-            <Text style={styles.calendarText}>VIEW CALENDAR</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenVault}
+            style={({ pressed }) => [styles.calendarButton, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.calendarText}>VIEW VAULT</Text>
           </Pressable>
         </View>
-        <Text style={styles.tapHint}>Tap Any Day To View Summary</Text>
       </View>
       <View style={styles.dayRow}>
         {days.map((day) => (
-          <View key={day.key} style={styles.dayItem}>
-            <Text style={styles.dayLabel}>{day.label}</Text>
+          <View key={day.key} style={[styles.dayItem, day.isToday && styles.dayItemToday]}>
+            <Text style={[styles.dayLabel, day.isToday && styles.dayLabelToday]}>{day.label}</Text>
             <View
               style={[
                 styles.dayDot,
-                day.status === 'completed' && styles.dayDotComplete,
-                day.status === 'risk' && styles.dayDotRisk,
+                day.status === 'trade' && styles.dayDotTrade,
+                day.status === 'no_trade' && styles.dayDotNoTrade,
+                day.status === 'missed' && styles.dayDotRisk,
               ]}
             />
           </View>
@@ -599,7 +604,8 @@ function LastSevenDaysCard({ days }: { days: DayDot[] }) {
 type DayDot = {
   key: string;
   label: string;
-  status: 'none' | 'completed' | 'risk';
+  isToday: boolean;
+  status: 'missed' | 'no_trade' | 'none' | 'trade';
 };
 
 type ImprovementModel = {
@@ -741,14 +747,15 @@ function buildLastSevenDays(missions: MissionRecord[], debriefs: DebriefRecord[]
     const key = formatDateKey(date);
     const dayDebriefs = debriefByDate.get(key) || [];
     const dayMissions = missionByDate.get(key) || [];
-    const lowScore = dayDebriefs.some((debrief) => numberFrom(debrief.discipline?.score) < 70);
-    const hasCompleted = dayDebriefs.length > 0 || dayMissions.some((mission) => mission.status === 'completed');
-    const hasRisk = lowScore || dayMissions.some((mission) => mission.status && mission.status !== 'completed');
+    const hasTrade = dayDebriefs.some((debrief) => debrief.execution?.tradeStatus === 'traded');
+    const hasNoTrade = dayDebriefs.some((debrief) => debrief.execution?.tradeStatus === 'no_trade');
+    const hasMissed = dayMissions.some((mission) => mission.status && mission.status !== 'completed');
 
     return {
       key,
+      isToday: index === 6,
       label: date.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 1).toUpperCase(),
-      status: hasRisk ? 'risk' : hasCompleted ? 'completed' : 'none',
+      status: hasTrade ? 'trade' : hasNoTrade ? 'no_trade' : hasMissed ? 'missed' : 'none',
     };
   });
 }
@@ -1670,11 +1677,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  tapHint: {
-    color: '#5d554d',
-    fontSize: 12,
-    fontWeight: '800',
-  },
   calendarButton: {
     borderColor: '#6d6048',
     borderWidth: 1,
@@ -1694,12 +1696,23 @@ const styles = StyleSheet.create({
   },
   dayItem: {
     alignItems: 'center',
+    borderColor: 'transparent',
+    borderWidth: 1,
     gap: 12,
+    minWidth: 30,
+    paddingHorizontal: 5,
+    paddingVertical: 6,
+  },
+  dayItemToday: {
+    borderColor: 'rgba(233, 193, 118, 0.55)',
   },
   dayLabel: {
     color: '#8f8981',
     fontSize: 11,
     fontWeight: '900',
+  },
+  dayLabelToday: {
+    color: '#e9c176',
   },
   dayDot: {
     backgroundColor: '#3b3f40',
@@ -1707,8 +1720,11 @@ const styles = StyleSheet.create({
     height: 8,
     width: 8,
   },
-  dayDotComplete: {
+  dayDotTrade: {
     backgroundColor: '#e9c176',
+  },
+  dayDotNoTrade: {
+    backgroundColor: '#79d284',
   },
   dayDotRisk: {
     backgroundColor: '#f3a0a4',

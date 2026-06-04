@@ -167,6 +167,8 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
           </View>
         ) : (
           <>
+            <Text style={s.liveEventLabel}>LIVE EVENT PREVIEW</Text>
+
             {/* ── Current Mission Summary ── */}
             <View style={s.missionCard}>
               <View style={s.goldAccent} />
@@ -202,15 +204,10 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
               <Text style={s.signalText}>
                 {message?.text || 'Generating signal...'}
               </Text>
-              <View style={s.signalMeta}>
-                <Text style={s.signalCategory}>
-                  {message?.category?.replace(/_/g, ' ').toUpperCase() || ''}
-                </Text>
-              </View>
             </View>
 
             {/* ── Lock Screen Preview ── */}
-            <Text style={s.previewLabel}>LOCK SCREEN PREVIEW</Text>
+            <PreviewLabel label="LOCK SCREEN PREVIEW" />
             <View style={s.lockScreenPreview}>
               <View style={s.lockScreenTime}>
                 <Text style={s.lockScreenTimeText}>
@@ -238,7 +235,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
             </View>
 
             {/* ── Dynamic Nook Preview ── */}
-            <Text style={s.previewLabel}>DYNAMIC NOOK PREVIEW</Text>
+            <PreviewLabel label="DYNAMIC NOOK PREVIEW" />
             <View style={s.nookContainer}>
               <View style={s.nookPill}>
                 <View style={s.nookDot} />
@@ -277,7 +274,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
             </View>
 
             {/* ── Widget Preview ── */}
-            <Text style={s.previewLabel}>WIDGET PREVIEW</Text>
+            <PreviewLabel isProOnly label="WIDGET PREVIEW" />
             <View style={s.widgetPreview}>
               <View style={s.widgetHeader}>
                 <View style={s.widgetLogo}>
@@ -343,6 +340,19 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function PreviewLabel({ isProOnly, label }: { isProOnly?: boolean; label: string }) {
+  return (
+    <View style={s.previewLabelRow}>
+      <Text style={s.previewLabel}>{label}</Text>
+      {isProOnly && (
+        <View style={s.previewProPill}>
+          <Text style={s.previewProPillText}>PRO</Text>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -448,6 +458,14 @@ const s = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.8,
     marginBottom: 12,
+  },
+  liveEventLabel: {
+    color: '#8a8f93',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 10,
+    marginHorizontal: 22,
   },
 
   // Empty state
@@ -578,28 +596,35 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     lineHeight: 24,
-    marginBottom: 14,
-  },
-  signalMeta: {
-    borderColor: '#2a3135',
-    borderTopWidth: 1,
-    paddingTop: 10,
-  },
-  signalCategory: {
-    color: '#8a8f93',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.5,
   },
 
   // Preview label
+  previewLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+    marginHorizontal: 22,
+  },
   previewLabel: {
     color: '#8a8f93',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 2,
-    marginBottom: 10,
-    marginHorizontal: 22,
+  },
+  previewProPill: {
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: 'rgba(233, 193, 118, 0.35)',
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  previewProPillText: {
+    color: '#e9c176',
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 
   // Lock screen preview
