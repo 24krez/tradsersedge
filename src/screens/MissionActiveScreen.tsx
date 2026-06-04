@@ -466,6 +466,8 @@ export function MissionActiveScreen() {
       await updateDoc(doc(firestore, 'missions', missionData.id), {
         status: 'completed',
         endedAt: serverTimestamp(),
+        coachMessage: freeCoachMessage || null,
+        coachingStyle: freeCoachMessage?.style || null,
       });
       // TODO: Close iOS Live Activity
       setShowCompleteModal(false);
@@ -642,6 +644,17 @@ export function MissionActiveScreen() {
     }
   }, [hasLoaded, missionData, navigation]);
 
+  const missionStatusForCoach = missionData?.status;
+  const isPendingForCoach = missionStatusForCoach === 'pending';
+  const isCompletedForCoach = missionStatusForCoach === 'completed';
+
+  // Coach engine for free users. Keep this before early returns so hook order stays stable.
+  const { message: freeCoachMessage } = useCoachMessage({
+    alertType: !isPendingForCoach && !isCompletedForCoach ? 'widget' : undefined,
+    screenContext: isPendingForCoach ? 'before_trading' : isCompletedForCoach ? 'post_session' : 'during_trading',
+    missionData: missionData || null,
+  });
+
   if (!missionData) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -657,12 +670,6 @@ export function MissionActiveScreen() {
   const focusKey = coreFocus;
   const shouldShowStats = hasStats(userStats);
   const progress = getSessionProgress(currentSession.session || 'new_york');
-
-  // Coach engine for free users
-  const { message: freeCoachMessage } = useCoachMessage({
-    screenContext: isPending ? 'before_trading' : isCompleted ? 'post_session' : 'during_trading',
-    missionData: missionData,
-  });
 
   // ── Pro Phase Routing ──
   // Pro users get Briefing for pending missions, and Cockpit for active missions.

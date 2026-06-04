@@ -8,12 +8,15 @@ import {
   setCurrentCoachMessage,
 } from './coachEngine';
 import type {
+  AlertType,
   CoachMessageState,
   CoachingStyle,
   ScreenContext,
 } from './coachTypes';
 
 type UseCoachMessageInput = {
+  /** Explicit alert type pool to draw from. Falls back to screenContext mapping. */
+  alertType?: AlertType;
   /** Screen context determines which alert type pool to draw from */
   screenContext: ScreenContext;
   /** Mission data from the active mission (optional) */
@@ -49,6 +52,7 @@ type UseCoachMessageResult = {
  * - Messages auto-rotate when screenContext or mission status changes
  */
 export function useCoachMessage({
+  alertType,
   screenContext,
   missionData,
   styleOverride,
@@ -70,11 +74,11 @@ export function useCoachMessage({
 
   const generateMessage = useCallback(() => {
     const missionStatus = missionData?.currentMindsetStatus || missionData?.missionStatus;
-    const alertType = alertTypeForContext(screenContext, missionStatus);
+    const resolvedAlertType = alertType || alertTypeForContext(screenContext, missionStatus);
     const threat = missionData?.threats?.[0];
 
     const coachMsg = getRandomCoachMessage({
-      alertType,
+      alertType: resolvedAlertType,
       coachingStyle,
       missionStatus: missionStatus as any,
       objective: missionData?.objective,
@@ -90,16 +94,16 @@ export function useCoachMessage({
 
     setMessage(state);
     setCurrentCoachMessage(state);
-  }, [screenContext, coachingStyle, missionData?.id, missionData?.missionStatus, missionData?.currentMindsetStatus, missionData?.objective, missionData?.coreFocus, missionData?.threats]);
+  }, [alertType, screenContext, coachingStyle, missionData?.id, missionData?.missionStatus, missionData?.currentMindsetStatus, missionData?.objective, missionData?.coreFocus, missionData?.threats]);
 
   // Generate initial message and auto-rotate on context/status changes
   useEffect(() => {
-    const contextKey = `${screenContext}:${coachingStyle}:${missionData?.missionStatus || ''}:${missionData?.currentMindsetStatus || ''}`;
+    const contextKey = `${alertType || ''}:${screenContext}:${coachingStyle}:${missionData?.missionStatus || ''}:${missionData?.currentMindsetStatus || ''}`;
     if (contextKey !== prevContextRef.current) {
       prevContextRef.current = contextKey;
       generateMessage();
     }
-  }, [screenContext, coachingStyle, missionData?.missionStatus, missionData?.currentMindsetStatus, generateMessage]);
+  }, [alertType, screenContext, coachingStyle, missionData?.missionStatus, missionData?.currentMindsetStatus, generateMessage]);
 
   // Refresh / rotate message manually
   const refresh = useCallback(() => {

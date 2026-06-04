@@ -1,0 +1,516 @@
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { collection, doc, getDoc, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { MissionStackNavigationProp, RootStackParamList } from '../../App';
+import { useAuth, useIsPro } from '../contexts/AuthContext';
+import { COACHING_STYLE_LABELS, CoachingStyle } from '../features/coaching/coachTypes';
+import { firestore } from '../services/firebase';
+
+type MissionDetailProps = {
+  missionId: string;
+  onBack?: () => void;
+};
+
+type DetailState = {
+  mission: any | null;
+  debrief: any | null;
+  readiness: any | null;
+  notes: any[];
+};
+
+const objectiveLabels: Record<string, string> = {
+  protectCapital: 'PROTECT CAPITAL',
+  passChallenge: 'PASS CHALLENGE',
+  onlyASetups: 'TAKE ONLY A+ SETUPS',
+  observationMode: 'OBSERVATION MODE',
+};
+
+const focusLabels: Record<string, string> = {
+  patience: 'PATIENCE',
+  discipline: 'DISCIPLINE',
+  riskControl: 'RISK CONTROL',
+  execution: 'EXECUTION',
+  confidence: 'CONFIDENCE',
+  consistency: 'CONSISTENCY',
+};
+
+const threatLabels: Record<string, string> = {
+  fomo: 'FOMO',
+  overtrading: 'OVERTRADING',
+  revengeTrading: 'REVENGE TRADING',
+  movingStops: 'MOVING STOPS',
+  enteringEarly: 'ENTERING EARLY',
+  chasingBreakouts: 'CHASING BREAKOUTS',
+  lackOfPatience: 'LACK OF PATIENCE',
+  overLeverage: 'OVER-LEVERAGE',
+};
+
+export function MissionDetailRouteScreen() {
+  const navigation = useNavigation<MissionStackNavigationProp>();
+  const route = useRoute<RouteProp<RootStackParamList, 'MissionDetail'>>();
+
+  return (
+    <MissionDetailScreen
+      missionId={route.params.missionId}
+      onBack={() => navigation.goBack()}
+    />
+  );
+}
+
+export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
+  const { user } = useAuth();
+  const isPro = useIsPro();
+  const [state, setState] = useState<DetailState>({
+    mission: null,
+    debrief: null,
+    readiness: null,
+    notes: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user || !missionId) {
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    const userId = user.uid;
+
+    async function loadDetail() {
+      setIsLoading(true);
+      try {
+        const missionSnap = await getDoc(doc(firestore, 'missions', missionId));
+        const mission = missionSnap.exists() ? { id: missionSnap.id, ...missionSnap.data() } : null;
+
+        const debriefQuery = query(
+          collection(firestore, 'mission_debriefs'),
+          where('missionId', '==', missionId),
+          where('userId', '==', userId),
+          limit(1),
+        );
+        const debriefSnap = await getDocs(debriefQuery);
+        const debrief = debriefSnap.empty
+          ? null
+          : { id: debriefSnap.docs[0].id, ...debriefSnap.docs[0].data() };
+
+        const readinessQuery = query(
+          collection(firestore, 'mindset_checkins'),
+          where('missionId', '==', missionId),
+          where('userId', '==', userId),
+          where('type', '==', 'pre_session'),
+          orderBy('createdAt', 'desc'),
+          limit(1),
+        );
+        const readinessSnap = await getDocs(readinessQuery);
+        const readiness = readinessSnap.empty ? null : readinessSnap.docs[0].data();
+
+        const notesQuery = query(
+          collection(firestore, 'session_notes'),
+          where('missionId', '==', missionId),
+          where('userId', '==', userId),
+          orderBy('createdAt', 'desc'),
+          limit(20),
+        );
+        const notesSnap = await getDocs(notesQuery);
+        const notes = notesSnap.docs.map((note) => ({ id: note.id, ...note.data() }));
+
+        if (isMounted) {
+          setState({ mission, debrief, readiness, notes });
+        }
+      } catch (error) {
+        console.error('Error loading mission detail:', error);
+        if (isMounted) {
+          setState({ mission: null, debrief: null, readiness: null, notes: [] });
+        }
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [missionId, user]);
+
+  const { mission, debrief, readiness, notes } = state;
+  const dateLabel = formatDate(mission?.createdAt || debrief?.createdAt);
+  const objective = labelFor(mission?.objective, objectiveLabels);
+  const focus = labelFor(mission?.coreFocus, focusLabels);
+  const threat = Array.isArray(mission?.threats) && mission.threats.length > 0
+    ? labelFor(mission.threats[0], threatLabels)
+    : '—';
+  const discipline = debrief?.discipline || debrief?.result || {};
+  const score = numberLabel(discipline.score);
+  const grade = discipline.grade || '—';
+  const coachingStyle = (mission?.coachingStyle || debrief?.coachingStyle || 'tactical') as CoachingStyle;
+  const coachMessage = mission?.coachMessage?.text || mission?.coachMessage || debrief?.coachMessage?.text || null;
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centerState}>
+          <Text style={styles.loadingText}>Loading mission detail...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!mission) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.centerState}>
+          {onBack && (
+            <Pressable onPress={onBack} style={styles.backButton}>
+              <Text style={styles.backText}>BACK</Text>
+            </Pressable>
+          )}
+          <Text style={styles.emptyTitle}>MISSION NOT FOUND</Text>
+          <Text style={styles.emptyText}>This archive record is unavailable.</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {onBack && (
+          <Pressable onPress={onBack} style={styles.backButton}>
+            <Text style={styles.backText}>BACK</Text>
+          </Pressable>
+        )}
+
+        <View style={styles.header}>
+          <Text style={styles.eyebrow}>ARCHIVE RECORD</Text>
+          <Text style={styles.title}>MISSION DETAIL</Text>
+          <Text style={styles.subtitle}>{dateLabel || 'SESSION DATE UNAVAILABLE'}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.accent} />
+          <Text style={styles.sectionTitle}>MISSION PARAMETERS</Text>
+          <DetailRow label="OBJECTIVE" value={objective} />
+          <DetailRow label="THREAT" value={threat} isThreat />
+          <DetailRow label="CORE FOCUS" value={focus} noBorder />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>READINESS CHECK</Text>
+          <View style={styles.grid}>
+            <Metric label="CONFIDENCE" value={readiness?.confidence || '—'} />
+            <Metric label="PATIENCE" value={readiness?.patience || '—'} />
+            <Metric label="FOCUS" value={readiness?.focus || '—'} />
+            <Metric label="STATE" value={(readiness?.missionStatus || mission.missionStatus || '—').toString().toUpperCase()} />
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>COACHING SNAPSHOT</Text>
+          <View style={styles.styleBadge}>
+            <Text style={styles.styleBadgeText}>{COACHING_STYLE_LABELS[coachingStyle] || COACHING_STYLE_LABELS.tactical}</Text>
+          </View>
+          <Text style={styles.coachText}>{coachMessage || 'No coaching message was saved for this session.'}</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>DEBRIEF</Text>
+          <DetailRow label="TRADE STATUS" value={(debrief?.execution?.tradeStatus || '—').toString().toUpperCase()} />
+          <DetailRow label="EMOTIONAL STATE" value={(debrief?.psychology?.emotions?.[0] || '—').toString().toUpperCase()} />
+          <DetailRow label="LESSON" value={debrief?.lesson?.text || 'No lesson captured.'} noBorder />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>DISCIPLINE SCORE</Text>
+          <View style={styles.scoreRow}>
+            <Text style={styles.scoreText}>{score}</Text>
+            <View style={styles.gradeBadge}>
+              <Text style={styles.gradeText}>{grade}</Text>
+            </View>
+          </View>
+          <Text style={styles.rewardText}>
+            {discipline.strongestBehavior
+              ? `Strongest behavior: ${discipline.strongestBehavior}`
+              : 'Complete debriefs to build a stronger archive.'}
+          </Text>
+        </View>
+
+        {isPro && (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>SESSION NOTES</Text>
+            {notes.length === 0 ? (
+              <Text style={styles.mutedText}>No session notes saved.</Text>
+            ) : (
+              notes.map((note) => (
+                <View key={note.id} style={styles.noteItem}>
+                  <Text style={styles.noteType}>{(note.noteType || 'GENERAL').toString().replace(/_/g, ' ').toUpperCase()}</Text>
+                  <Text style={styles.noteText}>{note.content || note.text || '—'}</Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function DetailRow({ label, value, isThreat, noBorder }: { label: string; value: string; isThreat?: boolean; noBorder?: boolean }) {
+  return (
+    <View style={[styles.detailRow, !noBorder && styles.detailRowBorder]}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={[styles.detailValue, isThreat && styles.threatValue]}>{value}</Text>
+    </View>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+    </View>
+  );
+}
+
+function labelFor(value: unknown, labels: Record<string, string>): string {
+  if (typeof value !== 'string' || !value) return '—';
+  return labels[value] || value.replace(/([A-Z])/g, ' $1').trim().toUpperCase();
+}
+
+function formatDate(value: any): string {
+  const date = value?.toDate?.() || (value instanceof Date ? value : null);
+  if (!date) return '';
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date).toUpperCase();
+}
+
+function numberLabel(value: unknown): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${value}/100` : '—';
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: '#101415',
+    flex: 1,
+  },
+  container: {
+    padding: 22,
+    paddingBottom: 48,
+  },
+  centerState: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    color: '#8a8f93',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 18,
+    paddingVertical: 8,
+  },
+  backText: {
+    color: '#e9c176',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  header: {
+    marginBottom: 22,
+  },
+  eyebrow: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  title: {
+    color: '#f8fafc',
+    fontSize: 30,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  subtitle: {
+    color: '#8a8f93',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginTop: 6,
+  },
+  card: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 18,
+    position: 'relative',
+  },
+  accent: {
+    backgroundColor: '#e9c176',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 3,
+  },
+  sectionTitle: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 14,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+  },
+  detailRowBorder: {
+    borderBottomColor: '#2a3135',
+    borderBottomWidth: 1,
+  },
+  detailLabel: {
+    color: '#8a8f93',
+    flex: 0.42,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  detailValue: {
+    color: '#f8fafc',
+    flex: 0.58,
+    fontSize: 11,
+    fontWeight: '800',
+    lineHeight: 17,
+    textAlign: 'right',
+  },
+  threatValue: {
+    color: '#e27b7b',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  metric: {
+    backgroundColor: '#0a0f10',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: '46%',
+    padding: 13,
+  },
+  metricLabel: {
+    color: '#8a8f93',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 7,
+  },
+  metricValue: {
+    color: '#e9c176',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  styleBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: 'rgba(233, 193, 118, 0.3)',
+    borderRadius: 4,
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  styleBadgeText: {
+    color: '#e9c176',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  coachText: {
+    color: '#d1c5b4',
+    fontSize: 14,
+    fontStyle: 'italic',
+    fontWeight: '600',
+    lineHeight: 21,
+  },
+  scoreRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  scoreText: {
+    color: '#e9c176',
+    fontSize: 30,
+    fontWeight: '900',
+  },
+  gradeBadge: {
+    backgroundColor: '#e9c176',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  gradeText: {
+    color: '#101415',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  rewardText: {
+    color: '#d1c5b4',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+  },
+  mutedText: {
+    color: '#8a8f93',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  noteItem: {
+    borderTopColor: '#2a3135',
+    borderTopWidth: 1,
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  noteType: {
+    color: '#e9c176',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  noteText: {
+    color: '#f8fafc',
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  emptyTitle: {
+    color: '#f8fafc',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: '#8a8f93',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+});

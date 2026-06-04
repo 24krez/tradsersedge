@@ -348,10 +348,10 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
 
         {/* ── Mission Signal ── */}
         <View style={s.quoteCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <View style={s.signalHeader}>
             <Text style={s.factEyebrow}>MISSION SIGNAL</Text>
-            <View style={{ backgroundColor: 'rgba(233, 193, 118, 0.1)', borderColor: 'rgba(233, 193, 118, 0.3)', borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 }}>
-              <Text style={{ color: '#e9c176', fontSize: 8, fontWeight: '900', letterSpacing: 1 }}>{coachStyleLabel}</Text>
+            <View style={s.signalStyleBadge}>
+              <Text style={s.signalStyleBadgeText}>{coachStyleLabel}</Text>
             </View>
           </View>
           <Text style={s.quoteText}>
@@ -820,10 +820,29 @@ const s = StyleSheet.create({
     backgroundColor: '#14181a',
     borderColor: 'rgba(233, 193, 118, 0.08)',
     borderWidth: 1,
-    flexDirection: 'row',
     marginBottom: 20,
     marginHorizontal: 20,
     padding: 20,
+  },
+  signalHeader: {
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
+  },
+  signalStyleBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(233, 193, 118, 0.1)',
+    borderColor: 'rgba(233, 193, 118, 0.3)',
+    borderRadius: 4,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  signalStyleBadgeText: {
+    color: '#e9c176',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   quoteMark: {
     color: '#2a3135',
@@ -834,7 +853,6 @@ const s = StyleSheet.create({
   },
   quoteText: {
     color: '#d1c5b4',
-    flex: 1,
     fontStyle: 'italic',
     fontSize: 14,
     lineHeight: 22,

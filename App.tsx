@@ -15,8 +15,10 @@ import { ProgressScreen } from './src/screens/ProgressScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ReadinessCheckScreen } from './src/screens/ReadinessCheckScreen';
 import { VaultScreen } from './src/screens/VaultScreen';
+import { MissionDetailRouteScreen } from './src/screens/MissionDetailScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { ProUpsellScreen } from './src/screens/ProUpsellScreen';
+import { LockScreenBriefingRouteScreen } from './src/screens/LockScreenBriefingScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
@@ -40,6 +42,8 @@ export type RootStackParamList = {
   MissionActive: undefined;
   MissionDebrief: { missionId?: string; readOnly?: boolean } | undefined;
   MissionResults: { debriefId?: string; missionId?: string } | undefined;
+  MissionDetail: { missionId: string };
+  LockScreenBriefing: undefined;
   Welcome: undefined;
   ProUpsell: undefined;
   Vault: undefined;
@@ -61,6 +65,8 @@ function MissionStackNavigator() {
       <Stack.Screen name="ReadinessCheck" component={ReadinessCheckScreen} />
       <Stack.Screen name="MissionDebrief" component={MissionDebriefScreen} />
       <Stack.Screen name="MissionResults" component={MissionResultsScreen} />
+      <Stack.Screen name="MissionDetail" component={MissionDetailRouteScreen} />
+      <Stack.Screen name="LockScreenBriefing" component={LockScreenBriefingRouteScreen} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
       <Stack.Screen name="ProUpsell" component={ProUpsellScreen} />
       <Stack.Screen name="Vault" component={VaultScreen} />

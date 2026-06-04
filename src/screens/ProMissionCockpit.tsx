@@ -305,6 +305,8 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
         missionPhase: 'completed',
         endedAt: serverTimestamp(),
         sessionEndedAt: serverTimestamp(),
+        coachMessage: coachMsg || null,
+        coachingStyle: coachMsg?.style || null,
       });
       setShowCompleteModal(false);
 

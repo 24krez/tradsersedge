@@ -1,7 +1,9 @@
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { MissionStackNavigationProp } from '../../App';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
 import { useCoachMessage } from '../features/coaching/useCoachMessage';
 import { COACHING_STYLE_LABELS } from '../features/coaching/coachTypes';
@@ -12,6 +14,17 @@ type LockScreenBriefingProps = {
   onBack: () => void;
   onNavigateToMission?: () => void;
 };
+
+export function LockScreenBriefingRouteScreen() {
+  const navigation = useNavigation<MissionStackNavigationProp>();
+
+  return (
+    <LockScreenBriefingScreen
+      onBack={() => navigation.goBack()}
+      onNavigateToMission={() => navigation.navigate('MissionSetup')}
+    />
+  );
+}
 
 export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockScreenBriefingProps) {
   const { user } = useAuth();
@@ -93,6 +106,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
   const threatDisplay = missionData?.threats?.[0]
     ? (threatLabels[missionData.threats[0]] || missionData.threats[0].toUpperCase())
     : '—';
+  const nookThreatDisplay = missionData?.threats?.[0] ? threatDisplay : 'NO THREATS';
 
   if (!hasLoaded) {
     return (
@@ -249,7 +263,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission }: LockSc
                 <View style={s.nookExpandedGrid}>
                   <View style={s.nookExpandedGridItem}>
                     <Text style={s.nookExpandedGridLabel}>Threat</Text>
-                    <Text style={s.nookExpandedGridValue}>{threatDisplay}</Text>
+                    <Text style={s.nookExpandedGridValue}>{nookThreatDisplay}</Text>
                   </View>
                   <View style={s.nookExpandedGridItem}>
                     <Text style={s.nookExpandedGridLabel}>Focus</Text>
