@@ -128,7 +128,7 @@ export function MissionResultsScreen() {
   const discipline = debrief?.discipline;
   const score = typeof discipline?.score === 'number' ? discipline.score : 0;
   const grade = discipline?.grade || '--';
-  const displayGrade = grade === 'Recovery Required' ? 'F' : grade;
+  const displayGrade = grade;
   const strongestBehavior = discipline?.strongestBehavior || 'Discipline';
   const improvementArea = discipline?.improvementArea || 'Emotional Control';
   const operatorName = userProfile?.callsign?.trim() || 'Operator';
@@ -351,8 +351,8 @@ function isPositiveAnswer(value?: string): boolean {
 
 function gradeLabel(grade: string): string {
   if (['S', 'A+', 'A', 'A-'].includes(grade)) return 'EXC';
-  if (['B+', 'B'].includes(grade)) return 'STR';
-  if (grade === 'C') return 'AVG';
+  if (['B+', 'B', 'B-'].includes(grade)) return 'STR';
+  if (['C+', 'C'].includes(grade)) return 'AVG';
   return 'REC';
 }
 

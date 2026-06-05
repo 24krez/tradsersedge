@@ -807,9 +807,9 @@ export function MissionDebriefScreen() {
                 <View style={styles.gradeDisplayContent}>
                   <View style={styles.gradeDisplayLeft}>
                     {(() => {
-                      const tierName = ['S', 'A+', 'A', 'A-'].includes(currentDisciplineScore.finalGrade) ? 'ELITE' : 
-                                     ['B+', 'B'].includes(currentDisciplineScore.finalGrade) ? 'STRONG' : 
-                                     currentDisciplineScore.finalGrade === 'C' ? 'AVERAGE' : 'RECOVERY REQUIRED';
+                      const tierName = ['S', 'A+', 'A', 'A-'].includes(currentDisciplineScore.finalGrade) ? 'ELITE' :
+                                     ['B+', 'B', 'B-'].includes(currentDisciplineScore.finalGrade) ? 'STRONG' :
+                                     ['C+', 'C'].includes(currentDisciplineScore.finalGrade) ? 'AVERAGE' : 'RECOVERY REQUIRED';
                       return (
                         <Text 
                           style={[styles.gradeDisplayTier, tierName.length > 10 && { fontSize: 14 }]}
@@ -823,8 +823,8 @@ export function MissionDebriefScreen() {
                     <Text style={styles.gradeDisplayScore}>{currentDisciplineScore.finalScore} / 100 PTS</Text>
                   </View>
                   <View style={styles.gradeDisplayRight}>
-                    <Text style={styles.gradeDisplayLetter}>
-                      {currentDisciplineScore.finalGrade === 'Recovery Required' ? 'F' : currentDisciplineScore.finalGrade}
+                    <Text adjustsFontSizeToFit numberOfLines={1} style={styles.gradeDisplayLetter}>
+                      {currentDisciplineScore.finalGrade}
                     </Text>
                   </View>
                 </View>

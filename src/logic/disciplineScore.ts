@@ -1,5 +1,19 @@
 export type YesMostlyNo = "Yes" | "Mostly" | "No";
-export type Grade = "S" | "A+" | "A" | "A-" | "B+" | "B" | "C" | "Recovery Required";
+export type Grade =
+  | "S"
+  | "A+"
+  | "A"
+  | "A-"
+  | "B+"
+  | "B"
+  | "B-"
+  | "C+"
+  | "C"
+  | "C-"
+  | "D+"
+  | "D"
+  | "D-"
+  | "Recovery Required";
 
 export interface MissionScoringContext {
   objective?: string;
@@ -78,7 +92,22 @@ export interface DisciplineScoreResult {
   explanation: string[];
 }
 
-const GRADE_ORDER: Grade[] = ["Recovery Required", "C", "B", "B+", "A-", "A", "A+", "S"];
+const GRADE_ORDER: Grade[] = [
+  "Recovery Required",
+  "D-",
+  "D",
+  "D+",
+  "C-",
+  "C",
+  "C+",
+  "B-",
+  "B",
+  "B+",
+  "A-",
+  "A",
+  "A+",
+  "S",
+];
 const DEFAULT_YES_MOSTLY_NO: YesMostlyNo = "No";
 
 export function calculateDisciplineScore(
@@ -353,13 +382,14 @@ function coreFocusPoints(debrief: TradedDebriefInput, focus: string): number {
 }
 
 function gradeFromScore(score: number): Grade {
-  if (score >= 95) return "S";
-  if (score >= 90) return "A+";
-  if (score >= 85) return "A";
-  if (score >= 80) return "A-";
-  if (score >= 75) return "B+";
-  if (score >= 70) return "B";
-  if (score >= 60) return "C";
+  if (score >= 97) return "A+";
+  if (score >= 93) return "A";
+  if (score >= 90) return "A-";
+  if (score >= 87) return "B+";
+  if (score >= 83) return "B";
+  if (score >= 80) return "B-";
+  if (score >= 77) return "C+";
+  if (score >= 73) return "C";
   return "Recovery Required";
 }
 

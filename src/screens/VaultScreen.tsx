@@ -472,7 +472,7 @@ function noteSnippet(note: SessionNoteRecord): string {
 
 function bestGrade(grades: string[]): string | null {
   if (grades.length === 0) return null;
-  const order = ['S', 'A+', 'A', 'A-', 'B+', 'B', 'C', 'Recovery Required'];
+  const order = ['S', 'A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'Recovery Required', 'C-', 'D+', 'D', 'D-'];
   return [...grades].sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || grades[0];
 }
 
@@ -525,7 +525,7 @@ function missionIsBestScore(mission: MissionArchiveRecord): boolean {
   const summary = mission.missionSummary;
   const score = summary?.discipline?.score ?? mission.disciplineScore;
   const grade = summary?.discipline?.grade ?? mission.disciplineGrade;
-  return (typeof score === 'number' && score >= 85) || ['S', 'A+', 'A', 'A-'].includes(grade || '');
+  return (typeof score === 'number' && score >= 90) || ['S', 'A+', 'A', 'A-'].includes(grade || '');
 }
 
 function dateFromUnknown(value: any): Date | null {

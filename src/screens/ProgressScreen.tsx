@@ -361,6 +361,7 @@ function RankCard({ model, callsign }: { model: ProgressModel; callsign: string 
         <View style={styles.rankIdentity}>
           <Text style={styles.rankKicker}>CURRENT RANK</Text>
           <Text style={styles.rankTitle}>{model.currentRank.toUpperCase()}</Text>
+          <Text style={styles.nextRank}>NEXT RANK: {model.nextRank || 'MAX RANK'}</Text>
         </View>
         {callsign ? (
           <View style={[styles.rankBadge, { borderRadius: 4, paddingHorizontal: 16, marginTop: 0 }]}>
@@ -402,8 +403,7 @@ function RankCard({ model, callsign }: { model: ProgressModel; callsign: string 
 
       <Text style={styles.growthLine}>CURRENT GROWTH AREA: <Text style={styles.goldText}>{model.growthArea}</Text></Text>
       <View style={styles.trendHeader}>
-        <Text style={styles.trendLabel}>30-DAY DISCIPLINE TREND</Text>
-        <Text style={styles.nextRank}>NEXT RANK: {model.nextRank || 'MAX RANK'}</Text>
+        <Text style={styles.trendLabel}>DISCIPLINE GRADE TREND</Text>
       </View>
       {model.hasLowData ? (
         <Text style={styles.lowDataText}>More missions needed to build a reliable trend.</Text>
@@ -411,20 +411,22 @@ function RankCard({ model, callsign }: { model: ProgressModel; callsign: string 
       <View style={styles.trendBars}>
         {model.trendBars.map((bar) => (
           <View key={bar.key} style={styles.trendBarSlot}>
-            <View
-              style={[
-                styles.trendBar,
-                bar.score === null && styles.trendBarEmpty,
-                bar.score !== null && {
-                  height: 8 + Math.max(0, Math.min(1, bar.score / 100)) * 34,
-                  opacity: 0.45 + Math.max(0, Math.min(1, bar.score / 100)) * 0.55,
-                },
-              ]}
-            />
+            <View style={styles.trendBarColumn}>
+              <View
+                style={[
+                  styles.trendBar,
+                  bar.score === null && styles.trendBarEmpty,
+                  bar.score !== null && {
+                    height: 8 + Math.max(0, Math.min(1, bar.score / 100)) * 34,
+                    opacity: 0.45 + Math.max(0, Math.min(1, bar.score / 100)) * 0.55,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.trendBarValue}>{bar.score === null ? '—' : bar.score}</Text>
           </View>
         ))}
       </View>
-      <Text style={styles.remainingText}>{model.remainingRequirement}</Text>
     </View>
   );
 }
@@ -1011,18 +1013,19 @@ function clampPercent(value: number) {
 }
 
 function gradeFromScore(score: number) {
-  if (score >= 95) return 'S';
-  if (score >= 90) return 'A+';
-  if (score >= 85) return 'A';
-  if (score >= 80) return 'A-';
-  if (score >= 75) return 'B+';
-  if (score >= 70) return 'B';
-  if (score >= 60) return 'C';
+  if (score >= 97) return 'A+';
+  if (score >= 93) return 'A';
+  if (score >= 90) return 'A-';
+  if (score >= 87) return 'B+';
+  if (score >= 83) return 'B';
+  if (score >= 80) return 'B-';
+  if (score >= 77) return 'C+';
+  if (score >= 73) return 'C';
   return 'Recovery Required';
 }
 
 function displayGrade(grade: string) {
-  return grade === 'Recovery Required' ? 'F' : grade;
+  return grade;
 }
 
 function dateKeyFromUnknown(value: unknown) {
@@ -1466,6 +1469,7 @@ const styles = StyleSheet.create({
     color: '#e9c176',
     fontSize: 13,
     fontWeight: '900',
+    marginTop: 8,
   },
   lowDataText: {
     color: '#6d6862',
@@ -1478,14 +1482,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     flexDirection: 'row',
     gap: 8,
-    height: 48,
+    height: 66,
     marginTop: 12,
   },
   trendBarSlot: {
-    alignItems: 'stretch',
+    alignItems: 'center',
     flex: 1,
+    height: 66,
+    justifyContent: 'flex-end',
+  },
+  trendBarColumn: {
+    alignItems: 'stretch',
     height: 48,
     justifyContent: 'flex-end',
+    width: '100%',
   },
   trendBar: {
     backgroundColor: '#ffdda1',
@@ -1496,6 +1506,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#3b3f40',
     height: 10,
     opacity: 0.45,
+  },
+  trendBarValue: {
+    color: '#8f8981',
+    fontSize: 9,
+    fontWeight: '900',
+    lineHeight: 12,
+    marginTop: 6,
+    textAlign: 'center',
   },
   remainingText: {
     color: '#6d6257',
