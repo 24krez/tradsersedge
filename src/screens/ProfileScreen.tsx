@@ -6,9 +6,10 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View 
 
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseAuth, firestore } from '../services/firebase';
+import { calculateRankProgression } from '../logic/rankProgression';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 import { LockScreenBriefingScreen } from './LockScreenBriefingScreen';
-import { buildProgressModel, DebriefRecord, MissionRecord, rankFromCompletedMissions, UserStats } from './ProgressScreen';
+import { buildProgressModel, DebriefRecord, MissionRecord, UserStats } from './ProgressScreen';
 
 export function ProfileScreen() {
   const { t } = useTranslation('profile');
@@ -136,7 +137,14 @@ export function ProfileScreen() {
   }
 
   const progress = buildProgressModel(userStats, missions, debriefs);
-  const rank = rankFromCompletedMissions(progress.completedMissions);
+  const rank = calculateRankProgression({
+    averageDisciplineScore: progress.averageScore,
+    completedMissions: progress.completedMissions,
+    currentStreak: progress.currentStreak,
+  });
+  const remainingRequirement = rank.requirementsRemaining.length > 0
+    ? rank.requirementsRemaining[0]
+    : 'Rank requirements complete';
 
   const displayCallsign = activeCallsign || callsign || 'OPERATOR';
   const displayRank = rank.currentRank || 'Recruit';
@@ -209,7 +217,7 @@ export function ProfileScreen() {
               {rank.nextRank && <Text style={styles.rankLabelText}>{rank.nextRank.toUpperCase()}</Text>}
             </View>
             <Text style={[styles.dossierPromoText, { marginTop: 12, color: '#e9c176' }]}>
-              {rank.remainingRequirement.toUpperCase()}
+              {remainingRequirement.toUpperCase()}
             </Text>
           </View>
         </View>
@@ -260,13 +268,22 @@ export function ProfileScreen() {
 
         {/* Operator Stats */}
         <View style={styles.statsSection}>
-          <Text style={styles.statsSectionTitle}>OPERATOR STATS</Text>
-          <View style={styles.statsGrid}>
-            <StatWidget label="MISSIONS COMPLETED" value={String(progress.completedMissions)} />
-            <StatWidget label="HIGHEST DISCIPLINE SCORE" value={userStats?.bestDisciplineScore ? String(userStats.bestDisciplineScore) : '—'} />
-            <StatWidget label="LONGEST STREAK" value={String(userStats?.longestStreak || 0)} />
-            <StatWidget label="BEST GRADE" value={progress.completedMissions > 0 ? progress.grade : '—'} />
-          </View>
+          <Text style={styles.statsSectionTitle}>CAREER STATISTICS</Text>
+          {progress.completedMissions === 0 ? (
+            <View style={styles.emptyStatsCard}>
+              <Text style={styles.emptyStatsTitle}>NO MISSIONS RECORDED</Text>
+              <Text style={styles.emptyStatsText}>
+                Stats unlock after your first mission.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.statsGrid}>
+              <StatWidget label="MISSIONS COMPLETED" value={String(progress.completedMissions)} />
+              <StatWidget label="HIGHEST DISCIPLINE SCORE" value={userStats?.bestDisciplineScore ? String(userStats.bestDisciplineScore) : '—'} />
+              <StatWidget label="LONGEST STREAK" value={String(userStats?.longestStreak || 0)} />
+              <StatWidget label="BEST GRADE" value={progress.completedMissions > 0 ? progress.grade : '—'} />
+            </View>
+          )}
         </View>
 
         {/* Mission Parameters */}

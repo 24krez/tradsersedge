@@ -240,7 +240,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>NO COMPLETED MISSIONS YET</Text>
             <Text style={styles.emptyText}>
-              Finish your first trading session to unlock your mission history.
+              Completed missions will appear here.
             </Text>
           </View>
         ) : visibleArchive.length === 0 ? (

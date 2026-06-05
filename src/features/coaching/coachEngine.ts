@@ -19,6 +19,7 @@ const alertTitles: Record<AlertType, string> = {
   high_risk: 'High Risk State',
   locked_in: 'Locked In',
   mission_complete: 'Mission Complete',
+  mission_results: 'Intelligence Report',
   debrief_reminder: 'Debrief Reminder',
   widget: 'Mission Active',
   lock_screen: "Trader's Edge",
@@ -33,6 +34,7 @@ const priorityByAlertType: Record<AlertType, 'low' | 'normal' | 'high'> = {
   high_risk: 'high',
   locked_in: 'normal',
   mission_complete: 'normal',
+  mission_results: 'normal',
   debrief_reminder: 'normal',
   widget: 'low',
   lock_screen: 'low',
@@ -130,6 +132,8 @@ export function alertTypeForContext(
       return 'caution';
     case 'post_session':
       return 'mission_complete';
+    case 'mission_results':
+      return 'mission_results';
     case 'lock_screen':
       return 'lock_screen';
     case 'widget':

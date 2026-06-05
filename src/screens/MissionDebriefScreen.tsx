@@ -5,20 +5,23 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, getDocs, getDoc } from 'firebase/firestore';
 import { firestore } from '../services/firebase';
 import { buildMissionSummary } from '../services/missionSummary';
 import { updateUserStatsAfterDebrief } from '../services/userStats';
+import { getRandomCoachMessage } from '../features/coaching/coachEngine';
 import { calculateDisciplineScore, DisciplineScoreResult, YesMostlyNo } from '../logic/disciplineScore';
 
 type MissionData = {
   id: string;
   objective: string;
-  coreFocus: string;
   threats: string[];
+  coreFocus: string;
   status: string;
   createdAt: any;
-  debriefId?: string;
+  missionStatus?: string;
+  readinessScore?: number;
+  lastMindsetScore?: number;
 };
 
 type ArchivedDisciplineOutput = ReturnType<typeof buildDisciplineOutput>;
@@ -513,8 +516,41 @@ export function MissionDebriefScreen() {
         }),
       });
 
-      // 2. Update existing Mission doc
+      // 2. Update User Stats FIRST so we can use the fresh data for the mission summary
       const tradeStatus = traded ? 'traded' : 'no_trade';
+      await updateUserStatsAfterDebrief({
+        completedAt: now,
+        debriefId: debriefRef.id,
+        score: disciplineOutput.score,
+        tradeStatus,
+        userId: user.uid,
+      });
+
+      // 3. Fetch updated stats to calculate rank for the mission summary
+      const updatedStatsSnap = await getDoc(doc(firestore, 'user_stats', user.uid));
+      const updatedStats = updatedStatsSnap.exists() ? updatedStatsSnap.data() : {};
+      
+      const averageDisciplineScore = typeof updatedStats.averageDisciplineScore === 'number' ? updatedStats.averageDisciplineScore : disciplineOutput.score;
+      const completedMissions = typeof updatedStats.totalMissionsCompleted === 'number' ? updatedStats.totalMissionsCompleted : 1;
+      const currentStreak = typeof updatedStats.currentStreak === 'number' ? updatedStats.currentStreak : 1;
+
+      // Calculate rank with fresh stats
+      const { calculateRankProgression } = await import('../logic/rankProgression');
+      const rank = calculateRankProgression({
+        averageDisciplineScore,
+        completedMissions,
+        currentStreak,
+      });
+
+      // Get coach message for the summary
+      const coachingStyle = (user as any)?.coachingStyle || 'tactical';
+      const coachMsg = getRandomCoachMessage({
+        alertType: 'mission_results',
+        coachingStyle: coachingStyle as any,
+        missionStatus: 'completed',
+      });
+
+      // 4. Update existing Mission doc with everything
       const completedAt = serverTimestamp();
       const completedMissionStatus = traded ? 'TRADED' : 'NO TRADE DAY';
 
@@ -534,18 +570,14 @@ export function MissionDebriefScreen() {
           mission: {
             ...missionData,
             missionStatus: completedMissionStatus,
+            coachMessage: coachMsg.body,
+            coachingStyle: coachingStyle,
           },
           tradeStatus,
+          currentRank: rank.currentRank,
+          rankProgress: rank.progressPercentage,
+          currentStreak,
         }),
-      });
-
-      // 3. Update User Stats
-      await updateUserStatsAfterDebrief({
-        completedAt: now,
-        debriefId: debriefRef.id,
-        score: disciplineOutput.score,
-        tradeStatus,
-        userId: user.uid,
       });
       
       navigation.replace('MissionResults', {

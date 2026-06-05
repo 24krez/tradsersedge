@@ -27,6 +27,9 @@ export type MissionSummary = {
   coachMessage?: unknown;
   coachingStyle?: CoachingStyle | null;
   missionReflection?: unknown;
+  currentRank?: string;
+  rankProgress?: number;
+  currentStreak?: number;
 };
 
 export function buildMissionSummary({
@@ -35,6 +38,9 @@ export function buildMissionSummary({
   discipline,
   mission,
   tradeStatus,
+  currentRank,
+  rankProgress,
+  currentStreak,
 }: {
   completedAt?: unknown;
   debriefId?: string;
@@ -46,6 +52,9 @@ export function buildMissionSummary({
   };
   mission: any;
   tradeStatus?: 'traded' | 'no_trade';
+  currentRank?: string;
+  rankProgress?: number;
+  currentStreak?: number;
 }): MissionSummary {
   const threats = Array.isArray(mission?.threats) ? mission.threats : [];
 
@@ -77,6 +86,9 @@ export function buildMissionSummary({
       : undefined,
     coachMessage: mission?.coachMessage || null,
     coachingStyle: mission?.coachingStyle || null,
+    currentRank,
+    rankProgress,
+    currentStreak,
   }) as MissionSummary;
 }
 

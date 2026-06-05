@@ -4,6 +4,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { useAuth } from '../contexts/AuthContext';
 import { firestore } from '../services/firebase';
+import { calculateRankProgression } from '../logic/rankProgression';
 import type { MissionSummary } from '../services/missionSummary';
 
 type ProgressScreenProps = {
@@ -235,11 +236,9 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>YOUR EDGE IS BEING BUILT.</Text>
+          <Text style={styles.emptyTitle}>NO MISSIONS COMPLETED</Text>
           <Text style={styles.emptyBody}>
-            {missions.length > 0
-              ? 'You have started building your trading history. Complete a debrief after your next session to unlock discipline insights.'
-              : 'Complete your first mission and debrief to start tracking discipline, streaks, growth areas, and rank progress.'}
+            Complete your first mission to unlock discipline trends.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -398,20 +397,21 @@ function MissionInsightsCard({
       <Text style={styles.cardSubtext}>{signalContext}</Text>
       {hasLowData ? <Text style={styles.cardHint}>Complete 3 missions to unlock stronger insights.</Text> : null}
       <View style={styles.twoColumn}>
-        <InsightList accent="pink" emptyText="No selected threat signals yet." icon="△" items={threats} title="THREAT SIGNALS" />
-        <InsightList accent="gold" emptyText="More completed debriefs needed." icon="◎" items={strongestTraits} title="STRENGTH SIGNALS" />
+        <InsightList accent="pink" emptyText="No selected threat signals yet." icon="△" items={threats} subtitle="Discipline challenges" title="THREAT SIGNALS" />
+        <InsightList accent="gold" emptyText="More completed debriefs needed." icon="◎" items={strongestTraits} subtitle="Behaviors executed well" title="STRENGTH SIGNALS" />
       </View>
     </View>
   );
 }
 
-function InsightList({ accent, emptyText, icon, items, title }: { accent: 'gold' | 'pink'; emptyText: string; icon: string; items: CountItem[]; title: string }) {
+function InsightList({ accent, emptyText, icon, items, subtitle, title }: { accent: 'gold' | 'pink'; emptyText: string; icon: string; items: CountItem[]; subtitle?: string; title: string }) {
   return (
     <View style={styles.insightColumn}>
       <View style={styles.insightHeader}>
         <Text style={[styles.insightIcon, accent === 'pink' && styles.pinkText]}>{icon}</Text>
         <Text style={styles.insightTitle}>{title}</Text>
       </View>
+      {subtitle ? <Text style={styles.insightSubtext}>{subtitle}</Text> : null}
       <View style={styles.insightRule} />
       {items.length > 0 ? items.map((item) => (
         <View key={item.label} style={styles.insightRow}>
@@ -435,7 +435,7 @@ function ImprovementCard({ improvement }: { improvement: ImprovementModel | null
     );
   }
 
-  const signalPressure = improvement.count >= 10 ? 'HIGH' : improvement.count >= 4 ? 'BUILDING' : 'EARLY';
+  const signalPressure = improvement.count >= 10 ? 'HIGH PRIORITY' : improvement.count >= 4 ? 'BUILDING' : 'EARLY';
   const filledSegments = improvement.count >= 10 ? 4 : improvement.count >= 7 ? 3 : improvement.count >= 3 ? 2 : 1;
 
   return (
@@ -445,12 +445,12 @@ function ImprovementCard({ improvement }: { improvement: ImprovementModel | null
         <Text style={styles.improvementTitle}>{improvement.label}</Text>
         {improvement.isEarly ? <Text style={styles.earlyPatternText}>Early Pattern</Text> : null}
         <Text style={styles.recommendation}>Recommended Focus: {improvement.recommendation}</Text>
-        <Text style={styles.improvementAction}>Make this the first checkpoint before every setup.</Text>
+        <Text style={styles.improvementAction}>Most repeated pattern. Make this your first checkpoint.</Text>
       </View>
       <View style={styles.occurrenceBox}>
         <Text style={styles.occurrenceKicker}>PATTERN PRESSURE</Text>
         <Text style={styles.occurrenceNumber}>{improvement.count}</Text>
-        <Text style={styles.occurrenceLabel}>{improvement.count === 1 ? 'SIGNAL LOGGED' : 'SIGNALS LOGGED'}</Text>
+        <Text style={styles.occurrenceLabel}>{improvement.count === 1 ? 'MISSION SIGNAL' : 'MISSION SIGNALS'}</Text>
         <View style={styles.pressureMeter}>
           {[0, 1, 2, 3].map((segment) => (
             <View
@@ -654,7 +654,11 @@ export function buildProgressModel(userStats: UserStats | null, missions: Missio
   const averageScore = Math.round(numberFrom(userStats?.averageDisciplineScore) || average(scores));
   const completionRate = clampPercent(totalMissionsStarted ? (completedMissionsCount / totalMissionsStarted) * 100 : 0);
   const currentStreak = numberFrom(userStats?.currentStreak);
-  const rank = rankFromCompletedMissions(completedMissionsCount);
+  const rank = calculateRankProgression({
+    averageDisciplineScore: averageScore,
+    completedMissions: completedMissionsCount,
+    currentStreak,
+  });
   const currentRank = rank.currentRank;
   const nextRank = rank.nextRank;
   const trendScores = scores.slice(0, 30).reverse();
@@ -693,11 +697,13 @@ export function buildProgressModel(userStats: UserStats | null, missions: Missio
     nextRank,
     noTradeDays,
     primaryImprovement,
-    remainingRequirement: rank.remainingRequirement,
+    remainingRequirement: rank.requirementsRemaining.length > 0
+      ? rank.requirementsRemaining[0]
+      : 'Rank requirements complete',
     strongestTraits,
     tradeDays,
     threatSignalContext: totalThreatSignals > 0
-      ? `${totalThreatSignals} signals across ${threatSignals.sessions} missions.`
+      ? `${totalThreatSignals} signals tracked across ${threatSignals.sessions} missions.`
       : 'Signals detected across your mission logs.',
     trendBars,
     trendDirection: trendDirection(trendScores),
@@ -833,35 +839,6 @@ function buildTrendBars(scores: number[]): TrendBar[] {
     key: `trend-${index}`,
     score: recentScores[index] ?? null,
   }));
-}
-
-export function rankFromCompletedMissions(completedMissions: number) {
-  const bands = [
-    { rank: 'Recruit', min: 0 },
-    { rank: 'Operator', min: 3 },
-    { rank: 'Specialist', min: 8 },
-    { rank: 'Strategist', min: 15 },
-    { rank: 'Commander', min: 25 },
-    { rank: 'Elite Operator', min: 40 },
-  ];
-  const currentIndex = bands.reduce((bestIndex, band, index) => completedMissions >= band.min ? index : bestIndex, 0);
-  const currentRank = bands[currentIndex].rank;
-  const next = bands[currentIndex + 1] || null;
-  const currentMin = bands[currentIndex].min;
-  
-  let progressPercentage = 100;
-  if (next) {
-    const diff = next.min - currentMin;
-    const progressInBand = completedMissions - currentMin;
-    progressPercentage = Math.max(0, Math.min(100, Math.round((progressInBand / diff) * 100)));
-  }
-
-  return {
-    currentRank,
-    nextRank: next?.rank || null,
-    progressPercentage,
-    remainingRequirement: next ? `${next.min - completedMissions} missions remaining to next rank` : 'Rank requirements complete',
-  };
 }
 
 function selectedValues(...sources: Array<string | string[] | undefined>) {
@@ -1427,6 +1404,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     lineHeight: 18,
+  },
+  insightSubtext: {
+    color: '#8f8981',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 2,
+    marginLeft: 32,
   },
   insightRule: {
     backgroundColor: '#51483f',

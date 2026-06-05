@@ -49,6 +49,12 @@ export const coachMessages: Record<CoachingStyle, Partial<Record<AlertType, stri
       'The mission is done. Document the lesson. It compounds.',
       'Good execution. Now capture what you learned.',
     ],
+    mission_results: [
+      'Mission complete. You logged the lesson and stayed on mission.',
+      'Debrief locked. Data captured. Prepare for the next session.',
+      'Intel collected. Discipline is compounding.',
+      'Mission archived. The lesson is the edge.',
+    ],
     debrief_reminder: [
       'Mission complete. Debrief while the lesson is still fresh.',
       "Log the lesson. Today's data builds tomorrow's edge.",
@@ -130,6 +136,12 @@ export const coachMessages: Record<CoachingStyle, Partial<Record<AlertType, stri
       'You showed up. Now turn the session into wisdom.',
       'Another mission complete. You are building real discipline.',
       'The session is done. Be proud of showing up.',
+    ],
+    mission_results: [
+      'Great work completing the mission. Your discipline is growing.',
+      'You showed up and finished strong. That is the process.',
+      'Another mission in the vault. Keep building.',
+      'Session complete. You are getting better every time.',
     ],
     debrief_reminder: [
       'Good work showing up. Capture the lesson before it fades.',

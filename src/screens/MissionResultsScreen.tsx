@@ -5,6 +5,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
+import { getRandomCoachMessage } from '../features/coaching/coachEngine';
 import { firestore } from '../services/firebase';
 
 type MissionResultsRouteProp = RouteProp<RootStackParamList, 'MissionResults'>;
@@ -137,11 +138,14 @@ export function MissionResultsScreen() {
   const parameters = buildParameterRows(debrief?.execution);
 
   const commandMessage = useMemo(() => {
-    const lesson = debrief?.lesson?.text?.trim();
-    if (lesson) return `"${lesson}"`;
-
-    return `"Improvement area: ${improvementArea}. Good work, ${operatorName}. Log the lesson and prepare for the next session."`;
-  }, [debrief?.lesson?.text, improvementArea, operatorName]);
+    const coachingStyle = (userProfile as any)?.coachingStyle || 'tactical';
+    const msg = getRandomCoachMessage({
+      alertType: 'mission_results',
+      coachingStyle: coachingStyle as any,
+      missionStatus: 'completed',
+    });
+    return `"${msg.body}"`;
+  }, [userProfile]);
 
   if (isLoading) {
     return (
