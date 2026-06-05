@@ -73,7 +73,7 @@ export function useCoachMessage({
   const prevContextRef = useRef<string>('');
 
   const generateMessage = useCallback(() => {
-    const missionStatus = missionData?.currentMindsetStatus || missionData?.missionStatus;
+    const missionStatus = missionData?.missionStatus || missionData?.currentMindsetStatus;
     const resolvedAlertType = alertType || alertTypeForContext(screenContext, missionStatus);
     const threat = missionData?.threats?.[0];
 

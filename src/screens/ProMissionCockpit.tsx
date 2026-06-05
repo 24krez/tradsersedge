@@ -37,7 +37,7 @@ import {
 } from '../logic/sessionEngine';
 import { firestore } from '../services/firebase';
 import { buildMissionSummary } from '../services/missionSummary';
-import { CompactMindsetModule } from './MissionActiveScreen';
+import { CompactMindsetModule } from './CompactMindsetModule';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -185,8 +185,9 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
 
   // Mindset
   const currentMindset: CockpitMindsetStatus =
-    mission.currentMindsetStatus ||
-    mapMissionStatusToCockpit(mission.missionStatus);
+    mission.missionStatus
+      ? mapMissionStatusToCockpit(mission.missionStatus)
+      : mission.currentMindsetStatus || 'on_track';
 
   // Session notes
   const [selectedNoteType, setSelectedNoteType] = useState<NoteType | null>(

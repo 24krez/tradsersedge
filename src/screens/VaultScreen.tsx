@@ -75,7 +75,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
   const [hasLoadedMissions, setHasLoadedMissions] = useState(false);
   const [hasLoadedNotes, setHasLoadedNotes] = useState(false);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
-  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(() => formatDateKey(new Date()));
   const [quickFilter, setQuickFilter] = useState<VaultQuickFilter>('all');
   const [listRange, setListRange] = useState<VaultListRange>('recent10');
 

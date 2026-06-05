@@ -78,8 +78,9 @@ export function ProMissionAccomplished({
 
   // ── Mindset Status ──
   const currentMindset: CockpitMindsetStatus =
-    mission.currentMindsetStatus ||
-    mapMissionStatusToCockpit(mission.missionStatus);
+    mission.missionStatus
+      ? mapMissionStatusToCockpit(mission.missionStatus)
+      : mission.currentMindsetStatus || 'on_track';
   const mindsetLabel = cockpitStatusToDisplayLabel(currentMindset);
 
   // ── Fetch Session Notes and Debrief ──

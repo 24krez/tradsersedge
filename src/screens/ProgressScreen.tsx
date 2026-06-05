@@ -128,7 +128,7 @@ const improvementRecommendations: Record<string, string> = {
 };
 
 export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenProps) {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, isPro } = useAuth();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [missions, setMissions] = useState<MissionRecord[]>([]);
   const [debriefs, setDebriefs] = useState<DebriefRecord[]>([]);
@@ -222,6 +222,10 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
   const model = useMemo(() => buildProgressModel(userStats, missions, debriefs), [userStats, missions, debriefs]);
   const isLoading = !hasLoadedStats || !hasLoadedMissions || !hasLoadedDebriefs;
 
+  if (!isPro) {
+    return <LockedProgressPreview />;
+  }
+
   if (isLoading) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -285,6 +289,68 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
         <Text style={styles.footerMotto}>PRECISION IS THE ONLY MEASURE OF SUCCESS</Text>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function LockedProgressPreview() {
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.lockedPreview}>
+        <View style={styles.lockedShell}>
+          <View style={styles.lockedHeaderRow}>
+            <View style={styles.lockedTitleBlock}>
+              <Text style={styles.lockedKicker}>PROGRESS CENTER</Text>
+              <Text style={styles.lockedTitle}>Progress Center is a Pro feature.</Text>
+            </View>
+            <View style={styles.lockedBadge}>
+              <Text style={styles.lockedBadgeText}>PRO</Text>
+            </View>
+          </View>
+
+          <Text style={styles.lockedBody}>
+            Complete missions, track discipline trends, and unlock your Operator profile.
+          </Text>
+
+          <View style={styles.previewRankCard}>
+            <View style={styles.previewRankTop}>
+              <View>
+                <Text style={styles.previewLabel}>CURRENT RANK</Text>
+                <Text style={styles.previewRank}>OPERATOR</Text>
+              </View>
+              <Text style={styles.previewLock}>LOCKED</Text>
+            </View>
+            <View style={styles.previewMetrics}>
+              <PreviewMetric label="DISCIPLINE" value="--" />
+              <PreviewMetric label="STREAK" value="--" />
+              <PreviewMetric label="MISSIONS" value="--" />
+            </View>
+            <View style={styles.previewTrack}>
+              <View style={styles.previewFill} />
+            </View>
+          </View>
+
+          <View style={styles.previewInsightGrid}>
+            <View style={styles.previewInsight}>
+              <Text style={styles.previewLabel}>THREAT SIGNALS</Text>
+              <Text style={styles.previewInsightLine}>Pattern detection</Text>
+            </View>
+            <View style={styles.previewInsight}>
+              <Text style={styles.previewLabel}>STRENGTH SIGNALS</Text>
+              <Text style={styles.previewInsightLine}>Behavior tracking</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function PreviewMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.previewMetric}>
+      <Text style={styles.previewMetricValue}>{value}</Text>
+      <Text adjustsFontSizeToFit numberOfLines={1} style={styles.previewMetricLabel}>{label}</Text>
+    </View>
   );
 }
 
@@ -394,8 +460,8 @@ function MissionInsightsCard({
   return (
     <View style={styles.card}>
       <Text style={styles.sectionTitle}>MISSION INSIGHTS</Text>
-      <Text style={styles.cardSubtext}>{signalContext}</Text>
-      {hasLowData ? <Text style={styles.cardHint}>Complete 3 missions to unlock stronger insights.</Text> : null}
+      <Text style={styles.cardSubtext}>{hasLowData ? 'Building your pattern profile.' : signalContext}</Text>
+      {hasLowData ? <Text style={styles.cardHint}>Complete more missions to unlock stronger insights.</Text> : null}
       <View style={styles.twoColumn}>
         <InsightList accent="pink" emptyText="No selected threat signals yet." icon="△" items={threats} subtitle="Discipline challenges" title="THREAT SIGNALS" />
         <InsightList accent="gold" emptyText="More completed debriefs needed." icon="◎" items={strongestTraits} subtitle="Behaviors executed well" title="STRENGTH SIGNALS" />
@@ -650,9 +716,11 @@ export function buildProgressModel(userStats: UserStats | null, missions: Missio
   const scores = scoreDebriefs.map((debrief) => numberFrom(debrief.discipline?.score));
   const completedMissionRecords = missions.filter((mission) => mission.status === 'completed');
   const completedMissionsCount = Math.max(numberFrom(userStats?.totalMissionsCompleted), completedMissionRecords.length);
-  const totalMissionsStarted = missions.length;
-  const averageScore = Math.round(numberFrom(userStats?.averageDisciplineScore) || average(scores));
-  const completionRate = clampPercent(totalMissionsStarted ? (completedMissionsCount / totalMissionsStarted) * 100 : 0);
+  const totalMissionsStarted = Math.max(numberFrom(userStats?.totalMissions), missions.length, completedMissionsCount);
+  const storedAverageScore = numberFrom(userStats?.averageDisciplineScore);
+  const averageScore = Math.round(storedAverageScore || average(scores));
+  const storedCompletionRate = numberFrom(userStats?.missionSuccessRate);
+  const completionRate = clampPercent(storedCompletionRate || (totalMissionsStarted ? (completedMissionsCount / totalMissionsStarted) * 100 : 0));
   const currentStreak = numberFrom(userStats?.currentStreak);
   const rank = calculateRankProgression({
     averageDisciplineScore: averageScore,
@@ -663,11 +731,11 @@ export function buildProgressModel(userStats: UserStats | null, missions: Missio
   const nextRank = rank.nextRank;
   const trendScores = scores.slice(0, 30).reverse();
   const trendBars = buildTrendBars(trendScores);
-  const threatSignals = calculateThreatSignals(missions, debriefs);
+  const threatSignals = calculateThreatSignals(completedMissionRecords, debriefs);
   const commonThreats = topCounts(threatSignals.counts, 3);
   const totalThreatSignals = [...threatSignals.counts.values()].reduce((sum, count) => sum + count, 0);
   const hasLowData = completedMissionsCount < 3;
-  const strongestTraits = hasLowData ? [] : topCounts(countTraits(scoreDebriefs, completedMissionRecords), 3);
+  const strongestTraits = topCounts(countTraits(scoreDebriefs, completedMissionRecords), 3);
   const improvementCounts = countImprovementAreas(scoreDebriefs);
   const primaryImprovement = buildPrimaryImprovement(commonThreats[0] || topCounts(improvementCounts, 1)[0], completedMissionsCount);
   const growthArea = userStats?.growthArea || (primaryImprovement ? `${primaryImprovement.label}${primaryImprovement.isEarly ? '' : ` ↑ ${numberFrom(userStats?.growthAreaChange) || primaryImprovement.count}%`}` : 'No Pattern Yet');
@@ -1011,6 +1079,151 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 24,
     marginBottom: 28,
+  },
+  lockedPreview: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  lockedShell: {
+    backgroundColor: '#191d1e',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    padding: 22,
+  },
+  lockedHeaderRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'space-between',
+  },
+  lockedTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lockedKicker: {
+    color: '#8f8981',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  lockedTitle: {
+    color: '#ffdda1',
+    flexShrink: 1,
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 30,
+  },
+  lockedBadge: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    height: 30,
+    justifyContent: 'center',
+    minWidth: 48,
+    paddingHorizontal: 10,
+  },
+  lockedBadgeText: {
+    color: '#101415',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  lockedBody: {
+    color: '#c7bfb5',
+    fontSize: 15,
+    fontWeight: '700',
+    lineHeight: 23,
+    marginTop: 18,
+  },
+  previewRankCard: {
+    backgroundColor: '#141819',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginTop: 24,
+    padding: 18,
+  },
+  previewRankTop: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  previewLabel: {
+    color: '#8f8981',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  previewRank: {
+    color: '#e9c176',
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+  previewLock: {
+    color: '#f3a0a4',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  previewMetrics: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+  },
+  previewMetric: {
+    backgroundColor: '#101415',
+    borderColor: '#283034',
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 68,
+    padding: 10,
+  },
+  previewMetricValue: {
+    color: '#f8fafc',
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 28,
+  },
+  previewMetricLabel: {
+    color: '#8f8981',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 6,
+  },
+  previewTrack: {
+    backgroundColor: '#22292e',
+    height: 3,
+    marginTop: 16,
+  },
+  previewFill: {
+    backgroundColor: '#e9c176',
+    height: '100%',
+    width: '38%',
+  },
+  previewInsightGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 14,
+  },
+  previewInsight: {
+    backgroundColor: '#141819',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 76,
+    padding: 14,
+  },
+  previewInsightLine: {
+    color: '#c7bfb5',
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginTop: 10,
   },
   startButton: {
     alignItems: 'center',
@@ -1379,8 +1592,7 @@ const styles = StyleSheet.create({
     marginTop: -14,
   },
   twoColumn: {
-    flexDirection: 'row',
-    gap: 20,
+    gap: 18,
   },
   insightColumn: {
     flex: 1,
