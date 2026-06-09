@@ -234,6 +234,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [ ] Polish Alert Screen UI
 - [ ] Create Alert Preview component
 - [ ] Quiet hours UI
+- [ ] Off-days / Weekend filtering logic (no notifications when market is closed)
 - [ ] Delivery testing
 
 ### Epic 7: Lock Screen Live Activities
