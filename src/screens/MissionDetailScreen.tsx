@@ -7,6 +7,7 @@ import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
 import { getCoachMessage } from '../features/coaching/coachEngine';
 import { firestore } from '../services/firebase';
+import { gradeFromScore } from '../logic/disciplineScore';
 import type { MissionSummary } from '../services/missionSummary';
 
 type MissionDetailProps = {
@@ -161,6 +162,7 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
     coachingStyle: 'tactical',
     coreFocus: summary?.coreFocus || mission?.coreFocus,
     disciplineScore: typeof rawScore === 'number' ? rawScore : undefined,
+    disciplineGrade: typeof grade === 'string' && grade !== '—' ? grade : (typeof rawScore === 'number' ? gradeFromScore(rawScore) : undefined),
     grade,
     hasDebrief,
     missionStatus: (summaryReadiness.missionStatus || readiness?.missionStatus || mission?.missionStatus) as any,

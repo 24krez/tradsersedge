@@ -13,7 +13,7 @@ export type Grade =
   | "D+"
   | "D"
   | "D-"
-  | "Recovery Required";
+  | "F";
 
 export interface MissionScoringContext {
   objective?: string;
@@ -93,7 +93,7 @@ export interface DisciplineScoreResult {
 }
 
 const GRADE_ORDER: Grade[] = [
-  "Recovery Required",
+  "F",
   "D-",
   "D",
   "D+",
@@ -381,7 +381,7 @@ function coreFocusPoints(debrief: TradedDebriefInput, focus: string): number {
   return 0;
 }
 
-function gradeFromScore(score: number): Grade {
+export function gradeFromScore(score: number): Grade {
   if (score >= 97) return "A+";
   if (score >= 93) return "A";
   if (score >= 90) return "A-";
@@ -390,7 +390,7 @@ function gradeFromScore(score: number): Grade {
   if (score >= 80) return "B-";
   if (score >= 77) return "C+";
   if (score >= 73) return "C";
-  return "Recovery Required";
+  return "F";
 }
 
 function compareGrades(a: Grade, b: Grade): number {

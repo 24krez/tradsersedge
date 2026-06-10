@@ -50,6 +50,8 @@ export interface UserProfile {
   motto: string;
   subscriptionTier: SubscriptionTier;
   onboardingStatus: string;
+  tradingStartTime?: string; // HH:mm format, e.g. '09:30'
+  tradingEndTime?: string;   // HH:mm format, e.g. '16:00'
   missionPreferences?: {
     objective: string;
     threats: string[];

@@ -823,7 +823,7 @@ export function MissionDebriefScreen() {
                     <Text style={styles.gradeDisplayScore}>{currentDisciplineScore.finalScore} / 100 PTS</Text>
                   </View>
                   <View style={styles.gradeDisplayRight}>
-                    <Text adjustsFontSizeToFit numberOfLines={1} style={styles.gradeDisplayLetter}>
+                    <Text style={styles.gradeDisplayLetter}>
                       {currentDisciplineScore.finalGrade}
                     </Text>
                   </View>

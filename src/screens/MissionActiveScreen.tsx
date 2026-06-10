@@ -20,6 +20,7 @@ import { ProMissionBriefing } from './ProMissionBriefing';
 import { ProMissionCockpit } from './ProMissionCockpit';
 import { ProMissionAccomplished } from './ProMissionAccomplished';
 import { CompactMindsetModule } from './CompactMindsetModule';
+import { gradeFromScore } from '../logic/disciplineScore';
 
 type UserStats = {
   bestDisciplineScore?: number;
@@ -733,18 +734,6 @@ function ActiveStatWidget({ label, value }: { label: string; value: string }) {
 function bestGradeFromStats(stats: UserStats | null): string {
   if (stats?.bestGrade) return stats.bestGrade;
   return gradeFromScore(numberFrom(stats?.bestDisciplineScore));
-}
-
-function gradeFromScore(score: number): string {
-  if (score >= 97) return 'A+';
-  if (score >= 93) return 'A';
-  if (score >= 90) return 'A-';
-  if (score >= 87) return 'B+';
-  if (score >= 83) return 'B';
-  if (score >= 80) return 'B-';
-  if (score >= 77) return 'C+';
-  if (score >= 73) return 'C';
-  return 'Recovery Required';
 }
 
 function hasStats(stats: UserStats | null): boolean {

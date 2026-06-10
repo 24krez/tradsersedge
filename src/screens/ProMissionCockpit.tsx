@@ -37,6 +37,11 @@ import {
 } from '../logic/sessionEngine';
 import { firestore } from '../services/firebase';
 import { buildMissionSummary } from '../services/missionSummary';
+import {
+  startMissionActivity,
+  updateMissionActivity,
+  endMissionActivity,
+} from '../services/liveActivityAdapter';
 import { CompactMindsetModule } from './CompactMindsetModule';
 
 // ---------------------------------------------------------------------------
@@ -253,6 +258,36 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
   const remaining = getTimeRemaining(currentSessionKey);
   const progress = getSessionProgress(currentSessionKey);
 
+  // ── Live Activity Sync ──
+  useEffect(() => {
+    if (!mission.id) return;
+    const activityState = {
+      missionId: mission.id,
+      objective: objectiveKey ? t(`data.objectives.${objectiveKey}.title`) : 'Mission Active',
+      status: currentMindset,
+      threatsIdentified: threats.length,
+      timeRemaining: remaining.formatted,
+    };
+    // If it's the first time, start it; otherwise update it.
+    // The adapter is idempotent enough for Expo Go testing, but typically you'd track if it's started.
+    updateMissionActivity(activityState);
+  }, [mission.id, objectiveKey, currentMindset, threats.length, remaining.formatted, t]);
+
+  useEffect(() => {
+    // Start activity on mount
+    if (mission.id) {
+      startMissionActivity({
+        missionId: mission.id,
+        objective: objectiveKey ? t(`data.objectives.${objectiveKey}.title`) : 'Mission Active',
+        status: currentMindset,
+        threatsIdentified: threats.length,
+        timeRemaining: remaining.formatted,
+      });
+    }
+    // Note: We don't end it on unmount because they might put the app in the background.
+    // We only end it when the mission is explicitly completed.
+  }, [mission.id]);
+
   // ── Started at display ──
   const startedAtDisplay = useMemo(() => {
     const d = mission.sessionStartedAt?.toDate?.();
@@ -326,6 +361,9 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
       } else {
         navigation.replace('ProUpsell');
       }
+      
+      // End the live activity natively
+      endMissionActivity(mission.id);
     } catch (e) {
       console.error('Error completing mission:', e);
       setIsCompleting(false);

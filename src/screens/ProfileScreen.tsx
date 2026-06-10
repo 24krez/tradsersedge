@@ -2,11 +2,12 @@ import { signOut } from 'firebase/auth';
 import { collection, doc, limit, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { calculateRankProgression } from '../logic/rankProgression';
+import { syncAlertSchedules } from '../services/alertScheduler';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 import { LockScreenBriefingScreen } from './LockScreenBriefingScreen';
 import { buildProgressModel, DebriefRecord, MissionRecord, UserStats } from './ProgressScreen';
@@ -18,6 +19,8 @@ export function ProfileScreen() {
   const [callsign, setCallsign] = useState('');
   const [motto, setMotto] = useState('');
   const [activeCallsign, setActiveCallsign] = useState('');
+  const [tradingStartTime, setTradingStartTime] = useState('09:30');
+  const [tradingEndTime, setTradingEndTime] = useState('16:00');
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [missions, setMissions] = useState<MissionRecord[]>([]);
   const [debriefs, setDebriefs] = useState<DebriefRecord[]>([]);
@@ -27,7 +30,9 @@ export function ProfileScreen() {
   const hasChanges =
     callsign.trim() !== (userProfile?.callsign || '') ||
     motto.trim() !== (userProfile?.motto || '') ||
-    activeCallsign.trim() !== (userProfile?.activeCallsign || '');
+    activeCallsign.trim() !== (userProfile?.activeCallsign || '') ||
+    tradingStartTime.trim() !== (userProfile?.tradingStartTime || '09:30') ||
+    tradingEndTime.trim() !== (userProfile?.tradingEndTime || '16:00');
   const [isShowingNotifications, setIsShowingNotifications] = useState(false);
   const [isShowingBriefing, setIsShowingBriefing] = useState(false);
 
@@ -36,6 +41,8 @@ export function ProfileScreen() {
       setCallsign(userProfile.callsign || '');
       setMotto(userProfile.motto || '');
       setActiveCallsign(userProfile.activeCallsign || '');
+      setTradingStartTime(userProfile.tradingStartTime || '09:30');
+      setTradingEndTime(userProfile.tradingEndTime || '16:00');
     }
   }, [userProfile]);
 
@@ -96,6 +103,15 @@ export function ProfileScreen() {
     const trimmedCallsign = callsign.trim();
     const trimmedMotto = motto.trim();
     const trimmedActive = activeCallsign.trim();
+    const trimmedStart = tradingStartTime.trim() || '09:30';
+    const trimmedEnd = tradingEndTime.trim() || '16:00';
+
+    // Validate time format
+    const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
+    if (!timeRegex.test(trimmedStart) || !timeRegex.test(trimmedEnd)) {
+      Alert.alert('INVALID TIME', 'Use HH:MM format (e.g. 09:30 or 16:00).');
+      return;
+    }
 
     setSaveStatus('saving');
     try {
@@ -103,7 +119,19 @@ export function ProfileScreen() {
         callsign: trimmedCallsign,
         motto: trimmedMotto,
         activeCallsign: trimmedActive,
+        tradingStartTime: trimmedStart,
+        tradingEndTime: trimmedEnd,
       });
+
+      // Sync alert schedules with the new trading times
+      if (userProfile?.alertSettings) {
+        await syncAlertSchedules(user.uid, userProfile.alertSettings, {
+          tradingStartTime: trimmedStart,
+          tradingEndTime: trimmedEnd,
+        });
+        console.log('[ProfileScreen] Alert schedules synced with new trading window:', trimmedStart, '→', trimmedEnd);
+      }
+
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (e) {
@@ -284,6 +312,48 @@ export function ProfileScreen() {
               <StatWidget label="BEST GRADE" value={progress.completedMissions > 0 ? progress.grade : '—'} />
             </View>
           )}
+        </View>
+
+        {/* Trading Window */}
+        <View style={styles.section}>
+          <Text style={styles.statsSectionTitle}>TRADING WINDOW</Text>
+          <View style={styles.tradingWindowCard}>
+            <Text style={styles.tradingWindowHelper}>
+              Set your active trading hours. Session reminders and debrief alerts will sync to this window.
+            </Text>
+            <View style={styles.tradingTimeRow}>
+              <View style={styles.tradingTimeBlock}>
+                <Text style={styles.tradingTimeLabel}>START TIME</Text>
+                <TextInput
+                  style={styles.tradingTimeInput}
+                  value={tradingStartTime}
+                  onChangeText={setTradingStartTime}
+                  placeholder="09:30"
+                  placeholderTextColor="#4e4639"
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                />
+              </View>
+              <View style={styles.tradingTimeDivider}>
+                <Text style={styles.tradingTimeDividerText}>→</Text>
+              </View>
+              <View style={styles.tradingTimeBlock}>
+                <Text style={styles.tradingTimeLabel}>END TIME</Text>
+                <TextInput
+                  style={styles.tradingTimeInput}
+                  value={tradingEndTime}
+                  onChangeText={setTradingEndTime}
+                  placeholder="16:00"
+                  placeholderTextColor="#4e4639"
+                  keyboardType="numbers-and-punctuation"
+                  maxLength={5}
+                />
+              </View>
+            </View>
+            <Text style={styles.tradingWindowNote}>
+              DEBRIEF REMINDER FIRES 10 MIN BEFORE END TIME
+            </Text>
+          </View>
         </View>
 
         {/* Mission Parameters */}
@@ -749,5 +819,62 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.5,
+  },
+  tradingWindowCard: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    padding: 16,
+  },
+  tradingWindowHelper: {
+    color: '#8a8f93',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  tradingTimeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  tradingTimeBlock: {
+    flex: 1,
+  },
+  tradingTimeLabel: {
+    color: '#e9c176',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  tradingTimeInput: {
+    backgroundColor: '#0a0f10',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    color: '#e9c176',
+    fontSize: 16,
+    fontWeight: '800',
+    height: 50,
+    paddingHorizontal: 14,
+    textAlign: 'center',
+    letterSpacing: 2,
+  },
+  tradingTimeDivider: {
+    justifyContent: 'flex-end',
+    paddingBottom: 4,
+  },
+  tradingTimeDividerText: {
+    color: '#4e4639',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  tradingWindowNote: {
+    color: '#4e4639',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
 });

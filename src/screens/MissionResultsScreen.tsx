@@ -6,6 +6,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { getRandomCoachMessage } from '../features/coaching/coachEngine';
+import { gradeFromScore } from '../logic/disciplineScore';
 import { firestore } from '../services/firebase';
 
 type MissionResultsRouteProp = RouteProp<RootStackParamList, 'MissionResults'>;
@@ -126,14 +127,14 @@ export function MissionResultsScreen() {
   }, [routeDebriefId, user]);
 
   const discipline = debrief?.discipline;
-  const score = typeof discipline?.score === 'number' ? discipline.score : 0;
-  const grade = discipline?.grade || '--';
-  const displayGrade = grade;
+  const score = typeof discipline?.score === 'number' ? discipline.score : undefined;
+  const grade = discipline?.grade || (score !== undefined ? gradeFromScore(score) : undefined);
+  const displayGrade = grade || 'Pending';
   const strongestBehavior = discipline?.strongestBehavior || 'Discipline';
   const improvementArea = discipline?.improvementArea || 'Emotional Control';
   const operatorName = userProfile?.callsign?.trim() || 'Operator';
   const currentStreak = userStats?.currentStreak ?? 0;
-  const averageScore = Math.round(userStats?.averageDisciplineScore ?? score);
+  const averageScore = Math.round(userStats?.averageDisciplineScore ?? score ?? 0);
   const operatorRank = userProfile?.rank || 'Recruit';
   const parameters = buildParameterRows(debrief?.execution);
 
@@ -215,7 +216,7 @@ export function MissionResultsScreen() {
               <View style={styles.goldRail} />
               <Text style={styles.panelLabel}>DISCIPLINE SCORE</Text>
               <View style={styles.scoreRing}>
-                <Text style={styles.scoreValue}>{score}%</Text>
+                <Text style={styles.scoreValue}>{score !== undefined ? `${score}%` : '--'}</Text>
               </View>
             </View>
           </View>
@@ -353,7 +354,8 @@ function gradeLabel(grade: string): string {
   if (['S', 'A+', 'A', 'A-'].includes(grade)) return 'EXC';
   if (['B+', 'B', 'B-'].includes(grade)) return 'STR';
   if (['C+', 'C'].includes(grade)) return 'AVG';
-  return 'REC';
+  if (['D+', 'D', 'D-', 'F'].includes(grade)) return 'REC';
+  return 'PEND';
 }
 
 const styles = StyleSheet.create({

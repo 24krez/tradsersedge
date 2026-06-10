@@ -50,14 +50,14 @@ function getSessionBounds(session: TradingSession, nyTime: Date): SessionBounds 
       endLocal = new Date(year, month, date, 11, 30, 0, 0);
       break;
     case 'asia':
-      // 19:00 to 04:00 (crosses midnight)
+      // 18:00 to 04:00 (crosses midnight)
       if (hours < 12) {
         // We are in the morning (e.g. 02:00 AM). The session started *yesterday*.
-        startLocal = new Date(year, month, date - 1, 19, 0, 0, 0);
+        startLocal = new Date(year, month, date - 1, 18, 0, 0, 0);
         endLocal = new Date(year, month, date, 4, 0, 0, 0);
       } else {
         // We are in the evening (e.g. 20:00 PM). The session starts *today* and ends *tomorrow*.
-        startLocal = new Date(year, month, date, 19, 0, 0, 0);
+        startLocal = new Date(year, month, date, 18, 0, 0, 0);
         endLocal = new Date(year, month, date + 1, 4, 0, 0, 0);
       }
       break;

@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Alert,
   ImageBackground,
   ImageSourcePropType,
@@ -60,10 +61,15 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
   const { user, userProfile } = useAuth();
   const isPro = useIsPro();
   
-  // Local state to hold settings while editing
+  // Saved state = what's persisted in Firestore
+  const [savedSettings, setSavedSettings] = useState<AlertSettings | null>(null);
+  // Editing state = local draft the user is modifying
   const [settings, setSettings] = useState<AlertSettings | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [permissionStatus, setPermissionStatus] = useState<NotificationPermissionStatus>('undetermined');
+
+  // Save button slide-in animation
+  const saveButtonAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Notifications.getPermissionsAsync().then((status) => {
@@ -88,11 +94,29 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
 
   useEffect(() => {
     if (userProfile) {
-      setSettings(normalizeAlertSettings(userProfile.alertSettings));
+      const normalized = normalizeAlertSettings(userProfile.alertSettings);
+      setSavedSettings(normalized);
+      setSettings(normalized);
     }
   }, [userProfile]);
 
-  if (!userProfile || !settings) {
+  // Dirty check: compare editing state to saved state
+  const hasChanges = useMemo(() => {
+    if (!settings || !savedSettings) return false;
+    return JSON.stringify(settings) !== JSON.stringify(savedSettings);
+  }, [settings, savedSettings]);
+
+  // Animate save button in/out when dirty state changes
+  useEffect(() => {
+    Animated.spring(saveButtonAnim, {
+      toValue: hasChanges ? 1 : 0,
+      useNativeDriver: true,
+      tension: 80,
+      friction: 12,
+    }).start();
+  }, [hasChanges, saveButtonAnim]);
+
+  if (!userProfile || !settings || !savedSettings) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.loadingState}>
@@ -102,28 +126,48 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
     );
   }
 
-  // Handle nested updates
-  const updateSettingGroup = async <K extends keyof AlertSettings>(
+  // Local-only update — no Firestore writes until Save is pressed
+  const updateSettingGroup = <K extends keyof AlertSettings>(
     group: K,
     updates: Partial<AlertSettings[K]>
   ) => {
-    if (!user || isSaving) return;
-    
-    setIsSaving(true);
-    
     const newGroup = { ...settings[group], ...updates };
     const newSettings = { ...settings, [group]: newGroup };
-    
-    // Optimistic update
     setSettings(newSettings);
-    
+  };
+
+  // Persist all changes to Firestore in one batch
+  const handleSave = async () => {
+    if (!user || isSaving || !hasChanges) return;
+
+    setIsSaving(true);
     try {
-      await updateUserProfile(user.uid, { alertSettings: newSettings });
-      await syncAlertSchedules(user.uid, newSettings);
+      // Request permission if any new alerts were enabled
+      let nextPermissionStatus = permissionStatus;
+      const enabledSomething = settingsHaveNewEnables(savedSettings, settings);
+      if (enabledSomething && permissionStatus !== 'granted') {
+        nextPermissionStatus = await requestNotificationPermission();
+        setPermissionStatus(nextPermissionStatus);
+      }
+
+      await updateUserProfile(user.uid, { alertSettings: settings });
+      const scheduleResults = await syncAlertSchedules(user.uid, settings, {
+        isProUser: isPro,
+        permissionStatus: nextPermissionStatus,
+        tradingStartTime: userProfile?.tradingStartTime,
+        tradingEndTime: userProfile?.tradingEndTime,
+      });
+      console.log('[TraderEdgeAlerts]', {
+        action: 'batch_save',
+        results: scheduleResults,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Mark current editing state as the new saved baseline
+      setSavedSettings(settings);
     } catch (error) {
-      console.error('Failed to update alert settings:', error);
-      // Revert on failure
-      setSettings(settings); 
+      console.error('Failed to save alert settings:', error);
+      Alert.alert('SAVE FAILED', 'Could not save your settings. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -136,38 +180,38 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
     ]);
   }
 
-  const handleEnableBehavioral = async () => {
+  const handleEnableBehavioral = () => {
     const updates = isPro 
       ? { missionStatusWarnings: true, highRiskAlerts: true, lockedInRecognition: true, cautionAlerts: true }
       : { missionStatusWarnings: true };
-    await updateSettingGroup('behavioral', updates);
+    updateSettingGroup('behavioral', updates);
   };
 
-  const handleEnableMission = async () => {
+  const handleEnableMission = () => {
     const updates = isPro
       ? { missionStart: true, midSessionCheckIn: true, missionComplete: true, fifteenMinutesToClose: true, volatilityAlerts: true, debriefReminder: true }
       : { missionStart: true, missionComplete: true };
-    await updateSettingGroup('mission', updates);
+    updateSettingGroup('mission', updates);
   };
 
-  const handleEnableIntelligence = async () => {
+  const handleEnableIntelligence = () => {
     if (!isPro) {
       handleProUpsell();
       return;
     }
     const updates = { weeklyIntelligenceReport: true, behavioralPatternReports: true, monthlyPerformanceSummary: true, rankPromotionAlerts: true };
-    await updateSettingGroup('intelligence', updates);
+    updateSettingGroup('intelligence', updates);
   };
 
-  const handleEnableLockScreen = async () => {
+  const handleEnableLockScreen = () => {
     const updates = isPro
       ? { missionBriefings: true, lockScreenCoaching: true, nookMonitoring: true, liveActivityUpdates: true }
       : { missionBriefings: true, lockScreenCoaching: true, nookMonitoring: true };
-    await updateSettingGroup('lockScreen', updates);
+    updateSettingGroup('lockScreen', updates);
   };
 
-  const handleEnableQuietHours = async () => {
-    await updateSettingGroup('quietHours', { enabled: true });
+  const handleEnableQuietHours = () => {
+    updateSettingGroup('quietHours', { enabled: true });
   };
 
   return (
@@ -476,6 +520,40 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
         </View>
 
       </ScrollView>
+
+      {/* Floating Save Button — only visible when there are unsaved changes */}
+      <Animated.View
+        pointerEvents={hasChanges ? 'auto' : 'none'}
+        style={[
+          styles.saveButtonContainer,
+          {
+            opacity: saveButtonAnim,
+            transform: [{
+              translateY: saveButtonAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [80, 0],
+              }),
+            }],
+          },
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          disabled={isSaving}
+          onPress={handleSave}
+          style={({ pressed }) => [
+            styles.saveButton,
+            pressed && styles.saveButtonPressed,
+            isSaving && styles.saveButtonDisabled,
+          ]}
+        >
+          {isSaving ? (
+            <ActivityIndicator color="#070c14" size="small" />
+          ) : (
+            <Text style={styles.saveButtonText}>SAVE CHANGES</Text>
+          )}
+        </Pressable>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -496,6 +574,26 @@ function normalizeAlertSettings(settings?: AlertSettings): AlertSettings {
     coaching: { ...defaultAlertSettings.coaching, ...settings.coaching, style },
     quietHours: { ...defaultAlertSettings.quietHours, ...settings.quietHours },
   };
+}
+
+function hasEnabledAlertUpdate(update: unknown): boolean {
+  if (!update || typeof update !== 'object') return false;
+  return Object.values(update as Record<string, unknown>).some((value) => value === true);
+}
+
+/** Check if any boolean fields went from false → true between saved and current settings */
+function settingsHaveNewEnables(saved: AlertSettings, current: AlertSettings): boolean {
+  const savedFlat = JSON.parse(JSON.stringify(saved));
+  const currentFlat = JSON.parse(JSON.stringify(current));
+  for (const groupKey of Object.keys(currentFlat)) {
+    const savedGroup = savedFlat[groupKey];
+    const currentGroup = currentFlat[groupKey];
+    if (typeof currentGroup !== 'object' || !currentGroup) continue;
+    for (const key of Object.keys(currentGroup)) {
+      if (currentGroup[key] === true && savedGroup?.[key] !== true) return true;
+    }
+  }
+  return false;
 }
 
 function SectionHeader({ 
@@ -614,7 +712,7 @@ function OptionButton({
         ]}>
           {label}
         </Text>
-        {isProOnly && <Text style={styles.optionProLock}> 🔒</Text>}
+        {isProOnly && !isProUser && <Text style={styles.optionProLock}> 🔒</Text>}
       </View>
     </Pressable>
   );
@@ -799,11 +897,11 @@ function AlertPreview({
 }
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#070c14',
+    backgroundColor: '#101415',
     flex: 1,
   },
   scroll: {
-    backgroundColor: '#070c14',
+    backgroundColor: '#101415',
   },
   container: {
     padding: 16,
@@ -867,9 +965,9 @@ const styles = StyleSheet.create({
     lineHeight: 23,
   },
   permissionCard: {
-    backgroundColor: '#11181a',
+    backgroundColor: '#0A192F', // Secondary from DESIGN.md
     borderColor: '#2b3334',
-    borderLeftColor: '#e9c176',
+    borderLeftColor: '#C5A059', // Primary Gold from DESIGN.md
     borderLeftWidth: 3,
     borderWidth: 1,
     flexDirection: 'row',
@@ -877,6 +975,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
     padding: 18,
+    borderRadius: 0, // Sharp edges
   },
   permissionCardGranted: {
     borderLeftColor: '#79d284',
@@ -949,14 +1048,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   previewContent: {
-    backgroundColor: '#181d20',
+    backgroundColor: '#0A192F', // Secondary from DESIGN.md
     borderColor: '#2b3334',
-    borderRadius: 16,
+    borderRadius: 0, // Sharp edges
     borderWidth: 1,
     padding: 16,
   },
   previewContentLocked: {
-    backgroundColor: '#111719',
+    backgroundColor: '#020617',
     borderColor: '#1f2628',
   },
   previewWidgetHeader: {
@@ -966,8 +1065,8 @@ const styles = StyleSheet.create({
   },
   previewWidgetLogo: {
     alignItems: 'center',
-    backgroundColor: '#e9c176',
-    borderRadius: 6,
+    backgroundColor: '#C5A059',
+    borderRadius: 0, // Sharp edges
     height: 24,
     justifyContent: 'center',
     marginRight: 8,
@@ -1050,11 +1149,12 @@ const styles = StyleSheet.create({
     width: 22,
   },
   sectionCard: {
-    backgroundColor: '#14191a',
+    backgroundColor: '#0A192F', // Secondary
     borderColor: '#272f31',
     borderWidth: 1,
     marginBottom: 14,
     padding: 16,
+    borderRadius: 0,
   },
   sectionHeader: {
     alignItems: 'center',
@@ -1137,9 +1237,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   coachingModeCard: {
-    backgroundColor: '#101719',
+    backgroundColor: '#0A192F',
     borderColor: '#2b3334',
-    borderRadius: 8,
+    borderRadius: 0, // Sharp edges
     borderWidth: 1,
     overflow: 'hidden',
   },
@@ -1154,8 +1254,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   coachingModeImage: {
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   coachingModeShade: {
     ...StyleSheet.absoluteFillObject,
@@ -1265,6 +1365,39 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     height: 44,
     paddingHorizontal: 12,
+  },
+  saveButtonContainer: {
+    alignItems: 'center',
+    bottom: 28,
+    left: 0,
+    position: 'absolute',
+    right: 0,
+  },
+  saveButton: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    elevation: 8,
+    justifyContent: 'center',
+    minHeight: 50,
+    minWidth: 220,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+  },
+  saveButtonPressed: {
+    opacity: 0.85,
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    color: '#070c14',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   quietHoursCopy: {
     color: '#777f80',

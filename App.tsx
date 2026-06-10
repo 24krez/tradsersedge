@@ -1,7 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
@@ -53,11 +53,20 @@ export type MissionStackNavigationProp = NativeStackNavigationProp<RootStackPara
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const DarkNavTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#101415',
+  },
+};
+
 function MissionStackNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
+        contentStyle: { backgroundColor: '#101415' },
       }}
     >
       <Stack.Screen name="MissionActive" component={MissionActiveScreen} />
@@ -115,7 +124,7 @@ function AppContent() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
         {activeTab === 'mission' && (
-          <NavigationContainer>
+          <NavigationContainer theme={DarkNavTheme}>
             <MissionStackNavigator />
           </NavigationContainer>
         )}

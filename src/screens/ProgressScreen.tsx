@@ -5,6 +5,7 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { useAuth } from '../contexts/AuthContext';
 import { firestore } from '../services/firebase';
 import { calculateRankProgression } from '../logic/rankProgression';
+import { gradeFromScore } from '../logic/disciplineScore';
 import type { MissionSummary } from '../services/missionSummary';
 
 type ProgressScreenProps = {
@@ -240,9 +241,9 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>NO MISSIONS COMPLETED</Text>
+          <Text style={styles.emptyTitle}>NO PROGRESS DATA YET</Text>
           <Text style={styles.emptyBody}>
-            Complete your first mission to unlock discipline trends.
+            Complete your first mission to start building your discipline profile.
           </Text>
           <Pressable
             accessibilityRole="button"
@@ -281,6 +282,7 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
         <RankCard model={model} callsign={userProfile?.activeCallsign || userProfile?.callsign || ''} />
         <MissionCompletionCard completed={model.completedMissions} completionRate={model.completionRate} />
         <MissionInsightsCard hasLowData={model.hasLowData} signalContext={model.threatSignalContext} strongestTraits={model.strongestTraits} threats={model.commonThreats} />
+        <DisciplinePatternInsightsCard insights={model.disciplineInsights} />
         <ImprovementCard improvement={model.primaryImprovement} />
         <PerformanceInsightsCard model={model} />
         <TradeMixCard model={model} />
@@ -300,7 +302,7 @@ function LockedProgressPreview() {
           <View style={styles.lockedHeaderRow}>
             <View style={styles.lockedTitleBlock}>
               <Text style={styles.lockedKicker}>PROGRESS CENTER</Text>
-              <Text style={styles.lockedTitle}>Progress Center is a Pro feature.</Text>
+              <Text style={styles.lockedTitle}>Unlock Progress Insights</Text>
             </View>
             <View style={styles.lockedBadge}>
               <Text style={styles.lockedBadgeText}>PRO</Text>
@@ -308,8 +310,11 @@ function LockedProgressPreview() {
           </View>
 
           <Text style={styles.lockedBody}>
-            Complete missions, track discipline trends, and unlock your Operator profile.
+            Track your discipline score, mission streaks, repeated threats, and improvement patterns over time.
           </Text>
+          <View style={styles.lockedCta}>
+            <Text style={styles.lockedCtaText}>UPGRADE TO PRO</Text>
+          </View>
 
           <View style={styles.previewRankCard}>
             <View style={styles.previewRankTop}>
@@ -467,6 +472,24 @@ function MissionInsightsCard({
       <View style={styles.twoColumn}>
         <InsightList accent="pink" emptyText="No selected threat signals yet." icon="△" items={threats} subtitle="Discipline challenges" title="THREAT SIGNALS" />
         <InsightList accent="gold" emptyText="More completed debriefs needed." icon="◎" items={strongestTraits} subtitle="Behaviors executed well" title="STRENGTH SIGNALS" />
+      </View>
+    </View>
+  );
+}
+
+function DisciplinePatternInsightsCard({ insights }: { insights: DisciplineInsight[] }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.sectionTitle}>DISCIPLINE INSIGHTS</Text>
+      <View style={styles.disciplineInsightList}>
+        {insights.map((insight) => (
+          <View key={`${insight.type}-${insight.message}`} style={styles.disciplineInsightRow}>
+            <View style={styles.disciplineInsightMeta}>
+              <Text style={styles.disciplineInsightType}>{insight.type}</Text>
+              <Text style={styles.disciplineInsightMessage}>{insight.message}</Text>
+            </View>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -683,6 +706,11 @@ type ImprovementModel = {
   recommendation: string;
 };
 
+type DisciplineInsight = {
+  message: string;
+  type: 'Improvement Insight' | 'Pattern Insight' | 'Strength Insight' | 'Trend Insight';
+};
+
 export type ProgressModel = {
   averageFocusScore: number;
   averageObjectiveScore: number;
@@ -705,6 +733,7 @@ export type ProgressModel = {
   noTradeDays: number;
   primaryImprovement: ImprovementModel | null;
   remainingRequirement: string;
+  disciplineInsights: DisciplineInsight[];
   strongestTraits: CountItem[];
   tradeDays: number;
   threatSignalContext: string;
@@ -740,6 +769,13 @@ export function buildProgressModel(userStats: UserStats | null, missions: Missio
   const strongestTraits = topCounts(countTraits(scoreDebriefs, completedMissionRecords), 3);
   const improvementCounts = countImprovementAreas(scoreDebriefs);
   const primaryImprovement = buildPrimaryImprovement(commonThreats[0] || topCounts(improvementCounts, 1)[0], completedMissionsCount);
+  const disciplineInsights = buildDisciplineInsights({
+    commonThreats,
+    completedMissions: completedMissionsCount,
+    primaryImprovement,
+    strongestTraits,
+    trendScores,
+  });
   const growthArea = userStats?.growthArea || (primaryImprovement ? `${primaryImprovement.label}${primaryImprovement.isEarly ? '' : ` ↑ ${numberFrom(userStats?.growthAreaChange) || primaryImprovement.count}%`}` : 'No Pattern Yet');
   const tradeDays = numberFrom(userStats?.tradeDays ?? userStats?.tradedSessionsCount) || debriefs.filter((debrief) => debrief.execution?.tradeStatus === 'traded').length;
   const noTradeDays = numberFrom(userStats?.noTradeDays ?? userStats?.noTradeSessionsCount) || debriefs.filter((debrief) => debrief.execution?.tradeStatus === 'no_trade').length;
@@ -770,6 +806,7 @@ export function buildProgressModel(userStats: UserStats | null, missions: Missio
     remainingRequirement: rank.requirementsRemaining.length > 0
       ? rank.requirementsRemaining[0]
       : 'Rank requirements complete',
+    disciplineInsights,
     strongestTraits,
     tradeDays,
     threatSignalContext: totalThreatSignals > 0
@@ -903,6 +940,79 @@ function buildPrimaryImprovement(item: CountItem | undefined, completedMissions:
   };
 }
 
+function buildDisciplineInsights({
+  commonThreats,
+  completedMissions,
+  primaryImprovement,
+  strongestTraits,
+  trendScores,
+}: {
+  commonThreats: CountItem[];
+  completedMissions: number;
+  primaryImprovement: ImprovementModel | null;
+  strongestTraits: CountItem[];
+  trendScores: number[];
+}): DisciplineInsight[] {
+  if (completedMissions < 3) {
+    return [
+      {
+        type: 'Pattern Insight',
+        message: 'Building your pattern profile. Complete more missions to unlock stronger discipline insights.',
+      },
+    ];
+  }
+
+  const insights: DisciplineInsight[] = [];
+  const topThreat = commonThreats[0];
+  const topStrength = strongestTraits[0];
+
+  if (topThreat) {
+    insights.push({
+      type: 'Pattern Insight',
+      message: `${topThreat.label} has appeared most often in your completed missions. Stay patient and wait for confirmation.`,
+    });
+  }
+
+  if (topStrength) {
+    insights.push({
+      type: 'Strength Insight',
+      message: `Your strongest focus area is ${topStrength.label}. Keep protecting capital first.`,
+    });
+  }
+
+  const lastThreeScores = trendScores.slice(-3);
+  if (lastThreeScores.length === 3) {
+    const delta = lastThreeScores[2] - lastThreeScores[0];
+    if (delta >= 3) {
+      insights.push({
+        type: 'Trend Insight',
+        message: 'Your discipline score is improving over your last 3 missions.',
+      });
+    } else if (delta <= -3) {
+      insights.push({
+        type: 'Trend Insight',
+        message: 'Your discipline score has softened over your last 3 missions. Reset your process before the next session.',
+      });
+    }
+  }
+
+  if (primaryImprovement && insights.length < 3) {
+    insights.push({
+      type: 'Improvement Insight',
+      message: `${primaryImprovement.label} is the next checkpoint. Keep this visible before entering a trade.`,
+    });
+  }
+
+  if (insights.length === 0) {
+    insights.push({
+      type: 'Pattern Insight',
+      message: 'Your discipline profile is forming. Keep completing missions to sharpen the signal.',
+    });
+  }
+
+  return insights.slice(0, 3);
+}
+
 function buildTrendBars(scores: number[]): TrendBar[] {
   const recentScores = scores.slice(-7);
   return Array.from({ length: 7 }).map((_, index) => ({
@@ -1010,18 +1120,6 @@ function isNumber(value: unknown) {
 
 function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function gradeFromScore(score: number) {
-  if (score >= 97) return 'A+';
-  if (score >= 93) return 'A';
-  if (score >= 90) return 'A-';
-  if (score >= 87) return 'B+';
-  if (score >= 83) return 'B';
-  if (score >= 80) return 'B-';
-  if (score >= 77) return 'C+';
-  if (score >= 73) return 'C';
-  return 'Recovery Required';
 }
 
 function displayGrade(grade: string) {
@@ -1140,6 +1238,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 23,
     marginTop: 18,
+  },
+  lockedCta: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#e9c176',
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  lockedCtaText: {
+    color: '#101415',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
   },
   previewRankCard: {
     backgroundColor: '#141819',
@@ -1611,6 +1723,33 @@ const styles = StyleSheet.create({
   },
   twoColumn: {
     gap: 18,
+  },
+  disciplineInsightList: {
+    gap: 12,
+  },
+  disciplineInsightRow: {
+    backgroundColor: '#141819',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 3,
+    borderWidth: 1,
+    padding: 14,
+  },
+  disciplineInsightMeta: {
+    gap: 6,
+  },
+  disciplineInsightType: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+  },
+  disciplineInsightMessage: {
+    color: '#c7bfb5',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
   },
   insightColumn: {
     flex: 1,

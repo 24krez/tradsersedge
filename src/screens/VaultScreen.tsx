@@ -1,8 +1,9 @@
 import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '../contexts/AuthContext';
+import { gradeFromScore } from '../logic/disciplineScore';
 import { firestore } from '../services/firebase';
 import type { MissionSummary } from '../services/missionSummary';
 import { MissionDetailScreen } from './MissionDetailScreen';
@@ -39,7 +40,7 @@ type SessionNoteRecord = {
 };
 
 type VaultQuickFilter = 'all' | 'debriefed' | 'missing' | 'best';
-type VaultListRange = 'recent10' | 'last30';
+type VaultListRange = 'recent10' | 'last30' | 'all';
 
 const objectiveLabels: Record<string, string> = {
   protectCapital: 'PROTECT CAPITAL',
@@ -75,7 +76,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
   const [hasLoadedMissions, setHasLoadedMissions] = useState(false);
   const [hasLoadedNotes, setHasLoadedNotes] = useState(false);
   const [selectedMissionId, setSelectedMissionId] = useState<string | null>(null);
-  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(() => formatDateKey(new Date()));
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [quickFilter, setQuickFilter] = useState<VaultQuickFilter>('all');
   const [listRange, setListRange] = useState<VaultListRange>('recent10');
 
@@ -155,6 +156,8 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
 
   const calendarDays = useMemo(() => buildCalendarDays(archive.map((item) => item.mission)), [archive]);
 
+  // When a calendar day is selected, filter to that day only.
+  // When no day is selected (user tapped a range/filter button), show all dates.
   const filteredArchive = useMemo(() => {
     return archive.filter(({ mission }) => {
       if (selectedDateKey && missionDateKey(mission) !== selectedDateKey) return false;
@@ -168,6 +171,11 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
   }, [archive, quickFilter, selectedDateKey]);
 
   const visibleArchive = useMemo(() => {
+    // When a specific day is selected on the calendar, show ALL missions for that day (no range cap)
+    if (selectedDateKey) return filteredArchive;
+
+    if (listRange === 'all') return filteredArchive;
+
     if (listRange === 'last30') {
       const cutoff = new Date();
       cutoff.setHours(0, 0, 0, 0);
@@ -179,7 +187,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
     }
 
     return filteredArchive.slice(0, 10);
-  }, [filteredArchive, listRange]);
+  }, [filteredArchive, listRange, selectedDateKey]);
 
   const stats = useMemo(() => {
     const scores = archive
@@ -222,9 +230,22 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
         {!isLoading && archive.length > 0 && (
           <MissionCalendar
             days={calendarDays}
-            onSelectDate={setSelectedDateKey}
-            onSelectListRange={setListRange}
-            onSelectQuickFilter={setQuickFilter}
+            onSelectDate={(dateKey) => {
+              // Selecting a calendar day: show that single day, reset range
+              setSelectedDateKey(dateKey);
+              setListRange('recent10');
+              setQuickFilter('all');
+            }}
+            onSelectListRange={(range) => {
+              // Selecting a range: clear the day selection so all dates are visible
+              setSelectedDateKey(null);
+              setListRange(range);
+            }}
+            onSelectQuickFilter={(filter) => {
+              // Selecting a quick filter: clear the day selection
+              setSelectedDateKey(null);
+              setQuickFilter(filter);
+            }}
             listRange={listRange}
             quickFilter={quickFilter}
             selectedDateKey={selectedDateKey}
@@ -288,7 +309,7 @@ function VaultCard({
     ? labelFor(threats[0], threatLabels)
     : '—';
   const score = summary?.discipline?.score ?? mission.disciplineScore;
-  const grade = summary?.discipline?.grade ?? mission.disciplineGrade;
+  const grade = summary?.discipline?.grade ?? mission.disciplineGrade ?? (typeof score === 'number' ? gradeFromScore(score) : undefined);
   const readinessScore = summary?.readiness?.score ?? mission.readinessScore ?? mission.lastMindsetScore ?? mission.readinessCheck?.score;
   const hasDebrief = Boolean(summary?.debriefId || mission.debriefId || grade || typeof score === 'number');
   const noteText = notes.map(noteSnippet).filter(Boolean).join(' ');
@@ -350,6 +371,7 @@ function MissionCalendar({
   quickFilter: VaultQuickFilter;
   selectedDateKey: string | null;
 }) {
+  const calendarScrollRef = useRef<ScrollView | null>(null);
   const filters: Array<{ key: VaultQuickFilter; label: string }> = [
     { key: 'all', label: 'ALL' },
     { key: 'debriefed', label: 'DEBRIEFED' },
@@ -366,7 +388,13 @@ function MissionCalendar({
         </View>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarStrip}>
+      <ScrollView
+        horizontal
+        ref={calendarScrollRef}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.calendarStrip}
+        onContentSizeChange={() => calendarScrollRef.current?.scrollToEnd({ animated: false })}
+      >
         {days.map((day) => {
           const isSelected = selectedDateKey === day.key;
           return (
@@ -396,18 +424,24 @@ function MissionCalendar({
       <View style={styles.quickFilters}>
         <Pressable
           onPress={() => onSelectListRange('recent10')}
-          style={[styles.quickFilterButton, listRange === 'recent10' && styles.quickFilterButtonActive]}
+          style={[styles.quickFilterButton, !selectedDateKey && listRange === 'recent10' && styles.quickFilterButtonActive]}
         >
-          <Text style={[styles.quickFilterText, listRange === 'recent10' && styles.quickFilterTextActive]}>LATEST 10</Text>
+          <Text style={[styles.quickFilterText, !selectedDateKey && listRange === 'recent10' && styles.quickFilterTextActive]}>LATEST 10</Text>
         </Pressable>
         <Pressable
           onPress={() => onSelectListRange('last30')}
-          style={[styles.quickFilterButton, listRange === 'last30' && styles.quickFilterButtonActive]}
+          style={[styles.quickFilterButton, !selectedDateKey && listRange === 'last30' && styles.quickFilterButtonActive]}
         >
-          <Text style={[styles.quickFilterText, listRange === 'last30' && styles.quickFilterTextActive]}>LAST 30 DAYS</Text>
+          <Text style={[styles.quickFilterText, !selectedDateKey && listRange === 'last30' && styles.quickFilterTextActive]}>LAST 30 DAYS</Text>
         </Pressable>
-        {filters.map((filter) => {
-          const isActive = quickFilter === filter.key;
+        <Pressable
+          onPress={() => onSelectListRange('all')}
+          style={[styles.quickFilterButton, !selectedDateKey && listRange === 'all' && styles.quickFilterButtonActive]}
+        >
+          <Text style={[styles.quickFilterText, !selectedDateKey && listRange === 'all' && styles.quickFilterTextActive]}>ALL</Text>
+        </Pressable>
+        {filters.filter(f => f.key !== 'all').map((filter) => {
+          const isActive = !selectedDateKey && quickFilter === filter.key;
           return (
             <Pressable
               key={filter.key}

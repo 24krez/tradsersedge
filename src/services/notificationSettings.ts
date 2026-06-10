@@ -93,6 +93,7 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 export async function scheduleDailyReminder(settings: NotificationSettings): Promise<void> {
+  console.log(`[Notification Engine] Processing 'daily' reminder. Enabled: ${settings.dailyReminderEnabled}, Permission: ${settings.permissionStatus}`);
   if (!settings.dailyReminderEnabled || settings.permissionStatus !== 'granted') {
     await cancelReminder('daily');
     return;
@@ -102,6 +103,7 @@ export async function scheduleDailyReminder(settings: NotificationSettings): Pro
 }
 
 export async function scheduleSessionReminder(settings: NotificationSettings): Promise<void> {
+  console.log(`[Notification Engine] Processing 'session' reminder. Enabled: ${settings.sessionReminderEnabled}, Permission: ${settings.permissionStatus}`);
   if (!settings.sessionReminderEnabled || settings.permissionStatus !== 'granted') {
     await cancelReminder('session');
     return;
@@ -111,6 +113,7 @@ export async function scheduleSessionReminder(settings: NotificationSettings): P
 }
 
 export async function scheduleDebriefReminder(settings: NotificationSettings): Promise<void> {
+  console.log(`[Notification Engine] Processing 'debrief' reminder. Enabled: ${settings.debriefReminderEnabled}, Permission: ${settings.permissionStatus}`);
   if (!settings.debriefReminderEnabled || settings.permissionStatus !== 'granted') {
     await cancelReminder('debrief');
     return;
@@ -120,16 +123,27 @@ export async function scheduleDebriefReminder(settings: NotificationSettings): P
 }
 
 export async function cancelReminder(type: ReminderType): Promise<void> {
-  const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
-  const matchingNotifications = scheduledNotifications.filter((notification) => {
-    return notification.content.data?.reminderType === type;
-  });
+  console.log(`[Notification Engine] Canceling scheduled reminders for type: ${type}`);
+  try {
+    const scheduledNotifications = await Notifications.getAllScheduledNotificationsAsync();
+    const matchingNotifications = scheduledNotifications.filter((notification) => {
+      return notification.content.data?.reminderType === type;
+    });
 
-  await Promise.all(
-    matchingNotifications.map((notification) => {
-      return Notifications.cancelScheduledNotificationAsync(notification.identifier);
-    }),
-  );
+    if (matchingNotifications.length > 0) {
+      console.log(`[Notification Engine] Found ${matchingNotifications.length} existing reminders to cancel for ${type}.`);
+      await Promise.all(
+        matchingNotifications.map((notification) => {
+          return Notifications.cancelScheduledNotificationAsync(notification.identifier);
+        }),
+      );
+      console.log(`[Notification Engine] Successfully canceled ${type} reminders.`);
+    } else {
+      console.log(`[Notification Engine] No existing reminders found to cancel for ${type}.`);
+    }
+  } catch (error) {
+    console.error(`[Notification Engine] Error canceling reminders for ${type}:`, error);
+  }
 }
 
 function defaultNotificationSettings(userId: string): NotificationSettings {
@@ -156,20 +170,35 @@ async function scheduleDailyNotification(
   const parsedTime = parseReminderTime(time);
 
   await cancelReminder(type);
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: reminderCopy[type].title,
-      body: reminderCopy[type].body,
-      data: {
-        reminderType: type,
-      },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: parsedTime.hour,
-      minute: parsedTime.minute,
-    },
-  });
+  try {
+    // We want to skip weekends. 
+    // In expo-notifications WEEKLY trigger, Sunday = 1, Monday = 2, ..., Saturday = 7
+    const weekdays = [2, 3, 4, 5, 6]; // Mon - Fri
+
+    const alertIds = await Promise.all(
+      weekdays.map(async (weekday) => {
+        return await Notifications.scheduleNotificationAsync({
+          content: {
+            title: reminderCopy[type].title,
+            body: reminderCopy[type].body,
+            data: {
+              reminderType: type,
+            },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+            weekday,
+            hour: parsedTime.hour,
+            minute: parsedTime.minute,
+          },
+        });
+      })
+    );
+
+    console.log(`[Notification Engine] Successfully scheduled '${type}' reminders for weekdays at ${parsedTime.hour}:${parsedTime.minute}. alertIds: ${alertIds.join(', ')}`);
+  } catch (error) {
+    console.error(`[Notification Engine] Failed to schedule '${type}' reminders:`, error);
+  }
 }
 
 function parseReminderTime(time: string): { hour: number; minute: number } {

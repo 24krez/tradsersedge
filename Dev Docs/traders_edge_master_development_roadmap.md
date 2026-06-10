@@ -231,10 +231,10 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [ ] Push notification setup
 - [ ] Firebase Cloud Messaging integration
 - [x] Notification settings screen
-- [ ] Polish Alert Screen UI
-- [ ] Create Alert Preview component
-- [ ] Quiet hours UI
-- [ ] Off-days / Weekend filtering logic (no notifications when market is closed)
+- [x] Polish Alert Screen UI
+- [x] Create Alert Preview component
+- [x] Quiet hours UI
+- [x] Off-days / Weekend filtering logic (no notifications when market is closed)
 - [ ] Delivery testing
 
 ### Epic 7: Lock Screen Live Activities
