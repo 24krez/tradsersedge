@@ -10,6 +10,7 @@ import { MissionDetailScreen } from './MissionDetailScreen';
 
 type VaultScreenProps = {
   onNavigateToMission?: (missionId: string) => void;
+  onOpenPaywall?: () => void;
 };
 
 type MissionArchiveRecord = {
@@ -69,7 +70,7 @@ const threatLabels: Record<string, string> = {
   overLeverage: 'OVER-LEVERAGE',
 };
 
-export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
+export function VaultScreen({ onNavigateToMission, onOpenPaywall }: VaultScreenProps) {
   const { user, isPro } = useAuth();
   const [missions, setMissions] = useState<MissionArchiveRecord[]>([]);
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([]);
@@ -209,7 +210,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
   }
 
   if (!isPro) {
-    return <LockedVaultPreview />;
+    return <LockedVaultPreview onOpenPaywall={onOpenPaywall} />;
   }
 
   const isLoading = !hasLoadedMissions || !hasLoadedNotes;
@@ -296,7 +297,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
   );
 }
 
-function LockedVaultPreview() {
+function LockedVaultPreview({ onOpenPaywall }: { onOpenPaywall?: () => void }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.lockedPreview} showsVerticalScrollIndicator={false}>
@@ -315,9 +316,13 @@ function LockedVaultPreview() {
             Upgrade to unlock your completed mission archive with session notes,
             debrief history, performance filters, and mission detail records.
           </Text>
-          <View style={styles.lockedCta}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenPaywall}
+            style={({ pressed }) => [styles.lockedCta, pressed && styles.buttonPressed]}
+          >
             <Text style={styles.lockedCtaText}>UPGRADE TO PRO</Text>
-          </View>
+          </Pressable>
 
           <View style={styles.previewStatsRow}>
             <PreviewStatBox label="COMPLETED" value="24" />

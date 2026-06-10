@@ -10,6 +10,7 @@ import type { MissionSummary } from '../services/missionSummary';
 
 type ProgressScreenProps = {
   onOpenVault?: () => void;
+  onOpenPaywall?: () => void;
   onStartMission?: () => void;
 };
 
@@ -128,7 +129,7 @@ const improvementRecommendations: Record<string, string> = {
   'Self-Awareness': 'Journal The Lesson',
 };
 
-export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenProps) {
+export function ProgressScreen({ onOpenPaywall, onOpenVault, onStartMission }: ProgressScreenProps) {
   const { user, userProfile, isPro } = useAuth();
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [missions, setMissions] = useState<MissionRecord[]>([]);
@@ -224,7 +225,7 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
   const isLoading = !hasLoadedStats || !hasLoadedMissions || !hasLoadedDebriefs;
 
   if (!isPro) {
-    return <LockedProgressPreview />;
+    return <LockedProgressPreview onOpenPaywall={onOpenPaywall} />;
   }
 
   if (isLoading) {
@@ -294,7 +295,7 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
   );
 }
 
-function LockedProgressPreview() {
+function LockedProgressPreview({ onOpenPaywall }: { onOpenPaywall?: () => void }) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.lockedPreview} showsVerticalScrollIndicator={false}>
@@ -313,9 +314,13 @@ function LockedProgressPreview() {
             Upgrade to unlock the full Progress Center with rank progression, mission stats,
             discipline patterns, and behavior intelligence.
           </Text>
-          <View style={styles.lockedCta}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenPaywall}
+            style={({ pressed }) => [styles.lockedCta, pressed && styles.buttonPressed]}
+          >
             <Text style={styles.lockedCtaText}>UPGRADE TO PRO</Text>
-          </View>
+          </Pressable>
 
           <View style={styles.previewRankCard}>
             <View style={styles.previewRankTop}>

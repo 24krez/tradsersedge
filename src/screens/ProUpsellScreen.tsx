@@ -2,6 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 
 import { MissionStackNavigationProp } from '../../App';
+import { subscriptionPaywallCopy, subscriptionPlans } from '../services/subscriptionPlans';
 
 export function ProUpsellScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
@@ -13,11 +14,26 @@ export function ProUpsellScreen() {
           <View style={styles.iconContainer}>
             <Text style={styles.lockIcon}>🔒</Text>
           </View>
-          <Text style={styles.eyebrow}>MISSION DEBRIEF</Text>
-          <Text style={styles.title}>Mission Debrief is a Pro feature.</Text>
+          <Text style={styles.eyebrow}>{subscriptionPaywallCopy.eyebrow}</Text>
+          <Text style={styles.title}>{subscriptionPaywallCopy.title}</Text>
           <Text style={styles.description}>
-            Upgrade to review your session, notes, mindset, and trading behavior after each mission.
+            {subscriptionPaywallCopy.description}
           </Text>
+          <View style={styles.planList}>
+            {subscriptionPlans.map((plan) => (
+              <View key={plan.id} style={styles.planCard}>
+                <View style={styles.planTopRow}>
+                  <Text style={styles.planTitle}>{plan.title}</Text>
+                  {plan.badge ? <Text style={styles.planBadge}>{plan.badge}</Text> : null}
+                </View>
+                <View style={styles.planPriceRow}>
+                  <Text style={styles.planPrice}>{plan.displayPrice}</Text>
+                  <Text style={styles.planInterval}>{plan.billingInterval}</Text>
+                </View>
+                <Text style={styles.planHelper}>{plan.helperText}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={styles.footer}>
@@ -26,14 +42,14 @@ export function ProUpsellScreen() {
             onPress={() => console.log('TODO: Implement RevenueCat Paywall')}
             style={({ pressed }) => [styles.upgradeButton, pressed && styles.buttonPressed]}
           >
-            <Text style={styles.upgradeText}>UPGRADE TO PRO</Text>
+            <Text style={styles.upgradeText}>{subscriptionPaywallCopy.primaryCta}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={() => navigation.replace('MissionActive')}
             style={({ pressed }) => [styles.returnButton, pressed && styles.buttonPressed]}
           >
-            <Text style={styles.returnText}>RETURN TO DASHBOARD</Text>
+            <Text style={styles.returnText}>{subscriptionPaywallCopy.secondaryCta}</Text>
           </Pressable>
         </View>
       </View>
@@ -89,6 +105,56 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',
+  },
+  planList: {
+    gap: 10,
+    marginTop: 24,
+    width: '100%',
+  },
+  planCard: {
+    backgroundColor: '#101415',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    padding: 14,
+  },
+  planTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  planTitle: {
+    color: '#f8fafc',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  planBadge: {
+    color: '#e9c176',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  planPriceRow: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    marginBottom: 5,
+  },
+  planPrice: {
+    color: '#e9c176',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  planInterval: {
+    color: '#8a8f93',
+    fontSize: 12,
+    fontWeight: '800',
+    marginLeft: 3,
+  },
+  planHelper: {
+    color: '#8a8f93',
+    fontSize: 11,
+    fontWeight: '700',
   },
   footer: {
     gap: 16,

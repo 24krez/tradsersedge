@@ -61,9 +61,10 @@ const DarkNavTheme = {
   },
 };
 
-function MissionStackNavigator() {
+function MissionStackNavigator({ initialRouteName = 'MissionActive' }: { initialRouteName?: keyof RootStackParamList }) {
   return (
     <Stack.Navigator
+      initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#101415' },
@@ -94,6 +95,7 @@ export default function App() {
 function AppContent() {
   const { t } = useTranslation('common');
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
+  const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
   const { user, isLoading } = useAuth();
 
   const tabs: Array<{ key: TabKey; label: string }> = [
@@ -102,6 +104,18 @@ function AppContent() {
     { key: 'vault', label: t('tabs.vault', 'Vault') },
     { key: 'profile', label: t('tabs.profile', 'Profile') },
   ];
+
+  function openProUpsell() {
+    setMissionInitialRoute('ProUpsell');
+    setActiveTab('mission');
+  }
+
+  function handleTabPress(tab: TabKey) {
+    if (tab === 'mission') {
+      setMissionInitialRoute('MissionActive');
+    }
+    setActiveTab(tab);
+  }
 
   if (isLoading) {
     return (
@@ -125,16 +139,17 @@ function AppContent() {
       <View style={styles.screen}>
         {activeTab === 'mission' && (
           <NavigationContainer theme={DarkNavTheme}>
-            <MissionStackNavigator />
+            <MissionStackNavigator initialRouteName={missionInitialRoute} />
           </NavigationContainer>
         )}
         {activeTab === 'progress' && (
           <ProgressScreen
             onOpenVault={() => setActiveTab('vault')}
+            onOpenPaywall={openProUpsell}
             onStartMission={() => setActiveTab('mission')}
           />
         )}
-        {activeTab === 'vault' && <VaultScreen />}
+        {activeTab === 'vault' && <VaultScreen onOpenPaywall={openProUpsell} />}
         {activeTab === 'profile' && <ProfileScreen />}
       </View>
 
@@ -147,7 +162,7 @@ function AppContent() {
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
               key={tab.key}
-              onPress={() => setActiveTab(tab.key)}
+              onPress={() => handleTabPress(tab.key)}
               style={[styles.tabItem, isActive && styles.activeTabItem]}
             >
               <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>{tab.label}</Text>
