@@ -241,7 +241,7 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>NO PROGRESS DATA YET</Text>
+          <Text style={styles.emptyTitle}>NO RECORDED MISSION DATA</Text>
           <Text style={styles.emptyBody}>
             Complete your first mission to start building your discipline profile.
           </Text>
@@ -1169,17 +1169,19 @@ const styles = StyleSheet.create({
     padding: 28,
   },
   emptyTitle: {
-    color: '#ffdda1',
+    color: '#f3a0a4',
     fontSize: 28,
     fontWeight: '900',
     letterSpacing: 2,
     marginBottom: 16,
+    textAlign: 'center',
   },
   emptyBody: {
     color: '#b6b0aa',
     fontSize: 15,
     lineHeight: 24,
     marginBottom: 28,
+    textAlign: 'center',
   },
   lockedPreview: {
     flex: 1,

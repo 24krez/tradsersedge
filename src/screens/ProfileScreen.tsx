@@ -148,6 +148,20 @@ export function ProfileScreen() {
     }
   }
 
+  async function handleDevTogglePro() {
+    if (!user || !userProfile) return;
+    const newTier = userProfile.subscriptionTier === 'free' ? 'pro' : 'free';
+    try {
+      await updateDoc(doc(firestore, 'users', user.uid), {
+        subscriptionTier: newTier,
+      });
+      Alert.alert('DEV MODE', `Subscription toggled to ${newTier.toUpperCase()}`);
+    } catch (e) {
+      console.error('Error toggling pro:', e);
+      Alert.alert('Error', 'Could not toggle subscription');
+    }
+  }
+
   if (isShowingNotifications) {
     return <NotificationSettingsScreen onBack={() => setIsShowingNotifications(false)} />;
   }
@@ -173,6 +187,10 @@ export function ProfileScreen() {
   const remainingRequirement = rank.requirementsRemaining.length > 0
     ? rank.requirementsRemaining[0]
     : 'Rank requirements complete';
+
+  const displayRemaining = progress.completedMissions === 0
+    ? '0 COMPLETED MISSIONS'
+    : remainingRequirement.toUpperCase();
 
   const displayCallsign = activeCallsign || callsign || 'OPERATOR';
   const displayRank = rank.currentRank || 'Recruit';
@@ -244,8 +262,8 @@ export function ProfileScreen() {
               <Text style={styles.rankLabelText}>{rank.currentRank.toUpperCase()}</Text>
               {rank.nextRank && <Text style={styles.rankLabelText}>{rank.nextRank.toUpperCase()}</Text>}
             </View>
-            <Text style={[styles.dossierPromoText, { marginTop: 12, color: '#e9c176' }]}>
-              {remainingRequirement.toUpperCase()}
+            <Text style={[styles.dossierPromoText, { marginTop: 12, color: progress.completedMissions === 0 ? '#f3a0a4' : '#e9c176' }]}>
+              {displayRemaining}
             </Text>
           </View>
         </View>
@@ -414,6 +432,14 @@ export function ProfileScreen() {
           <Text style={[styles.saveButtonText, (!hasChanges || saveStatus === 'saving') && styles.saveButtonTextDisabled]}>
             {saveStatus === 'saving' ? t('saving') : saveStatus === 'saved' ? 'DOSSIER UPDATED' : 'SAVE DOSSIER'}
           </Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleDevTogglePro}
+          style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed]}
+        >
+          <Text style={styles.devButtonText}>DEV: TOGGLE PRO STATUS</Text>
         </Pressable>
 
         <Pressable
@@ -810,6 +836,21 @@ const styles = StyleSheet.create({
   },
   signOutText: {
     color: '#8a8f93',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+  devButton: {
+    alignItems: 'center',
+    borderColor: '#e9c176',
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 56,
+    marginBottom: 16,
+    borderStyle: 'dashed',
+  },
+  devButtonText: {
+    color: '#e9c176',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,

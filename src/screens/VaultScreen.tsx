@@ -259,7 +259,7 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
           </View>
         ) : archive.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>NO COMPLETED MISSIONS YET</Text>
+            <Text style={styles.emptyTitle}>NO RECORDED MISSION DATA</Text>
             <Text style={styles.emptyText}>
               Completed missions will appear here.
             </Text>
@@ -746,16 +746,18 @@ const styles = StyleSheet.create({
     padding: 22,
   },
   emptyTitle: {
-    color: '#f8fafc',
+    color: '#f3a0a4',
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 1,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptyText: {
     color: '#8a8f93',
     fontSize: 13,
     lineHeight: 20,
+    textAlign: 'center',
   },
   list: {
     gap: 14,
