@@ -566,7 +566,7 @@ export function MissionActiveScreen() {
             {shouldShowStats && (
               <View style={styles.activeStatsRow}>
                 <ActiveStatWidget label="MISSIONS COMPLETED" value={String(Math.max(numberFrom(userStats?.totalMissionsCompleted), recentCompletedCount))} />
-                <ActiveStatWidget label="BEST GRADE" value={bestGradeFromStats(userStats)} />
+                {isPro && <ActiveStatWidget label="BEST GRADE" value={bestGradeFromStats(userStats)} />}
               </View>
             )}
 
@@ -591,7 +591,7 @@ export function MissionActiveScreen() {
                   <Text style={styles.focusIcon}>⍟</Text>
                   <Text style={styles.focusLabel}>{t('missionActive.coreFocusLabel')}</Text>
                 </View>
-                <Text style={styles.focusText}>
+                <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.focusText}>
                   {focusKey ? t(`data.focusAreas.${focusKey}`).toUpperCase() : '...'}
                 </Text>
                 <Text style={styles.focusSubtext}>{t('missionActive.mindsetLock')}</Text>
@@ -622,20 +622,47 @@ export function MissionActiveScreen() {
             </View>
           ) : isCompleted ? (
             <View style={styles.completedContainer}>
-              <Text style={styles.completedTitle}>MISSION ACCOMPLISHED</Text>
+              <Text style={styles.completedTitle}>{isPro ? 'MISSION ACCOMPLISHED' : 'MISSION COMPLETE'}</Text>
               <Text style={styles.completedSubtitle}>
-                {hasDebrief ? 'Review your debrief and stats for this session.' : 'You have an incomplete debrief for this mission.'}
+                {isPro
+                  ? hasDebrief
+                    ? 'Review your debrief and stats for this session.'
+                    : 'You have an incomplete debrief for this mission.'
+                  : 'Session archived.'}
               </Text>
+              {!isPro && (
+                <View style={styles.lockedGradeCard}>
+                  <View style={styles.lockedGradeHeader}>
+                    <Text style={styles.lockedGradeLabel}>DISCIPLINE GRADE</Text>
+                    <Text style={styles.lockedGradePill}>PRO</Text>
+                  </View>
+                  <View style={styles.lockedGradeBody}>
+                    <Text style={styles.lockedGradeValue}>--</Text>
+                    <View style={styles.lockedGradeCopy}>
+                      <Text style={styles.lockedGradeTitle}>GRADE LOCKED</Text>
+                      <Text style={styles.lockedGradeText}>
+                        Complete a Pro debrief to generate your grade, score breakdown, and mission report.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              )}
               <Pressable
                 style={({ pressed }) => [
-                  styles.startTradingButton,
+                  isPro ? styles.startTradingButton : styles.lockedDebriefButton,
                   { width: '100%' }, // Make it full width inside the centered container
                   pressed && styles.startTradingButtonPressed,
                 ]}
-                onPress={() => navigation.navigate('MissionDebrief', { missionId: missionData?.id, readOnly: hasDebrief })}
+                onPress={() => {
+                  if (isPro) {
+                    navigation.navigate('MissionDebrief', { missionId: missionData?.id, readOnly: hasDebrief });
+                  } else {
+                    navigation.replace('ProUpsell');
+                  }
+                }}
               >
-                <Text style={styles.startTradingButtonText}>
-                  {hasDebrief ? 'VIEW DEBRIEF' : 'COMPLETE YOUR DEBRIEF'}
+                <Text style={isPro ? styles.startTradingButtonText : styles.lockedDebriefButtonText}>
+                  {isPro ? (hasDebrief ? 'VIEW DEBRIEF' : 'COMPLETE YOUR DEBRIEF') : 'UNLOCK DEBRIEF'}
                 </Text>
               </Pressable>
               
@@ -874,6 +901,62 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     lineHeight: 18,
   },
+  lockedGradeCard: {
+    alignSelf: 'stretch',
+    backgroundColor: '#101415',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 16,
+  },
+  lockedGradeHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  lockedGradeLabel: {
+    color: '#8a8f93',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  lockedGradePill: {
+    backgroundColor: '#e9c176',
+    color: '#101415',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  lockedGradeBody: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+  },
+  lockedGradeValue: {
+    color: '#4e4639',
+    fontSize: 42,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  lockedGradeCopy: {
+    flex: 1,
+  },
+  lockedGradeTitle: {
+    color: '#e9c176',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  lockedGradeText: {
+    color: '#8a8f93',
+    fontSize: 11,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
   startTradingButton: {
     backgroundColor: '#e9c176',
     paddingVertical: 18,
@@ -895,6 +978,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 1,
+  },
+  lockedDebriefButton: {
+    alignItems: 'center',
+    backgroundColor: '#1b2022',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 56,
+  },
+  lockedDebriefButtonText: {
+    color: '#e9c176',
+    fontFamily: 'Montserrat',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1.5,
   },
   discouragedButton: {
     marginTop: 16,

@@ -30,7 +30,7 @@ export function ProUpsellScreen() {
           </Pressable>
           <Pressable
             accessibilityRole="button"
-            onPress={() => navigation.navigate('ReadinessCheck')}
+            onPress={() => navigation.replace('MissionActive')}
             style={({ pressed }) => [styles.returnButton, pressed && styles.buttonPressed]}
           >
             <Text style={styles.returnText}>RETURN TO DASHBOARD</Text>

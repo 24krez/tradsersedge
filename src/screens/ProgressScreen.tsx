@@ -297,12 +297,12 @@ export function ProgressScreen({ onOpenVault, onStartMission }: ProgressScreenPr
 function LockedProgressPreview() {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.lockedPreview}>
+      <ScrollView contentContainerStyle={styles.lockedPreview} showsVerticalScrollIndicator={false}>
         <View style={styles.lockedShell}>
           <View style={styles.lockedHeaderRow}>
             <View style={styles.lockedTitleBlock}>
               <Text style={styles.lockedKicker}>PROGRESS CENTER</Text>
-              <Text style={styles.lockedTitle}>Unlock Progress Insights</Text>
+              <Text style={styles.lockedTitle}>Progress Preview</Text>
             </View>
             <View style={styles.lockedBadge}>
               <Text style={styles.lockedBadgeText}>PRO</Text>
@@ -310,7 +310,8 @@ function LockedProgressPreview() {
           </View>
 
           <Text style={styles.lockedBody}>
-            Track your discipline score, mission streaks, repeated threats, and improvement patterns over time.
+            Upgrade to unlock the full Progress Center with rank progression, mission stats,
+            discipline patterns, and behavior intelligence.
           </Text>
           <View style={styles.lockedCta}>
             <Text style={styles.lockedCtaText}>UPGRADE TO PRO</Text>
@@ -321,13 +322,18 @@ function LockedProgressPreview() {
               <View>
                 <Text style={styles.previewLabel}>CURRENT RANK</Text>
                 <Text style={styles.previewRank}>OPERATOR</Text>
+                <Text style={styles.previewNextRank}>NEXT RANK: TACTICIAN</Text>
               </View>
               <Text style={styles.previewLock}>LOCKED</Text>
             </View>
             <View style={styles.previewMetrics}>
-              <PreviewMetric label="DISCIPLINE" value="--" />
-              <PreviewMetric label="STREAK" value="--" />
-              <PreviewMetric label="MISSIONS" value="--" />
+              <PreviewMetric label="GRADE" value="B+" />
+              <PreviewMetric label="SCORE" value="84" />
+              <PreviewMetric label="STREAK" value="6" />
+            </View>
+            <View style={styles.previewProgressRow}>
+              <Text style={styles.previewProgressLabel}>FIELD RANK PROGRESSION</Text>
+              <Text style={styles.previewProgressValue}>62%</Text>
             </View>
             <View style={styles.previewTrack}>
               <View style={styles.previewFill} />
@@ -336,16 +342,28 @@ function LockedProgressPreview() {
 
           <View style={styles.previewInsightGrid}>
             <View style={styles.previewInsight}>
-              <Text style={styles.previewLabel}>THREAT SIGNALS</Text>
-              <Text style={styles.previewInsightLine}>Pattern detection</Text>
+              <Text style={styles.previewLabel}>MISSIONS</Text>
+              <Text style={styles.previewInsightValue}>18</Text>
+              <Text style={styles.previewInsightLine}>Completed</Text>
             </View>
             <View style={styles.previewInsight}>
-              <Text style={styles.previewLabel}>STRENGTH SIGNALS</Text>
-              <Text style={styles.previewInsightLine}>Behavior tracking</Text>
+              <Text style={styles.previewLabel}>DISCIPLINE RATE</Text>
+              <Text style={styles.previewInsightValue}>79%</Text>
+              <Text style={styles.previewInsightLine}>Completion quality</Text>
+            </View>
+          </View>
+
+          <View style={styles.previewSection}>
+            <Text style={styles.previewSectionTitle}>MISSION PARAMETERS</Text>
+            <View style={styles.previewParametersCard}>
+              <PreviewParameterRow label="PRIMARY OBJECTIVE" value="TAKE ONLY A+ SETUPS" />
+              <PreviewParameterRow label="PRIMARY FOCUS" value="DISCIPLINE" />
+              <PreviewParameterRow label="STRONGEST BEHAVIOR" value="PATIENCE" />
+              <PreviewParameterRow label="BIGGEST THREAT" value="FOMO" isThreat noBorder />
             </View>
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -355,6 +373,25 @@ function PreviewMetric({ label, value }: { label: string; value: string }) {
     <View style={styles.previewMetric}>
       <Text style={styles.previewMetricValue}>{value}</Text>
       <Text adjustsFontSizeToFit numberOfLines={1} style={styles.previewMetricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function PreviewParameterRow({
+  label,
+  value,
+  isThreat,
+  noBorder,
+}: {
+  label: string;
+  value: string;
+  isThreat?: boolean;
+  noBorder?: boolean;
+}) {
+  return (
+    <View style={[styles.previewParameterRow, !noBorder && styles.previewParameterRowBorder]}>
+      <Text style={styles.previewParameterLabel}>{label}</Text>
+      <Text style={[styles.previewParameterValue, isThreat && styles.previewParameterValueThreat]}>{value}</Text>
     </View>
   );
 }
@@ -1184,15 +1221,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   lockedPreview: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
+    paddingBottom: 28,
+    paddingTop: 28,
   },
   lockedShell: {
     backgroundColor: '#191d1e',
     borderColor: '#2a3135',
     borderLeftColor: '#e9c176',
-    borderLeftWidth: 3,
+    borderLeftWidth: 1,
     borderWidth: 1,
     padding: 22,
   },
@@ -1236,9 +1275,9 @@ const styles = StyleSheet.create({
   },
   lockedBody: {
     color: '#c7bfb5',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-    lineHeight: 23,
+    lineHeight: 22,
     marginTop: 18,
   },
   lockedCta: {
@@ -1280,6 +1319,13 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginTop: 6,
   },
+  previewNextRank: {
+    color: '#8f8981',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 6,
+  },
   previewLock: {
     color: '#f3a0a4',
     fontSize: 10,
@@ -1312,15 +1358,33 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 6,
   },
+  previewProgressRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 18,
+  },
+  previewProgressLabel: {
+    color: '#8f8981',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  previewProgressValue: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
   previewTrack: {
     backgroundColor: '#22292e',
     height: 3,
-    marginTop: 16,
+    marginTop: 8,
   },
   previewFill: {
     backgroundColor: '#e9c176',
     height: '100%',
-    width: '38%',
+    width: '62%',
   },
   previewInsightGrid: {
     flexDirection: 'row',
@@ -1340,7 +1404,59 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 17,
+    marginTop: 4,
+  },
+  previewInsightValue: {
+    color: '#e9c176',
+    fontSize: 22,
+    fontWeight: '900',
     marginTop: 10,
+  },
+  previewSection: {
+    marginTop: 16,
+  },
+  previewSectionTitle: {
+    color: '#8f8981',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 10,
+  },
+  previewParametersCard: {
+    backgroundColor: '#141819',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 4,
+  },
+  previewParameterRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  previewParameterRowBorder: {
+    borderBottomColor: '#2a3135',
+    borderBottomWidth: 1,
+  },
+  previewParameterLabel: {
+    color: '#8f8981',
+    flex: 1,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  previewParameterValue: {
+    color: '#e9c176',
+    flexShrink: 1,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textAlign: 'right',
+  },
+  previewParameterValueThreat: {
+    color: '#f3a0a4',
   },
   startButton: {
     alignItems: 'center',

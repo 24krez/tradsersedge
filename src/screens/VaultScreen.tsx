@@ -70,7 +70,7 @@ const threatLabels: Record<string, string> = {
 };
 
 export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
-  const { user } = useAuth();
+  const { user, isPro } = useAuth();
   const [missions, setMissions] = useState<MissionArchiveRecord[]>([]);
   const [sessionNotes, setSessionNotes] = useState<SessionNoteRecord[]>([]);
   const [hasLoadedMissions, setHasLoadedMissions] = useState(false);
@@ -208,6 +208,10 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
     return <MissionDetailScreen missionId={selectedMissionId} onBack={() => setSelectedMissionId(null)} />;
   }
 
+  if (!isPro) {
+    return <LockedVaultPreview />;
+  }
+
   const isLoading = !hasLoadedMissions || !hasLoadedNotes;
 
   return (
@@ -289,6 +293,134 @@ export function VaultScreen({ onNavigateToMission }: VaultScreenProps) {
         )}
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function LockedVaultPreview() {
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView contentContainerStyle={styles.lockedPreview} showsVerticalScrollIndicator={false}>
+        <View style={styles.lockedShell}>
+          <View style={styles.lockedHeaderRow}>
+            <View style={styles.lockedTitleBlock}>
+              <Text style={styles.lockedKicker}>MISSION VAULT</Text>
+              <Text style={styles.lockedTitle}>Vault Preview</Text>
+            </View>
+            <View style={styles.lockedBadge}>
+              <Text style={styles.lockedBadgeText}>PRO</Text>
+            </View>
+          </View>
+
+          <Text style={styles.lockedBody}>
+            Upgrade to unlock your completed mission archive with session notes,
+            debrief history, performance filters, and mission detail records.
+          </Text>
+          <View style={styles.lockedCta}>
+            <Text style={styles.lockedCtaText}>UPGRADE TO PRO</Text>
+          </View>
+
+          <View style={styles.previewStatsRow}>
+            <PreviewStatBox label="COMPLETED" value="24" />
+            <PreviewStatBox label="AVG SCORE" value="86" />
+            <PreviewStatBox label="BEST GRADE" value="A" />
+          </View>
+
+          <View style={styles.previewCalendarCard}>
+            <View style={styles.previewCalendarHeader}>
+              <Text style={styles.previewLabel}>MISSION CALENDAR</Text>
+            </View>
+            <View style={styles.previewCalendarStrip}>
+              {[
+                { day: 'MON', date: '4', state: 'quiet' },
+                { day: 'TUE', date: '5', state: 'complete' },
+                { day: 'WED', date: '6', state: 'best' },
+                { day: 'THU', date: '7', state: 'warning' },
+                { day: 'FRI', date: '8', state: 'complete' },
+              ].map((day) => (
+                <View key={`${day.day}-${day.date}`} style={styles.previewDayCell}>
+                  <Text style={styles.previewDayName}>{day.day}</Text>
+                  <Text style={styles.previewDayNumber}>{day.date}</Text>
+                  <View
+                    style={[
+                      styles.previewDayIndicator,
+                      day.state === 'quiet' && styles.previewDayIndicatorQuiet,
+                      day.state === 'best' && styles.previewDayIndicatorBest,
+                      day.state === 'warning' && styles.previewDayIndicatorWarning,
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.previewMissionCard}>
+            <View style={styles.previewCardAccent} />
+            <View style={styles.previewMissionHeader}>
+              <View>
+                <Text style={styles.previewLabel}>MISSION RECORD</Text>
+                <Text style={styles.previewMissionDate}>JUN 6, 2026</Text>
+              </View>
+              <View style={styles.previewGradeBadge}>
+                <Text style={styles.previewGradeText}>A-</Text>
+              </View>
+            </View>
+
+            <View style={styles.previewParameters}>
+              <PreviewParameterPill label="OBJECTIVE" value="TAKE ONLY A+ SETUPS" />
+              <PreviewParameterPill label="THREAT" value="OVERTRADING" isThreat />
+              <PreviewParameterPill label="FOCUS" value="PATIENCE" />
+            </View>
+
+            <View style={styles.previewMetricsRow}>
+              <PreviewSmallMetric label="DISCIPLINE" value="91/100" />
+              <PreviewSmallMetric label="READINESS" value="84/100" />
+            </View>
+
+            <View style={styles.previewNotesBox}>
+              <Text style={styles.previewNotesLabel}>SESSION NOTES</Text>
+              <Text style={styles.previewNotesText} numberOfLines={2}>
+                Waited for confirmation, avoided the second impulse entry, and followed the planned exit.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+function PreviewStatBox({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.previewStatBox}>
+      <Text style={styles.previewStatLabel}>{label}</Text>
+      <Text style={styles.previewStatValue}>{value}</Text>
+    </View>
+  );
+}
+
+function PreviewParameterPill({
+  label,
+  value,
+  isThreat,
+}: {
+  label: string;
+  value: string;
+  isThreat?: boolean;
+}) {
+  return (
+    <View style={styles.previewParameterPill}>
+      <Text style={styles.previewParameterLabel}>{label}</Text>
+      <Text style={[styles.previewParameterValue, isThreat && styles.previewParameterValueThreat]}>{value}</Text>
+    </View>
+  );
+}
+
+function PreviewSmallMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.previewSmallMetric}>
+      <Text style={styles.previewSmallMetricLabel}>{label}</Text>
+      <Text style={styles.previewSmallMetricValue}>{value}</Text>
+    </View>
   );
 }
 
@@ -582,6 +714,271 @@ const styles = StyleSheet.create({
   container: {
     padding: 22,
     paddingBottom: 48,
+  },
+  lockedPreview: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 20,
+    paddingBottom: 28,
+    paddingTop: 28,
+  },
+  lockedShell: {
+    backgroundColor: '#191d1e',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 1,
+    borderWidth: 1,
+    padding: 22,
+  },
+  lockedHeaderRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'space-between',
+  },
+  lockedTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lockedKicker: {
+    color: '#8f8981',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  lockedTitle: {
+    color: '#ffdda1',
+    flexShrink: 1,
+    fontSize: 24,
+    fontWeight: '900',
+    lineHeight: 30,
+  },
+  lockedBadge: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    height: 30,
+    justifyContent: 'center',
+    minWidth: 48,
+    paddingHorizontal: 10,
+  },
+  lockedBadgeText: {
+    color: '#101415',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  lockedBody: {
+    color: '#c7bfb5',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 22,
+    marginTop: 18,
+  },
+  lockedCta: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#e9c176',
+    marginTop: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  lockedCtaText: {
+    color: '#101415',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+  },
+  previewLabel: {
+    color: '#8f8981',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+  previewStatsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 24,
+  },
+  previewStatBox: {
+    backgroundColor: '#141819',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 68,
+    padding: 10,
+  },
+  previewStatLabel: {
+    color: '#8f8981',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  previewStatValue: {
+    color: '#e9c176',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  previewCalendarCard: {
+    backgroundColor: '#141819',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 14,
+  },
+  previewCalendarHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  previewCalendarStrip: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  previewDayCell: {
+    alignItems: 'center',
+    backgroundColor: '#101415',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 62,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+  },
+  previewDayName: {
+    color: '#8f8981',
+    fontSize: 7,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  previewDayNumber: {
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  previewDayIndicator: {
+    backgroundColor: '#e9c176',
+    height: 5,
+    marginTop: 7,
+    width: 5,
+  },
+  previewDayIndicatorQuiet: {
+    backgroundColor: '#2a3135',
+  },
+  previewDayIndicatorBest: {
+    backgroundColor: '#79d284',
+  },
+  previewDayIndicatorWarning: {
+    backgroundColor: '#f0c978',
+  },
+  previewMissionCard: {
+    backgroundColor: '#141819',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginTop: 14,
+    padding: 18,
+    position: 'relative',
+  },
+  previewCardAccent: {
+    backgroundColor: '#e9c176',
+    bottom: 0,
+    left: 0,
+    position: 'absolute',
+    top: 0,
+    width: 3,
+  },
+  previewMissionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  previewMissionDate: {
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginTop: 5,
+  },
+  previewGradeBadge: {
+    backgroundColor: '#e9c176',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  previewGradeText: {
+    color: '#101415',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  previewParameters: {
+    gap: 8,
+    marginBottom: 14,
+  },
+  previewParameterPill: {
+    backgroundColor: '#101415',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    padding: 12,
+  },
+  previewParameterLabel: {
+    color: '#8f8981',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 5,
+  },
+  previewParameterValue: {
+    color: '#f8fafc',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  previewParameterValueThreat: {
+    color: '#f3a0a4',
+  },
+  previewMetricsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  previewSmallMetric: {
+    backgroundColor: '#101415',
+    flex: 1,
+    padding: 12,
+  },
+  previewSmallMetricLabel: {
+    color: '#8f8981',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  previewSmallMetricValue: {
+    color: '#e9c176',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  previewNotesBox: {
+    borderTopColor: '#2a3135',
+    borderTopWidth: 1,
+    paddingTop: 12,
+  },
+  previewNotesLabel: {
+    color: '#e9c176',
+    fontSize: 8,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  previewNotesText: {
+    color: '#d1c5b4',
+    fontSize: 12,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
   header: {
     marginBottom: 22,

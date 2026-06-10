@@ -121,7 +121,7 @@ function AppContent() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <View style={styles.screen}>
         {activeTab === 'mission' && (
           <NavigationContainer theme={DarkNavTheme}>
@@ -157,7 +157,7 @@ function AppContent() {
       </View>
 
       <StatusBar style="light" />
-    </SafeAreaView>
+    </View>
   );
 }
 

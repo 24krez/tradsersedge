@@ -580,10 +580,14 @@ export function MissionDebriefScreen() {
         }),
       });
       
-      navigation.replace('MissionResults', {
-        debriefId: debriefRef.id,
-        missionId: missionData.id,
-      });
+      if (isPro) {
+        navigation.replace('MissionResults', {
+          debriefId: debriefRef.id,
+          missionId: missionData.id,
+        });
+      } else {
+        navigation.replace('MissionActive');
+      }
 
             } catch (e: any) {
               console.error('Error saving debrief:', e);
