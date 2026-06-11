@@ -1,5 +1,5 @@
 import { User } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { Timestamp, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 
 import { firestore } from './firebase';
 import { AlertSettings } from '../contexts/AuthContext';
@@ -49,15 +49,21 @@ type CreateUserProfileParams = {
 export async function createUserProfile({ user }: CreateUserProfileParams) {
   const userRef = doc(firestore, 'users', user.uid);
 
+  const trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 7);
+
   await setDoc(
     userRef,
     {
       callsign: '',
       createdAt: serverTimestamp(),
+      email: user.email || '',
       lastSeenAt: serverTimestamp(),
       motto: '',
       onboardingStatus: 'welcome_started',
-      subscriptionTier: 'founder',
+      subscriptionTier: 'free',
+      trialStartedAt: serverTimestamp(),
+      trialEndsAt: Timestamp.fromDate(trialEnd),
       alertSettings: defaultAlertSettings,
       uid: user.uid,
     },

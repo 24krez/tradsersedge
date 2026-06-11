@@ -9,6 +9,7 @@ import { firebaseAuth, firestore } from '../services/firebase';
 import { getRankBadge } from '../utils/rankBadges';
 import { calculateRankProgression } from '../logic/rankProgression';
 import { syncAlertSchedules } from '../services/alertScheduler';
+import { sendPasswordReset } from '../services/authService';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 import { LockScreenBriefingScreen } from './LockScreenBriefingScreen';
 import { buildProgressModel, DebriefRecord, MissionRecord, UserStats } from './ProgressScreen';
@@ -19,7 +20,7 @@ type ProfileScreenProps = {
 
 export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
   const { t } = useTranslation('profile');
-  const { user, userProfile, isPro } = useAuth();
+  const { user, userProfile, isPro, isInTrial } = useAuth();
 
   const [callsign, setCallsign] = useState('');
   const [motto, setMotto] = useState('');
@@ -153,6 +154,21 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
     }
   }
 
+  async function handleResetPassword() {
+    const email = user?.email;
+    if (!email) {
+      Alert.alert('NO EMAIL', 'No email address is associated with this account.');
+      return;
+    }
+    try {
+      await sendPasswordReset(email);
+      Alert.alert('RESET LINK SENT', 'Check your inbox to regain access.');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not send reset email.';
+      Alert.alert('ERROR', message);
+    }
+  }
+
   async function handleDevTogglePro() {
     if (!user || !userProfile) return;
     const newTier = userProfile.subscriptionTier === 'free' ? 'pro' : 'free';
@@ -164,6 +180,36 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
     } catch (e) {
       console.error('Error toggling pro:', e);
       Alert.alert('Error', 'Could not toggle subscription');
+    }
+  }
+
+  async function handleDevSetDay7() {
+    if (!user || !userProfile) return;
+    const trialEnd = new Date();
+    trialEnd.setHours(trialEnd.getHours() + 23); // 23 hours remaining (< 24 hours triggers warning)
+    try {
+      await updateDoc(doc(firestore, 'users', user.uid), {
+        trialEndsAt: trialEnd,
+        hasSeenTrialEnding: false, // Reset flag so popup shows again
+      });
+      Alert.alert('DEV MODE', 'Trial fast-forwarded to Day 7. Go to missions to see warning popup.');
+    } catch (e) {
+      console.error('Error setting day 7:', e);
+    }
+  }
+
+  async function handleDevSetDay8() {
+    if (!user || !userProfile) return;
+    const trialEnd = new Date();
+    trialEnd.setHours(trialEnd.getHours() - 1); // Expired 1 hour ago
+    try {
+      await updateDoc(doc(firestore, 'users', user.uid), {
+        trialEndsAt: trialEnd,
+        hasSeenTrialExpired: false, // Reset flag so popup shows again
+      });
+      Alert.alert('DEV MODE', 'Trial expired (Day 8). Go to missions to see the expiration popup.');
+    } catch (e) {
+      console.error('Error setting day 8:', e);
     }
   }
 
@@ -217,11 +263,13 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
           <Text style={styles.title}>OPERATOR DOSSIER</Text>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
-              {userProfile?.subscriptionTier === 'founder' 
-                ? t('founderBadge') 
-                : userProfile?.subscriptionTier === 'pro'
-                  ? 'ELITE'
-                  : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
+              {isInTrial
+                ? 'ELITE TRIAL'
+                : userProfile?.subscriptionTier === 'founder' 
+                  ? t('founderBadge') 
+                  : userProfile?.subscriptionTier === 'pro'
+                    ? 'ELITE'
+                    : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
             </Text>
           </View>
         </View>
@@ -460,21 +508,71 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
           </Text>
         </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={handleDevTogglePro}
-          style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed]}
-        >
-          <Text style={styles.devButtonText}>DEV: TOGGLE ELITE STATUS</Text>
-        </Pressable>
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.statsSectionTitle}>ACCOUNT</Text>
+          <View style={styles.accountCard}>
+            {user?.email ? (
+              <>
+                <Text style={styles.accountEmailLabel}>SIGNED IN AS</Text>
+                <Text style={styles.accountEmail}>{user.email}</Text>
+                {isInTrial && (
+                  <View style={styles.trialBadge}>
+                    <Text style={styles.trialBadgeText}>ELITE TRIAL ACTIVE</Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <Text style={styles.accountEmail}>Create an account to save your progress.</Text>
+            )}
+          </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={handleSignOut}
-          style={({ pressed }) => [styles.signOutButton, pressed && styles.buttonPressed]}
-        >
-          <Text style={styles.signOutText}>{t('signOutBtn')}</Text>
-        </Pressable>
+          {user?.email && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleResetPassword}
+              style={({ pressed }) => [styles.accountActionButton, pressed && styles.buttonPressed]}
+            >
+              <Text style={styles.accountActionText}>RESET PASSWORD</Text>
+            </Pressable>
+          )}
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleSignOut}
+            style={({ pressed }) => [styles.signOutButton, pressed && styles.buttonPressed]}
+          >
+            <Text style={styles.signOutText}>LOG OUT</Text>
+          </Pressable>
+        </View>
+
+        {__DEV__ && (
+          <View style={{ gap: 8, marginTop: 16 }}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevTogglePro}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: TOGGLE ELITE STATUS</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevSetDay7}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: SET TRIAL TO DAY 7</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevSetDay8}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: SET TRIAL TO DAY 8 (EXPIRED)</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -986,4 +1084,54 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textAlign: 'center',
   },
+  accountCard: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginBottom: 12,
+    padding: 18,
+  },
+  accountEmailLabel: {
+    color: '#8a8f93',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  accountEmail: {
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  trialBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(233, 193, 118, 0.12)',
+    borderColor: 'rgba(233, 193, 118, 0.3)',
+    borderRadius: 4,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  trialBadgeText: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  accountActionButton: {
+    alignItems: 'center',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginBottom: 12,
+    minHeight: 48,
+  },
+  accountActionText: {
+    color: '#e9c176',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
 });
+

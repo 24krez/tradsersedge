@@ -50,8 +50,14 @@ export interface UserProfile {
   motto: string;
   subscriptionTier: SubscriptionTier;
   onboardingStatus: string;
+  email?: string;
   tradingStartTime?: string; // HH:mm format, e.g. '09:30'
   tradingEndTime?: string;   // HH:mm format, e.g. '16:00'
+  trialStartedAt?: any;
+  trialEndsAt?: any;         // Firestore Timestamp — trial expiration
+  hasSeenTrialWelcome?: boolean;
+  hasSeenTrialEnding?: boolean;
+  hasSeenTrialExpired?: boolean;
   missionPreferences?: {
     objective: string;
     threats: string[];
@@ -68,6 +74,9 @@ interface AuthContextValue {
   subscriptionTier: SubscriptionTier;
   isLoading: boolean;
   isPro: boolean;
+  isAuthenticated: boolean;
+  isAnonymous: boolean;
+  isInTrial: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -76,7 +85,20 @@ const AuthContext = createContext<AuthContextValue>({
   subscriptionTier: 'free',
   isLoading: true,
   isPro: false,
+  isAuthenticated: false,
+  isAnonymous: false,
+  isInTrial: false,
 });
+
+function checkTrialActive(userProfile: UserProfile | null): boolean {
+  if (!userProfile?.trialEndsAt) return false;
+
+  const trialEnd = typeof userProfile.trialEndsAt.toDate === 'function'
+    ? userProfile.trialEndsAt.toDate()
+    : new Date(userProfile.trialEndsAt);
+
+  return new Date() < trialEnd;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -120,14 +142,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const subscriptionTier = userProfile?.subscriptionTier || 'free';
+  const isAuthenticated = user != null;
+  const isAnonymous = user?.isAnonymous ?? false;
+  const isInTrial = useMemo(() => checkTrialActive(userProfile), [userProfile]);
 
   const isPro = useMemo(() => {
-    return subscriptionTier === 'pro' || subscriptionTier === 'lifetime' || subscriptionTier === 'founder';
-  }, [subscriptionTier]);
+    const paidTier = subscriptionTier === 'pro' || subscriptionTier === 'lifetime' || subscriptionTier === 'founder';
+    return paidTier || isInTrial;
+  }, [subscriptionTier, isInTrial]);
 
   const value = useMemo(
-    () => ({ user, userProfile, subscriptionTier, isLoading, isPro }),
-    [user, userProfile, subscriptionTier, isLoading, isPro],
+    () => ({ user, userProfile, subscriptionTier, isLoading, isPro, isAuthenticated, isAnonymous, isInTrial }),
+    [user, userProfile, subscriptionTier, isLoading, isPro, isAuthenticated, isAnonymous, isInTrial],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -142,6 +168,15 @@ export function useIsPro() {
   return isPro;
 }
 
+export function useRequireAuth() {
+  const auth = useAuth();
+  if (!auth.user) {
+    throw new Error('Authentication required');
+  }
+  return auth;
+}
+
 export function canAccessProFeature(tier: SubscriptionTier): boolean {
   return tier === 'pro' || tier === 'lifetime' || tier === 'founder';
 }
+

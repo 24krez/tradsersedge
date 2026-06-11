@@ -84,7 +84,7 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 **Goal:** Create operator accounts and durable user identity.
 
-**Status:** Anonymous auth is working. Production account auth is still needed.
+**Status:** Email/password and Google Sign-In are implemented. Anonymous-only auth has been replaced.
 
 **Tasks**
 - [x] Firebase setup
@@ -98,13 +98,15 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [x] Operator motto field
 - [x] Subscription tier field
 - [x] Mission preferences field
-- [ ] Email/password sign-up
-- [ ] Email/password login
-- [ ] Password reset
+- [x] Email/password sign-up
+- [x] Email/password login
+- [x] Password reset
+- [x] Google Sign-In
 - [ ] Account upgrade path from anonymous to email/password
 - [ ] Onboarding completion state machine
 - [ ] Rank field persistence
 - [ ] Classification field persistence
+- [ ] Future Feature: Passwordless Login (Magic Link / Passkeys)
 
 ### Epic 2: Database Architecture
 

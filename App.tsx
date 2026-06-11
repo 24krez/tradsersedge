@@ -1,3 +1,4 @@
+import { signOut } from 'firebase/auth';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
@@ -5,6 +6,8 @@ import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+
+import { firebaseAuth } from './src/services/firebase';
 
 import './src/i18n';
 
@@ -24,6 +27,7 @@ import { LaunchIntroScreen } from './src/screens/LaunchIntroScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TraderIcon, traderEdgeIcons } from './src/components/TraderIcon';
 import { OnboardingNavigator } from './src/screens/onboarding/OnboardingNavigator';
+import { TrialPromoModal } from './src/components/TrialPromoModal';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
 export type RootStackParamList = {
@@ -104,9 +108,17 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
   const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
   const [hasSeenLaunchIntro, setHasSeenLaunchIntro] = useState(false);
-  const { user, userProfile, isLoading } = useAuth();
+  const { user, userProfile, isLoading, isAnonymous } = useAuth();
   
   const prevOnboardingStatus = useRef(userProfile?.onboardingStatus);
+
+  // Auto-logout anonymous users from old dev/test sessions
+  useEffect(() => {
+    if (user && isAnonymous) {
+      console.log('[Auth] Auto-logging out anonymous user from dev session');
+      signOut(firebaseAuth).catch((err) => console.error('[Auth] Anonymous signout error:', err));
+    }
+  }, [user, isAnonymous]);
 
   useEffect(() => {
     if (prevOnboardingStatus.current && prevOnboardingStatus.current !== 'completed' && userProfile?.onboardingStatus === 'completed') {
@@ -200,6 +212,7 @@ function AppContent() {
         })}
       </View>
 
+      <TrialPromoModal onOpenPaywall={openProUpsell} />
       <StatusBar style="light" />
     </View>
   );
