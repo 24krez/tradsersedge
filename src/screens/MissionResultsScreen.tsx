@@ -2,6 +2,7 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { collection, doc, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Signal, Crosshair } from 'lucide-react-native';
 
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
@@ -223,9 +224,9 @@ export function MissionResultsScreen() {
           </View>
 
           <View style={styles.statsGrid}>
-            <StatTile accent="FIRE" label="STREAK STATUS" value={`${currentStreak || 1} Day Maintained`} />
-            <StatTile accent="RANK" label="OPERATOR RANK" value={operatorRank} rankName={operatorRank} />
-            <StatTile accent="EFF" label="EFFICIENCY" value={`${averageScore}% Target Hit`} />
+            <StatTile IconComponent={Signal} label="STREAK STATUS" value={`${currentStreak || 1} Day Maintained`} />
+            <StatTile label="OPERATOR RANK" value={operatorRank} rankName={operatorRank} />
+            <StatTile IconComponent={Crosshair} label="EXECUTION" value={`${averageScore}% Target Hit`} />
           </View>
 
           <View style={styles.behaviorGrid}>
@@ -293,17 +294,21 @@ function StatTile({
   label,
   value,
   rankName,
+  IconComponent,
 }: {
-  accent: string;
+  accent?: string;
   label: string;
   value: string;
   rankName?: string;
+  IconComponent?: React.ElementType;
 }) {
   return (
     <View style={styles.statTile}>
       <View style={styles.statIcon}>
         {rankName ? (
           <Image source={getRankBadge(rankName)} style={styles.statBadgeImage} resizeMode="contain" />
+        ) : IconComponent ? (
+          <IconComponent color="#e9c176" size={20} />
         ) : (
           <Text style={styles.statIconText}>{accent}</Text>
         )}

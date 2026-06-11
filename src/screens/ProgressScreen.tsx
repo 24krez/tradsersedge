@@ -496,6 +496,7 @@ function MissionCompletionCard({ completed, completionRate }: { completed: numbe
         <Text style={styles.successRateLabel}>COMPLETION RATE</Text>
         <Text style={styles.successRateValue}>{completionRate}%</Text>
       </View>
+      <Text style={styles.successRateSubtext}>STARTED VS. FULLY DEBRIEFED</Text>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${completionRate}%` }]} />
       </View>
@@ -1831,6 +1832,17 @@ const styles = StyleSheet.create({
     color: '#ffdda1',
     fontSize: 28,
     fontWeight: '900',
+  },
+  successRateSubtext: {
+    color: '#8f8981',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginTop: -4,
+    marginBottom: 4,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 280,
   },
   progressTrack: {
     backgroundColor: '#22292e',

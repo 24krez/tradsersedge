@@ -3,6 +3,7 @@ import { addDoc, collection, doc, getDocs, limit, onSnapshot, orderBy, query, se
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Animated, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Target, AlertTriangle, Compass, Quote, Lock } from 'lucide-react-native';
 
 import { MissionStackNavigationProp } from '../../App';
 import {
@@ -233,7 +234,7 @@ function LiveTimerModule({
       <View style={timerStyles.topRow}>
         <View style={timerStyles.infoRow}>
           <View style={timerStyles.iconCircle}>
-            <Text style={timerStyles.lockIcon}>🔒</Text>
+            <Lock color="#101415" size={20} />
           </View>
           <View style={timerStyles.textColumn}>
             <Text style={timerStyles.protocolText}>{t('missionActive.protocolActive')}</Text>
@@ -536,7 +537,7 @@ export function MissionActiveScreen() {
             <View style={styles.objectiveCard}>
               <View style={styles.objectiveTopRow}>
                 <Text style={styles.objectiveEyebrow}>{t('missionActive.primaryObjective')}</Text>
-                <Text style={styles.targetIcon}>◎</Text>
+                <Target color="rgba(233, 193, 118, 0.4)" size={20} />
               </View>
               <Text style={styles.objectiveText}>
                 {objectiveKey ? t(`data.objectives.${objectiveKey}.title`).toUpperCase() : '...'}
@@ -573,7 +574,7 @@ export function MissionActiveScreen() {
             <View style={styles.splitRow}>
               <View style={styles.threatsCard}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.threatIcon}>⚠</Text>
+                  <AlertTriangle color="#e27b7b" size={14} style={{ marginRight: 8 }} />
                   <Text style={styles.threatsLabel}>{t('missionActive.threatsLabel')}</Text>
                 </View>
                 <View style={styles.threatList}>
@@ -588,7 +589,7 @@ export function MissionActiveScreen() {
 
               <View style={styles.focusCard}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.focusIcon}>⍟</Text>
+                  <Compass color="#e9c176" size={16} style={{ marginRight: 8 }} />
                   <Text style={styles.focusLabel}>{t('missionActive.coreFocusLabel')}</Text>
                 </View>
                 <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={styles.focusText}>
@@ -599,7 +600,7 @@ export function MissionActiveScreen() {
             </View>
 
             <View style={styles.quoteCard}>
-              <Text style={styles.quoteMark}>❞</Text>
+              <Quote color="#2a3135" size={48} style={{ marginRight: 16 }} />
               <Text style={styles.quoteText}>{t('missionActive.quote')}</Text>
             </View>
 
