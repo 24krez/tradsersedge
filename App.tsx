@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import './src/i18n';
@@ -21,6 +22,7 @@ import { ProUpsellScreen } from './src/screens/ProUpsellScreen';
 import { LockScreenBriefingRouteScreen } from './src/screens/LockScreenBriefingScreen';
 import { LaunchIntroScreen } from './src/screens/LaunchIntroScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { TraderIcon, traderEdgeIcons } from './src/components/TraderIcon';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
 export type RootStackParamList = {
@@ -87,14 +89,17 @@ function MissionStackNavigator({ initialRouteName = 'MissionActive' }: { initial
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
 function AppContent() {
   const { t } = useTranslation('common');
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
   const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
   const [hasSeenLaunchIntro, setHasSeenLaunchIntro] = useState(false);
@@ -156,7 +161,7 @@ function AppContent() {
         {activeTab === 'profile' && <ProfileScreen onOpenPaywall={openProUpsell} />}
       </View>
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { paddingBottom: Math.max(insets.bottom, 7) }]}>
         {tabs.map((tab) => {
           const isActive = tab.key === activeTab;
 
@@ -168,6 +173,7 @@ function AppContent() {
               onPress={() => handleTabPress(tab.key)}
               style={[styles.tabItem, isActive && styles.activeTabItem]}
             >
+              <TraderIcon Icon={traderEdgeIcons[tab.key]} active={isActive} size={18} />
               <Text style={[styles.tabLabel, isActive && styles.activeTabLabel]}>{tab.label}</Text>
             </Pressable>
           );
@@ -194,16 +200,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: 20,
     paddingTop: 8,
-    paddingBottom: 7,
   },
   tabItem: {
     alignItems: 'center',
     borderTopColor: 'transparent',
     borderTopWidth: 1,
+    gap: 4,
     flex: 1,
     justifyContent: 'center',
     minHeight: 43,
-    paddingTop: 7,
+    paddingTop: 6,
   },
   activeTabItem: {
     borderTopColor: '#e9c176',

@@ -2,35 +2,25 @@ import { useNavigation } from '@react-navigation/native';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MissionStackNavigationProp } from '../../App';
+import { TraderIcon, traderEdgeIcons } from '../components/TraderIcon';
 import { subscriptionPaywallCopy, subscriptionPlans } from '../services/subscriptionPlans';
 
 const featureCards = [
   {
-    icon: '▣',
+    icon: traderEdgeIcons.debrief,
     title: 'MISSION DEBRIEF',
-    body: 'Log what happened, review your discipline, and capture the lesson before the day ends.',
+    body: 'Log the session and capture the lesson.',
   },
   {
-    icon: '☆',
+    icon: traderEdgeIcons.disciplineScore,
     title: 'DISCIPLINE SCORE',
-    body: 'Get a clear grade based on patience, focus, execution, and rule-following.',
+    body: 'Grade your patience, focus, execution, and rule-following.',
   },
   {
-    icon: '▰',
-    title: 'MISSION PROGRESS',
-    body: 'Track completed missions, streaks, rank movement, and discipline trends over time.',
-  },
-  {
-    icon: '▭',
+    icon: traderEdgeIcons.vault,
     title: 'MISSION VAULT',
-    body: 'Save completed missions, debriefs, and results so you can track your discipline over time.',
+    body: 'Save missions, debriefs, and results in one searchable record.',
   },
-];
-
-const trustItems = [
-  { icon: '◇', label: 'SECURE ENCRYPTION' },
-  { icon: '▦', label: 'PRIVATE INTELLIGENCE' },
-  { icon: '⌁', label: 'INSTANT DEPLOYMENT' },
 ];
 
 export function ProUpsellScreen() {
@@ -45,21 +35,19 @@ export function ProUpsellScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => navigation.replace('MissionActive')}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.buttonPressed]}
+            style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
           >
             <Text style={styles.closeIcon}>×</Text>
-            <Text style={styles.closeText}>CLOSE{'\n'}MISSION</Text>
+            <Text style={styles.closeText}>BACK TO{'\n'}MISSION</Text>
           </Pressable>
 
           <Text style={styles.brand}>TRADER'S{'\n'}EDGE</Text>
 
-          <View style={styles.profileBadge}>
-            <Text style={styles.profileBadgeText}>⌾</Text>
-          </View>
+          <View style={styles.topBarSpacer} />
         </View>
 
         <View style={styles.statusBadge}>
-          <Text style={styles.statusBadgeText}>◈ ELITE OPERATIONAL STATUS</Text>
+          <Text style={styles.statusBadgeText}>◈ TRADEREDGE ELITE</Text>
         </View>
 
         <View style={styles.hero}>
@@ -67,36 +55,21 @@ export function ProUpsellScreen() {
           <Text style={styles.description}>{subscriptionPaywallCopy.description}</Text>
         </View>
 
-        <View style={styles.divider} />
-
-        <View style={styles.featureList}>
-          {featureCards.map((feature) => (
-            <View key={feature.title} style={styles.featureCard}>
-              <View style={styles.featureRail} />
-              <Text style={styles.featureIcon}>{feature.icon}</Text>
-              <Text style={styles.featureTitle}>{feature.title}</Text>
-              <Text style={styles.featureBody}>{feature.body}</Text>
-            </View>
-          ))}
-        </View>
-
         <View style={styles.annualCard}>
           <View style={styles.ribbon}>
-            <Text style={styles.ribbonText}>{annualPlan.badge || 'ELITE CHOICE'}</Text>
+            <Text style={styles.ribbonText}>BEST VALUE</Text>
           </View>
-          <Text style={styles.planAccess}>{annualPlan.accessLabel}</Text>
+          <Text style={styles.planAccess}>{annualPlan.badge || annualPlan.accessLabel}</Text>
           <Text style={styles.annualTitle}>{annualPlan.title}</Text>
           <View style={styles.annualPriceRow}>
             <Text style={styles.annualPrice}>{annualPlan.displayPrice}</Text>
             <Text style={styles.annualInterval}>{annualPlan.billingInterval}</Text>
-            <Text style={styles.bestValueBadge}>BEST VALUE</Text>
           </View>
           <Text style={styles.annualHelper}>{annualPlan.helperText}</Text>
-          <Text style={styles.annualSubtext}>{annualPlan.subtext}</Text>
           <Pressable
             accessibilityRole="button"
             onPress={() => console.log('TODO: Implement RevenueCat Paywall', annualPlan.productId)}
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
           >
             <Text style={styles.primaryButtonText}>{subscriptionPaywallCopy.primaryCta}</Text>
           </Pressable>
@@ -108,7 +81,7 @@ export function ProUpsellScreen() {
               accessibilityRole="button"
               key={plan.id}
               onPress={() => console.log('TODO: Implement RevenueCat Paywall', plan.productId)}
-              style={({ pressed }) => [styles.secondaryPlanCard, pressed && styles.buttonPressed]}
+              style={({ pressed }) => [styles.secondaryPlanCard, pressed && styles.secondaryPlanCardPressed]}
             >
               <View style={styles.secondaryPlanCopy}>
                 <Text style={styles.secondaryAccess}>{plan.accessLabel}</Text>
@@ -126,24 +99,35 @@ export function ProUpsellScreen() {
           ))}
         </View>
 
+        <View style={styles.unlockSection}>
+          <View style={styles.unlockHeader}>
+            <Text style={styles.unlockEyebrow}>WHAT YOU UNLOCK</Text>
+          </View>
+
+          <View style={styles.featureList}>
+            {featureCards.map((feature) => (
+              <View key={feature.title} style={styles.featureCard}>
+                <View style={styles.featureIconFrame}>
+                  <TraderIcon Icon={feature.icon} active size={20} />
+                </View>
+                <View style={styles.featureCopy}>
+                  <Text style={styles.featureTitle}>{feature.title}</Text>
+                  <Text style={styles.featureBody}>{feature.body}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
         <Pressable
           accessibilityRole="button"
           onPress={() => console.log('TODO: Restore Purchases')}
-          style={({ pressed }) => [styles.restoreButton, pressed && styles.buttonPressed]}
+          style={({ pressed }) => [styles.restoreButton, pressed && styles.restoreButtonPressed]}
         >
           <Text style={styles.restoreText}>RESTORE ACCESS</Text>
         </Pressable>
 
-        <View style={styles.bottomDivider} />
-
-        <View style={styles.trustList}>
-          {trustItems.map((item) => (
-            <View key={item.label} style={styles.trustItem}>
-              <Text style={styles.trustIcon}>{item.icon}</Text>
-              <Text style={styles.trustLabel}>{item.label}</Text>
-            </View>
-          ))}
-        </View>
+        <Text style={styles.trustLine}>Secure • Private • Instant access</Text>
 
         <Text style={styles.finePrint}>
           By unlocking Elite Status, you agree to our Operational Terms of Service and Psychological Safety Privacy Policy.
@@ -160,14 +144,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    padding: 18,
-    paddingBottom: 36,
+    padding: 16,
+    paddingBottom: 26,
   },
   topBar: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 28,
+    marginBottom: 20,
   },
   closeButton: {
     alignItems: 'flex-start',
@@ -196,24 +180,15 @@ const styles = StyleSheet.create({
     lineHeight: 25,
     textAlign: 'center',
   },
-  profileBadge: {
-    alignItems: 'center',
-    backgroundColor: '#29344a',
-    borderRadius: 18,
+  topBarSpacer: {
     height: 36,
-    justifyContent: 'center',
     width: 36,
-  },
-  profileBadgeText: {
-    color: '#d9e2ef',
-    fontSize: 16,
-    fontWeight: '900',
   },
   statusBadge: {
     alignSelf: 'center',
     borderColor: '#5a4e36',
     borderWidth: 1,
-    marginBottom: 28,
+    marginBottom: 18,
     paddingHorizontal: 16,
     paddingVertical: 7,
   },
@@ -225,14 +200,14 @@ const styles = StyleSheet.create({
   },
   hero: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   title: {
     color: '#f8fafc',
-    fontSize: 27,
+    fontSize: 26,
     fontWeight: '900',
     lineHeight: 36,
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
     textShadowColor: 'rgba(255, 255, 255, 0.28)',
     textShadowOffset: { width: 0, height: 0 },
@@ -240,61 +215,72 @@ const styles = StyleSheet.create({
   },
   description: {
     color: '#f0e7db',
-    fontSize: 16,
-    lineHeight: 25,
+    fontSize: 15,
+    lineHeight: 23,
     maxWidth: 325,
     textAlign: 'center',
   },
-  divider: {
-    backgroundColor: '#1c2223',
-    height: 1,
-    marginBottom: 28,
+  unlockSection: {
+    marginBottom: 22,
+  },
+  unlockHeader: {
+    marginBottom: 12,
+  },
+  unlockEyebrow: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 2,
+    marginBottom: 0,
   },
   featureList: {
-    gap: 16,
-    marginBottom: 38,
+    gap: 10,
   },
   featureCard: {
+    alignItems: 'center',
     backgroundColor: '#1a1f20',
-    minHeight: 112,
-    padding: 22,
-    position: 'relative',
+    borderColor: '#252d2f',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 2,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: 78,
+    padding: 14,
   },
-  featureRail: {
-    backgroundColor: '#e9c176',
-    height: 24,
-    left: 0,
-    position: 'absolute',
-    top: 0,
-    width: 4,
+  featureIconFrame: {
+    alignItems: 'center',
+    backgroundColor: '#111617',
+    borderColor: '#34302a',
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
   },
-  featureIcon: {
-    color: '#f7d99a',
-    fontSize: 18,
-    fontWeight: '900',
-    marginBottom: 20,
+  featureCopy: {
+    flex: 1,
   },
   featureTitle: {
     color: '#f7d99a',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '900',
-    letterSpacing: 1,
-    marginBottom: 8,
+    letterSpacing: 1.2,
+    marginBottom: 5,
   },
   featureBody: {
     color: '#f0e7db',
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 17,
   },
   annualCard: {
     backgroundColor: '#1a1f20',
     borderColor: '#e9c176',
     borderRadius: 5,
     borderWidth: 2,
-    marginBottom: 22,
+    marginBottom: 14,
     overflow: 'hidden',
-    padding: 26,
-    paddingBottom: 28,
+    padding: 22,
+    paddingBottom: 24,
     position: 'relative',
   },
   ribbon: {
@@ -329,7 +315,7 @@ const styles = StyleSheet.create({
   annualPriceRow: {
     alignItems: 'baseline',
     flexDirection: 'row',
-    marginBottom: 22,
+    marginBottom: 14,
   },
   annualPrice: {
     color: '#f7d99a',
@@ -342,36 +328,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginLeft: 4,
   },
-  bestValueBadge: {
-    borderColor: '#6a5938',
-    borderWidth: 1,
-    color: '#f7d99a',
-    fontSize: 8,
-    fontWeight: '900',
-    letterSpacing: 0.7,
-    marginLeft: 18,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-  },
   annualHelper: {
     color: '#f0e7db',
     fontSize: 15,
     lineHeight: 22,
-    marginBottom: 12,
-    maxWidth: 265,
-  },
-  annualSubtext: {
-    color: '#f7d99a',
-    fontSize: 12,
-    lineHeight: 18,
-    marginBottom: 28,
+    marginBottom: 20,
     maxWidth: 265,
   },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: '#f1ce89',
+    borderColor: '#f7d99a',
+    borderWidth: 1,
     justifyContent: 'center',
     minHeight: 62,
+    shadowColor: '#e9c176',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 14,
+  },
+  primaryButtonPressed: {
+    backgroundColor: '#d7ad62',
+    shadowOpacity: 0.12,
+    transform: [{ scale: 0.97 }, { translateY: 2 }],
   },
   primaryButtonText: {
     color: '#101415',
@@ -381,8 +360,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   secondaryPlans: {
-    gap: 18,
-    marginBottom: 34,
+    gap: 10,
+    marginBottom: 24,
   },
   secondaryPlanCard: {
     alignItems: 'center',
@@ -392,8 +371,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    minHeight: 112,
-    padding: 22,
+    minHeight: 94,
+    padding: 16,
+  },
+  secondaryPlanCardPressed: {
+    backgroundColor: '#202728',
+    borderColor: '#5f5137',
+    transform: [{ scale: 0.985 }, { translateY: 1 }],
   },
   secondaryPlanCopy: {
     flex: 1,
@@ -448,9 +432,13 @@ const styles = StyleSheet.create({
   },
   restoreButton: {
     alignItems: 'center',
-    minHeight: 48,
+    minHeight: 38,
     justifyContent: 'center',
-    marginBottom: 28,
+    marginBottom: 12,
+  },
+  restoreButtonPressed: {
+    opacity: 0.62,
+    transform: [{ scale: 0.98 }],
   },
   restoreText: {
     color: '#f0e7db',
@@ -458,29 +446,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.4,
   },
-  bottomDivider: {
-    backgroundColor: '#1c2223',
-    height: 1,
-    marginBottom: 30,
-  },
-  trustList: {
-    alignItems: 'center',
-    gap: 38,
-    marginBottom: 42,
-  },
-  trustItem: {
-    alignItems: 'center',
-  },
-  trustIcon: {
-    color: '#d8d2c7',
-    fontSize: 20,
-    marginBottom: 8,
-  },
-  trustLabel: {
+  trustLine: {
     color: '#c0b7aa',
-    fontSize: 8,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 14,
+    textAlign: 'center',
+    textTransform: 'uppercase',
   },
   finePrint: {
     color: '#c0b7aa',
@@ -489,7 +462,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     textAlign: 'center',
   },
-  buttonPressed: {
-    opacity: 0.72,
+  closeButtonPressed: {
+    opacity: 0.62,
+    transform: [{ scale: 0.98 }],
   },
 });

@@ -39,8 +39,8 @@ export const subscriptionPlans: SubscriptionPlan[] = [
     billingInterval: '/yr',
     badge: 'ELITE CHOICE',
     accessLabel: 'OPERATOR ACCESS',
-    helperText: 'Optimal for professional traders committed to long-term edge development.',
-    subtext: 'Best for traders building discipline over time.',
+    helperText: 'Best for traders building discipline over time.',
+    subtext: 'Best value',
   },
   {
     id: 'pro_lifetime',
