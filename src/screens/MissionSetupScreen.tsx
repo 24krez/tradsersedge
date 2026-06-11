@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, SafeAreaView } from 'react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
@@ -146,12 +146,12 @@ export function MissionSetupScreen() {
   }
 
   return (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-      style={styles.container}
-    >
-      <View style={styles.brandBar}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.brandBar}>
         <Text style={styles.brand}>{t('setup.brand')}</Text>
       </View>
 
@@ -295,7 +295,8 @@ export function MissionSetupScreen() {
           {isSaving ? 'SAVING...' : 'SAVE MISSION'}
         </Text>
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
