@@ -1,10 +1,11 @@
 import { collection, doc, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '../contexts/AuthContext';
 import { firestore } from '../services/firebase';
 import { calculateRankProgression } from '../logic/rankProgression';
+import { getRankBadge } from '../utils/rankBadges';
 import { gradeFromScore } from '../logic/disciplineScore';
 import type { MissionSummary } from '../services/missionSummary';
 
@@ -326,13 +327,14 @@ function LockedProgressPreview({ onOpenPaywall }: { onOpenPaywall?: () => void }
 
           <View style={styles.previewRankCard}>
             <View style={styles.previewRankTop}>
-              <View>
+              <View style={styles.previewRankIdentity}>
                 <Text style={styles.previewLabel}>CURRENT RANK</Text>
                 <Text style={styles.previewRank}>OPERATOR</Text>
                 <Text style={styles.previewNextRank}>NEXT RANK: TACTICIAN</Text>
               </View>
-              <Text style={styles.previewLock}>LOCKED</Text>
+              <Image source={getRankBadge('Operator')} style={styles.previewBadgeImage} resizeMode="contain" />
             </View>
+            <Text style={styles.previewLock}>LOCKED</Text>
             <View style={styles.previewMetrics}>
               <PreviewMetric label="GRADE" value="B+" />
               <PreviewMetric label="SCORE" value="84" />
@@ -412,12 +414,16 @@ function RankCard({ model, callsign }: { model: ProgressModel; callsign: string 
           <Text style={styles.rankTitle}>{model.currentRank.toUpperCase()}</Text>
           <Text style={styles.nextRank}>NEXT RANK: {model.nextRank || 'MAX RANK'}</Text>
         </View>
-        {callsign ? (
+        <Image source={getRankBadge(model.currentRank)} style={styles.rankBadgeImage} resizeMode="contain" />
+      </View>
+      
+      {callsign ? (
+        <View style={styles.callsignRow}>
           <View style={[styles.rankBadge, { borderRadius: 4, paddingHorizontal: 16, marginTop: 0 }]}>
             <Text style={[styles.rankBadgeText, { color: '#101415' }]}>{callsign.toUpperCase()}</Text>
           </View>
-        ) : null}
-      </View>
+        </View>
+      ) : null}
 
       <View style={styles.rankStatsRow}>
         <View style={styles.rankStatBlock}>
@@ -1314,6 +1320,16 @@ const styles = StyleSheet.create({
     gap: 12,
     justifyContent: 'space-between',
   },
+  previewRankIdentity: {
+    flex: 1,
+  },
+  previewBadgeImage: {
+    width: 80,
+    height: 80,
+    marginLeft: 12,
+    flexShrink: 0,
+    aspectRatio: 1,
+  },
   previewLabel: {
     color: '#8f8981',
     fontSize: 10,
@@ -1338,6 +1354,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1.5,
+    marginTop: 12,
   },
   previewMetrics: {
     flexDirection: 'row',
@@ -1549,6 +1566,17 @@ const styles = StyleSheet.create({
   rankIdentity: {
     flex: 1,
     minWidth: 0,
+  },
+  rankBadgeImage: {
+    width: 140,
+    height: 140,
+    marginLeft: 16,
+    flexShrink: 0,
+    aspectRatio: 1,
+  },
+  callsignRow: {
+    marginTop: 16,
+    alignItems: 'flex-start',
   },
   rankKicker: {
     color: '#8f8981',

@@ -22,11 +22,11 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - Discipline score, mission status, notification rule, session timer, rank progression, and behavioral classification logic modules.
 - Profile screen with callsign, motto, subscription badge, read-only rank/classification display, user stats summary, save, and sign out.
 - Pro upsell shell and subscription-tier gate using the current user profile.
+- Progress and Vault screens (fully implemented, styled, and integrated with Firestore listeners).
 
 **Partially implemented**
 - User model contains callsign, motto, subscription tier, onboarding status, and mission preferences. Rank and classification are displayed but not computed or persisted.
 - Mission results route now shows an initial reward/feedback report after debrief, but the full report experience is still incomplete.
-- Progress and Vault tabs exist, but both screens are placeholders.
 - Notification rule generation exists, but device scheduling, permissions, settings, and delivery are not implemented.
 - Firestore indexes file exists, but required composite indexes have not been captured.
 - Rank and behavioral classification engines exist, but they are not wired into profile, progress, results, or stats updates.
@@ -40,8 +40,6 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - iOS Live Activities and Dynamic Island/Nook surfaces.
 - RevenueCat subscriptions, restore purchases, and production paywall.
 - Mission report/dossier screens.
-- Progress analytics dashboard.
-- Vault archive/search/filter/report experience.
 - Automated tests and release QA suite.
 
 ---
@@ -362,31 +360,31 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 **Goal:** Visualize trader improvement.
 
-**Status:** Tab exists, screen is a placeholder.
+**Status:** Implemented.
 
 **Performance**
-- [ ] Discipline trend
-- [ ] Streak tracking
-- [ ] Mission completion
-- [ ] Trade/no-trade mix
-- [ ] Average discipline score
+- [x] Discipline trend
+- [x] Streak tracking
+- [x] Mission completion
+- [x] Trade/no-trade mix
+- [x] Average discipline score
 
 **Insights**
-- [ ] Threat analysis
-- [ ] Strength analysis
-- [ ] Improvement area
-- [ ] Recent lesson highlights
+- [x] Threat analysis
+- [x] Strength analysis
+- [x] Improvement area
+- [x] Recent lesson highlights
 
 **Rank Progress**
-- [ ] Current rank
-- [ ] Next rank
-- [ ] Progress percentage
+- [x] Current rank
+- [x] Next rank
+- [x] Progress percentage
 
 ### Epic 13: Rank Progression System
 
 **Goal:** Create long-term progression.
 
-**Status:** Logic exists. Product integration is not wired.
+**Status:** Implemented and integrated.
 
 **Ranks**
 - [x] Recruit
@@ -400,9 +398,9 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 - [x] Rank calculation module
 - [x] Next-rank progress percentage
 - [x] Remaining requirements
-- [ ] User stats integration
-- [ ] Profile integration
-- [ ] Progress integration
+- [x] User stats integration
+- [x] Profile integration
+- [x] Progress integration
 - [ ] Promotion event handling
 
 ### Epic 14: Behavioral Classification Engine
@@ -437,15 +435,15 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 **Goal:** Store trader intelligence.
 
-**Status:** Tab exists, screen is a placeholder.
+**Status:** Implemented.
 
 **Features**
-- [ ] Mission archive list
-- [ ] Mission archive detail
-- [ ] Search
-- [ ] Filters
-- [ ] Session notes archive
-- [ ] Session notes search
+- [x] Mission archive list
+- [x] Mission archive detail
+- [x] Search
+- [x] Filters
+- [x] Session notes archive
+- [x] Session notes search
 - [ ] Weekly reports
 - [ ] Behavioral reports
 - [ ] Insight cards
@@ -606,10 +604,10 @@ The app is not launch-ready yet. The largest unfinished surfaces are email/passw
 
 ## Recommended Next Build Sequence
 
-1. Finish the core loop by replacing `MissionResultsScreen`, `ProgressScreen`, and `VaultScreen` placeholders.
+1. ~~Finish the core loop by replacing `MissionResultsScreen`, `ProgressScreen`, and `VaultScreen` placeholders.~~ (Completed)
 2. Add a real auth path: email/password sign-up, login, password reset, and anonymous-account upgrade.
-3. Wire rank progression and behavioral classification into user stats, profile, progress, and results.
-4. Add notification permissions, scheduling, settings, and quiet-hours UI before starting native Live Activities.
+3. ~~Wire rank progression and behavioral classification into user stats, profile, progress, and results.~~ (Completed)
+4. ~~Add notification permissions, scheduling, settings, and quiet-hours UI before starting native Live Activities.~~ (Completed)
 5. Integrate RevenueCat and replace profile-tier simulation with real entitlement sync.
 6. Add automated tests for scoring, mission status, rank progression, classification, and Firestore rules.
 7. Polish localization by removing remaining hard-coded strings from screens.

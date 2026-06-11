@@ -2,10 +2,11 @@ import { signOut } from 'firebase/auth';
 import { collection, doc, limit, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseAuth, firestore } from '../services/firebase';
+import { getRankBadge } from '../utils/rankBadges';
 import { calculateRankProgression } from '../logic/rankProgression';
 import { syncAlertSchedules } from '../services/alertScheduler';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
@@ -167,7 +168,7 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
   }
 
   if (isShowingNotifications) {
-    return <NotificationSettingsScreen onBack={() => setIsShowingNotifications(false)} />;
+    return <NotificationSettingsScreen onBack={() => setIsShowingNotifications(false)} onProUpsell={onOpenPaywall} />;
   }
 
   if (isShowingBriefing) {
@@ -196,12 +197,12 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
     ? '0 COMPLETED MISSIONS'
     : remainingRequirement.toUpperCase();
 
-  const displayCallsign = activeCallsign || callsign || 'OPERATOR';
+  const displayCallsign = activeCallsign || callsign || 'GHOST';
   const displayRank = rank.currentRank || 'Recruit';
   const displayScore = progress.completedMissions > 0 ? progress.averageScore : '--';
   const displayStreak = progress.currentStreak || 0;
 
-  const predefinedCallsigns = ['RAVEN', 'GHOST', 'ATLAS', 'SENTINEL', 'GOAT'];
+  const predefinedCallsigns = ['GHOST', 'FALCON', 'APEX', 'SENTINEL', 'MAVERICK'];
   const customCallsign = callsign.trim().toUpperCase();
   const activeOptions = [...predefinedCallsigns];
   if (customCallsign && !activeOptions.includes(customCallsign)) {
@@ -245,9 +246,11 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
         {/* Dossier Header Card */}
         <View style={styles.dossierCard}>
           <View style={styles.dossierTop}>
-            <View style={styles.avatarPlaceholder}>
-              <Text style={styles.avatarText}>TE</Text>
-            </View>
+            <Image 
+              source={getRankBadge(displayRank)} 
+              style={styles.avatarImage} 
+              resizeMode="contain" 
+            />
             <View style={styles.dossierTitles}>
               <Text style={styles.dossierCallsign}>{displayCallsign.toUpperCase()}</Text>
               <Text style={styles.dossierRank}>{displayRank.toUpperCase()}</Text>
@@ -595,20 +598,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  avatarPlaceholder: {
-    width: 64,
-    height: 64,
-    backgroundColor: '#0a0f10',
-    borderColor: '#e9c176',
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  avatarImage: {
+    height: 72,
+    width: 72,
     marginRight: 16,
-  },
-  avatarText: {
-    color: '#e9c176',
-    fontSize: 20,
-    fontWeight: '900',
+    flexShrink: 0,
+    aspectRatio: 1,
   },
   dossierTitles: {
     flex: 1,

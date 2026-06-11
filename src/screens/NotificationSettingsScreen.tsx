@@ -25,6 +25,7 @@ import { requestNotificationPermission, NotificationPermissionStatus } from '../
 
 type NotificationSettingsScreenProps = {
   onBack?: () => void;
+  onProUpsell?: () => void;
 };
 
 const activeTrackColor = '#cda35a';
@@ -57,7 +58,7 @@ const previewItems: PreviewItem[] = [
   { label: 'Locked In Reinforcement', alertType: 'locked_in', isProOnly: true },
 ];
 
-export function NotificationSettingsScreen({ onBack }: NotificationSettingsScreenProps) {
+export function NotificationSettingsScreen({ onBack, onProUpsell }: NotificationSettingsScreenProps) {
   const { user, userProfile } = useAuth();
   const isPro = useIsPro();
   
@@ -174,10 +175,9 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
   };
 
   function handleProUpsell() {
-    Alert.alert('ELITE REQUIRED', 'Upgrade to Elite to unlock advanced alerts and customizations.', [
-      { text: 'Not Now', style: 'cancel' },
-      { text: 'Unlock Elite', onPress: () => console.log('TODO: Present RevenueCat paywall') },
-    ]);
+    if (onProUpsell) {
+      onProUpsell();
+    }
   }
 
   const handleEnableBehavioral = () => {
@@ -252,6 +252,10 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
           isProUser={isPro}
           onProUpsell={handleProUpsell}
         />
+
+        {!isPro && (
+          <EliteUpsellModule onProUpsell={handleProUpsell} />
+        )}
 
         {/* BEHAVIORAL ALERTS */}
         <View style={styles.sectionCard}>
@@ -895,7 +899,72 @@ function AlertPreview({
     </View>
   );
 }
+
+function EliteUpsellModule({ onProUpsell }: { onProUpsell: () => void }) {
+  return (
+    <Pressable
+      onPress={onProUpsell}
+      style={({ pressed }) => [
+        styles.eliteModule,
+        pressed && styles.eliteModulePressed,
+      ]}
+    >
+      <View style={styles.eliteModuleContent}>
+        <Text style={styles.eliteModuleTitle}>UNLOCK ELITE PROTOCOLS</Text>
+        <Text style={styles.eliteModuleBody}>
+          Gain access to High Risk Alerts, Locked In Recognition, Volatility alerts, and advanced Coaching styles.
+        </Text>
+      </View>
+      <View style={styles.eliteModuleButton}>
+        <Text style={styles.eliteModuleButtonText}>GO ELITE</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  eliteModule: {
+    backgroundColor: '#1a1f20',
+    borderColor: '#e9c176',
+    borderWidth: 1,
+    borderRadius: 8,
+    flexDirection: 'row',
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  eliteModulePressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  eliteModuleContent: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  eliteModuleTitle: {
+    color: '#e9c176',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 6,
+  },
+  eliteModuleBody: {
+    color: '#d8d2c7',
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  eliteModuleButton: {
+    backgroundColor: '#e9c176',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 4,
+  },
+  eliteModuleButtonText: {
+    color: '#101415',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
   safeArea: {
     backgroundColor: '#101415',
     flex: 1,

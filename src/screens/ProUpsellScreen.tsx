@@ -1,5 +1,5 @@
 import { useNavigation } from '@react-navigation/native';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MissionStackNavigationProp } from '../../App';
 import { TraderIcon, traderEdgeIcons } from '../components/TraderIcon';
@@ -34,16 +34,22 @@ export function ProUpsellScreen() {
         <View style={styles.topBar}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => navigation.replace('MissionActive')}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed]}
+            onPress={() => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.replace('MissionActive');
+              }
+            }}
+            style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed, { zIndex: 1 }]}
           >
             <Text style={styles.closeIcon}>×</Text>
-            <Text style={styles.closeText}>BACK TO{'\n'}MISSION</Text>
+            <Text style={styles.closeText}>CLOSE</Text>
           </Pressable>
 
-          <Text style={styles.brand}>TRADER'S{'\n'}EDGE</Text>
-
-          <View style={styles.topBarSpacer} />
+          <View style={[StyleSheet.absoluteFill, { alignItems: 'center', pointerEvents: 'none' }]}>
+            <Image source={require('../../assets/images/TradersEdge_appicon.png')} style={styles.brandIcon} />
+          </View>
         </View>
 
         <View style={styles.statusBadge}>
@@ -152,6 +158,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 20,
+    minHeight: 76,
   },
   closeButton: {
     alignItems: 'flex-start',
@@ -172,17 +179,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     lineHeight: 12,
   },
-  brand: {
-    color: '#f7d99a',
-    fontSize: 18,
-    fontWeight: '900',
-    letterSpacing: 5,
-    lineHeight: 25,
-    textAlign: 'center',
-  },
-  topBarSpacer: {
-    height: 36,
-    width: 36,
+  brandIcon: {
+    height: 76,
+    width: 76,
+    borderRadius: 18,
+    alignSelf: 'center',
   },
   statusBadge: {
     alignSelf: 'center',

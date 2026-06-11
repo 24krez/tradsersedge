@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,6 +23,7 @@ import { LockScreenBriefingRouteScreen } from './src/screens/LockScreenBriefingS
 import { LaunchIntroScreen } from './src/screens/LaunchIntroScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TraderIcon, traderEdgeIcons } from './src/components/TraderIcon';
+import { OnboardingNavigator } from './src/screens/onboarding/OnboardingNavigator';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
 export type RootStackParamList = {
@@ -103,7 +104,17 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
   const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
   const [hasSeenLaunchIntro, setHasSeenLaunchIntro] = useState(false);
-  const { user, isLoading } = useAuth();
+  const { user, userProfile, isLoading } = useAuth();
+  
+  const prevOnboardingStatus = useRef(userProfile?.onboardingStatus);
+
+  useEffect(() => {
+    if (prevOnboardingStatus.current && prevOnboardingStatus.current !== 'completed' && userProfile?.onboardingStatus === 'completed') {
+      setMissionInitialRoute('MissionSetup');
+      setActiveTab('mission');
+    }
+    prevOnboardingStatus.current = userProfile?.onboardingStatus;
+  }, [userProfile?.onboardingStatus]);
 
   const tabs: Array<{ key: TabKey; label: string }> = [
     { key: 'mission', label: t('tabs.mission', 'Mission') },
@@ -139,6 +150,15 @@ function AppContent() {
         <WelcomeScreen />
         <StatusBar style="light" />
       </SafeAreaView>
+    );
+  }
+
+  if (userProfile && userProfile.onboardingStatus !== 'completed') {
+    return (
+      <NavigationContainer theme={DarkNavTheme}>
+        <OnboardingNavigator />
+        <StatusBar style="light" />
+      </NavigationContainer>
     );
   }
 

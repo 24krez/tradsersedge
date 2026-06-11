@@ -1,13 +1,14 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { collection, doc, limit, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { getRandomCoachMessage } from '../features/coaching/coachEngine';
 import { gradeFromScore } from '../logic/disciplineScore';
 import { firestore } from '../services/firebase';
+import { getRankBadge } from '../utils/rankBadges';
 
 type MissionResultsRouteProp = RouteProp<RootStackParamList, 'MissionResults'>;
 
@@ -223,7 +224,7 @@ export function MissionResultsScreen() {
 
           <View style={styles.statsGrid}>
             <StatTile accent="FIRE" label="STREAK STATUS" value={`${currentStreak || 1} Day Maintained`} />
-            <StatTile accent="RANK" label="OPERATOR RANK" value={operatorRank} />
+            <StatTile accent="RANK" label="OPERATOR RANK" value={operatorRank} rankName={operatorRank} />
             <StatTile accent="EFF" label="EFFICIENCY" value={`${averageScore}% Target Hit`} />
           </View>
 
@@ -291,15 +292,21 @@ function StatTile({
   accent,
   label,
   value,
+  rankName,
 }: {
   accent: string;
   label: string;
   value: string;
+  rankName?: string;
 }) {
   return (
     <View style={styles.statTile}>
       <View style={styles.statIcon}>
-        <Text style={styles.statIconText}>{accent}</Text>
+        {rankName ? (
+          <Image source={getRankBadge(rankName)} style={styles.statBadgeImage} resizeMode="contain" />
+        ) : (
+          <Text style={styles.statIconText}>{accent}</Text>
+        )}
       </View>
       <View style={styles.statCopy}>
         <Text style={styles.statLabel}>{label}</Text>
@@ -521,6 +528,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
     minWidth: 38,
+  },
+  statBadgeImage: {
+    height: 38,
+    width: 38,
+    flexShrink: 0,
+    aspectRatio: 1,
   },
   statIconText: {
     color: '#e9c176',
