@@ -143,7 +143,7 @@ export function ProMissionAccomplished({
               <Text style={s.headerEyebrow}>POST-SESSION</Text>
             </View>
             <View style={s.proBadge}>
-              <Text style={s.proBadgeText}>PRO</Text>
+              <Text style={s.proBadgeText}>ELITE</Text>
             </View>
           </View>
           <Text style={s.headerObjective}>MISSION ACCOMPLISHED</Text>

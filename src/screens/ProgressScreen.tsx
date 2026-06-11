@@ -272,7 +272,9 @@ export function ProgressScreen({ onOpenPaywall, onOpenVault, onStartMission }: P
               <Text style={styles.badgeText}>
                 {userProfile?.subscriptionTier === 'founder' 
                   ? 'FOUNDER' 
-                  : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
+                  : userProfile?.subscriptionTier === 'pro'
+                    ? 'ELITE'
+                    : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
               </Text>
             </View>
           </View>
@@ -306,7 +308,7 @@ function LockedProgressPreview({ onOpenPaywall }: { onOpenPaywall?: () => void }
               <Text style={styles.lockedTitle}>Progress Preview</Text>
             </View>
             <View style={styles.lockedBadge}>
-              <Text style={styles.lockedBadgeText}>PRO</Text>
+              <Text style={styles.lockedBadgeText}>ELITE</Text>
             </View>
           </View>
 
@@ -319,7 +321,7 @@ function LockedProgressPreview({ onOpenPaywall }: { onOpenPaywall?: () => void }
             onPress={onOpenPaywall}
             style={({ pressed }) => [styles.lockedCta, pressed && styles.buttonPressed]}
           >
-            <Text style={styles.lockedCtaText}>UPGRADE TO PRO</Text>
+            <Text style={styles.lockedCtaText}>UPGRADE TO ELITE</Text>
           </Pressable>
 
           <View style={styles.previewRankCard}>

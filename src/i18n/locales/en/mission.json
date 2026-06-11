@@ -159,8 +159,8 @@
     "endSessionDesc": "Your mission will be closed and you'll begin your debrief.",
     "cancelBtn": "CANCEL",
     "completeMissionBtn": "COMPLETE MISSION",
-    "proFeature": "PRO FEATURE",
-    "sessionNotesProText": "Session Notes are a Pro feature.",
+    "proFeature": "ELITE FEATURE",
+    "sessionNotesProText": "Session Notes are an Elite feature.",
     "upgradeCta": "UPGRADE"
   }
 }

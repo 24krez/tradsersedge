@@ -12,9 +12,13 @@ import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 import { LockScreenBriefingScreen } from './LockScreenBriefingScreen';
 import { buildProgressModel, DebriefRecord, MissionRecord, UserStats } from './ProgressScreen';
 
-export function ProfileScreen() {
+type ProfileScreenProps = {
+  onOpenPaywall?: () => void;
+};
+
+export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
   const { t } = useTranslation('profile');
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, isPro } = useAuth();
 
   const [callsign, setCallsign] = useState('');
   const [motto, setMotto] = useState('');
@@ -155,7 +159,7 @@ export function ProfileScreen() {
       await updateDoc(doc(firestore, 'users', user.uid), {
         subscriptionTier: newTier,
       });
-      Alert.alert('DEV MODE', `Subscription toggled to ${newTier.toUpperCase()}`);
+      Alert.alert('DEV MODE', `Subscription toggled to ${newTier === 'pro' ? 'ELITE' : newTier.toUpperCase()}`);
     } catch (e) {
       console.error('Error toggling pro:', e);
       Alert.alert('Error', 'Could not toggle subscription');
@@ -214,10 +218,29 @@ export function ProfileScreen() {
             <Text style={styles.badgeText}>
               {userProfile?.subscriptionTier === 'founder' 
                 ? t('founderBadge') 
-                : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
+                : userProfile?.subscriptionTier === 'pro'
+                  ? 'ELITE'
+                  : userProfile?.subscriptionTier?.toUpperCase() || 'FREE'}
             </Text>
           </View>
         </View>
+
+        {!isPro && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={onOpenPaywall}
+            style={({ pressed }) => [styles.upgradeCard, pressed && styles.buttonPressed]}
+          >
+            <View style={styles.upgradeCopy}>
+              <Text style={styles.upgradeEyebrow}>TRADEREDGE ELITE</Text>
+              <Text style={styles.upgradeTitle}>UNLOCK ELITE STATUS</Text>
+              <Text style={styles.upgradeBody}>Review missions, track discipline, and unlock advanced trading insights.</Text>
+            </View>
+            <View style={styles.upgradeAction}>
+              <Text style={styles.upgradeActionText}>UPGRADE</Text>
+            </View>
+          </Pressable>
+        )}
 
         {/* Dossier Header Card */}
         <View style={styles.dossierCard}>
@@ -439,7 +462,7 @@ export function ProfileScreen() {
           onPress={handleDevTogglePro}
           style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed]}
         >
-          <Text style={styles.devButtonText}>DEV: TOGGLE PRO STATUS</Text>
+          <Text style={styles.devButtonText}>DEV: TOGGLE ELITE STATUS</Text>
         </Pressable>
 
         <Pressable
@@ -506,6 +529,56 @@ const styles = StyleSheet.create({
     color: '#e9c176',
     fontSize: 10,
     fontWeight: '800',
+    letterSpacing: 1,
+  },
+  upgradeCard: {
+    alignItems: 'center',
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 2,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+    minHeight: 92,
+    padding: 18,
+  },
+  upgradeCopy: {
+    flex: 1,
+    paddingRight: 14,
+  },
+  upgradeEyebrow: {
+    color: '#8a8f93',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+    marginBottom: 7,
+  },
+  upgradeTitle: {
+    color: '#e9c176',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  upgradeBody: {
+    color: '#c7bfb5',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 17,
+  },
+  upgradeAction: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    justifyContent: 'center',
+    minHeight: 36,
+    paddingHorizontal: 12,
+  },
+  upgradeActionText: {
+    color: '#101415',
+    fontSize: 10,
+    fontWeight: '900',
     letterSpacing: 1,
   },
   dossierCard: {

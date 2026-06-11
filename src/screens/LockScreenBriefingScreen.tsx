@@ -335,7 +335,7 @@ function PreviewLabel({ isProOnly, label }: { isProOnly?: boolean; label: string
       <Text style={s.previewLabel}>{label}</Text>
       {isProOnly && (
         <View style={s.previewProPill}>
-          <Text style={s.previewProPillText}>PRO</Text>
+          <Text style={s.previewProPillText}>ELITE</Text>
         </View>
       )}
     </View>

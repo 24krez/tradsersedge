@@ -1,5 +1,5 @@
 /**
- * Mission phase logic for Pro Mission Active experience.
+ * Mission phase logic for Elite Mission Active experience.
  *
  * Provides types, inference, and coaching copy used by
  * ProMissionBriefing and ProMissionCockpit screens.
@@ -110,7 +110,7 @@ export function cockpitStatusToDisplayLabel(
 
 /**
  * Map a cockpit status to the mindset levels stored in mindset_checkins.
- * This keeps Pro cockpit updates compatible with the existing data model.
+ * This keeps Elite cockpit updates compatible with the existing data model.
  */
 export function cockpitStatusToLevels(status: CockpitMindsetStatus): {
   confidence: 'Low' | 'Medium' | 'High';

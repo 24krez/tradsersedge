@@ -308,7 +308,7 @@ function LockedVaultPreview({ onOpenPaywall }: { onOpenPaywall?: () => void }) {
               <Text style={styles.lockedTitle}>Vault Preview</Text>
             </View>
             <View style={styles.lockedBadge}>
-              <Text style={styles.lockedBadgeText}>PRO</Text>
+              <Text style={styles.lockedBadgeText}>ELITE</Text>
             </View>
           </View>
 
@@ -321,7 +321,7 @@ function LockedVaultPreview({ onOpenPaywall }: { onOpenPaywall?: () => void }) {
             onPress={onOpenPaywall}
             style={({ pressed }) => [styles.lockedCta, pressed && styles.buttonPressed]}
           >
-            <Text style={styles.lockedCtaText}>UPGRADE TO PRO</Text>
+            <Text style={styles.lockedCtaText}>UPGRADE TO ELITE</Text>
           </Pressable>
 
           <View style={styles.previewStatsRow}>

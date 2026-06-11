@@ -267,7 +267,7 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
               </Text>
             </View>
             <View style={s.proBadge}>
-              <Text style={s.proBadgeText}>PRO</Text>
+              <Text style={s.proBadgeText}>ELITE</Text>
             </View>
           </View>
           <Text style={s.headerObjective}>MISSION BRIEFING</Text>
@@ -405,8 +405,8 @@ export function ProMissionBriefing({ mission }: ProMissionBriefingProps) {
           </View>
         )}
 
-        {/* ── Pro Intelligence Cards ── */}
-        <Text style={s.sectionTitle}>PRO INTELLIGENCE</Text>
+        {/* ── Elite Intelligence Cards ── */}
+        <Text style={s.sectionTitle}>ELITE INTELLIGENCE</Text>
 
         <IntelligenceCard
           icon="⚡"

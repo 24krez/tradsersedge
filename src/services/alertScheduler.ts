@@ -69,15 +69,15 @@ const traderEdgeDataKey = 'traderEdgeAlertId';
  * ACTIVE ALERTS (WEEKLY expo-notification cron schedules):
  * 1. daily_mission_briefing (Free) -> lockScreen.missionBriefings -> 6:30 AM
  * 2. session_start_reminder (Free) -> mission.missionStart -> User Trading Start Time (default 7:00 AM)
- * 3. basic_debrief_reminder (Pro) -> mission.debriefReminder -> 10 mins before User Trading End Time
+ * 3. basic_debrief_reminder (Elite) -> mission.debriefReminder -> 10 mins before User Trading End Time
  * 
  * INACTIVE/STUBS (Honest statuses, not wired to mission engine yet):
  * - lock_screen_coaching (Free) -> event_based_future
- * - mid_session_check_in (Pro) -> event_based_future
- * - risk_warning_placeholder (Pro) -> placeholder_ready
- * - custom_alert_time (Pro) -> manual_only
- * - multiple_daily_reminders (Pro) -> placeholder_ready
- * - advanced_coaching_alerts (Pro) -> event_based_future
+ * - mid_session_check_in (Elite) -> event_based_future
+ * - risk_warning_placeholder (Elite) -> placeholder_ready
+ * - custom_alert_time (Elite) -> manual_only
+ * - multiple_daily_reminders (Elite) -> placeholder_ready
+ * - advanced_coaching_alerts (Elite) -> event_based_future
  */
 export const alertPreferenceCatalog: Record<AlertId, Omit<AlertPreference, 'enabled'>> = {
   daily_mission_briefing: {

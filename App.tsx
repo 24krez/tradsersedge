@@ -150,7 +150,7 @@ function AppContent() {
           />
         )}
         {activeTab === 'vault' && <VaultScreen onOpenPaywall={openProUpsell} />}
-        {activeTab === 'profile' && <ProfileScreen />}
+        {activeTab === 'profile' && <ProfileScreen onOpenPaywall={openProUpsell} />}
       </View>
 
       <View style={styles.tabBar}>

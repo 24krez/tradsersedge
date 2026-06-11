@@ -397,7 +397,7 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
               {SESSION_LABELS[currentSessionKey].toUpperCase()} ACTIVE
             </Text>
             <View style={s.proBadge}>
-              <Text style={s.proBadgeText}>PRO</Text>
+              <Text style={s.proBadgeText}>ELITE</Text>
             </View>
           </View>
           <Text style={s.timeRemaining}>

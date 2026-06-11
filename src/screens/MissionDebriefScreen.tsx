@@ -201,7 +201,7 @@ export function MissionDebriefScreen() {
   
   const [whyNotTradeReason, setWhyNotTradeReason] = useState<string | null>(null);
   
-  // Pro / General State
+  // Elite / General State
   const [pulseScore, setPulseScore] = useState<number>(50); 
   const [emotion, setEmotion] = useState<typeof EMOTIONS[number]['id'] | null>(null);
   
@@ -426,7 +426,7 @@ export function MissionDebriefScreen() {
     // If No Trade, they must pick a reason
     if (traded === false && !whyNotTradeReason) return;
     
-    // Notes and emotion are completely optional for Pro users.
+    // Notes and emotion are completely optional for Elite users.
 
     Alert.alert(
       "Confirm Submission",
@@ -781,7 +781,7 @@ export function MissionDebriefScreen() {
               <View pointerEvents={isPro ? 'auto' : 'none'}>
                 <TextInput
                   style={[styles.notesInput, !isPro && { opacity: 0.5 }]}
-                  placeholder={isPro ? "Deconstruct your qualitative findings here..." : "Upgrade to Pro to unlock session notes and journaling."}
+                  placeholder={isPro ? "Deconstruct your qualitative findings here..." : "Upgrade to Elite to unlock session notes and journaling."}
                   placeholderTextColor="#5a5f63"
                   multiline
                   value={notes}

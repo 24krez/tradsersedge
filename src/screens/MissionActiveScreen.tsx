@@ -492,8 +492,8 @@ export function MissionActiveScreen() {
   const shouldShowStats = hasStats(userStats);
   const progress = getSessionProgress(currentSession.session || 'new_york');
 
-  // ── Pro Phase Routing ──
-  // Pro users get Briefing for pending missions, and Cockpit for active missions.
+  // ── Elite Phase Routing ──
+  // Elite users get Briefing for pending missions, and Cockpit for active missions.
   // Completed states fall through to the existing Free UI.
   if (isPro) {
     if (status === 'pending') {
@@ -634,14 +634,14 @@ export function MissionActiveScreen() {
                 <View style={styles.lockedGradeCard}>
                   <View style={styles.lockedGradeHeader}>
                     <Text style={styles.lockedGradeLabel}>DISCIPLINE GRADE</Text>
-                    <Text style={styles.lockedGradePill}>PRO</Text>
+                    <Text style={styles.lockedGradePill}>ELITE</Text>
                   </View>
                   <View style={styles.lockedGradeBody}>
                     <Text style={styles.lockedGradeValue}>--</Text>
                     <View style={styles.lockedGradeCopy}>
                       <Text style={styles.lockedGradeTitle}>GRADE LOCKED</Text>
                       <Text style={styles.lockedGradeText}>
-                        Complete a Pro debrief to generate your grade, score breakdown, and mission report.
+                        Complete an Elite debrief to generate your grade, score breakdown, and mission report.
                       </Text>
                     </View>
                   </View>

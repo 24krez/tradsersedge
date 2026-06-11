@@ -48,7 +48,7 @@ type UseCoachMessageResult = {
  * coaching message usage across all screens.
  *
  * - Free users are locked to 'tactical' (Calm Operator)
- * - Pro users use their saved preference or 'tactical' default
+ * - Elite users use their saved preference or 'tactical' default
  * - Messages auto-rotate when screenContext or mission status changes
  */
 export function useCoachMessage({

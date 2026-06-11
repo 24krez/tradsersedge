@@ -174,9 +174,9 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
   };
 
   function handleProUpsell() {
-    Alert.alert('PRO REQUIRED', 'Upgrade to Pro to unlock advanced alerts and customizations.', [
+    Alert.alert('ELITE REQUIRED', 'Upgrade to Elite to unlock advanced alerts and customizations.', [
       { text: 'Not Now', style: 'cancel' },
-      { text: 'Unlock Pro', onPress: () => console.log('TODO: Present RevenueCat paywall') },
+      { text: 'Unlock Elite', onPress: () => console.log('TODO: Present RevenueCat paywall') },
     ]);
   }
 
@@ -346,7 +346,7 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
         <View style={styles.sectionCard}>
           <SectionHeader 
             title="INTELLIGENCE REPORTS" 
-            actionLabel={isPro ? "ENABLE ALL" : "UNLOCK PRO"}
+            actionLabel={isPro ? "ENABLE ALL" : "UNLOCK ELITE"}
             onAction={handleEnableIntelligence}
           />
           <ToggleRow
@@ -419,7 +419,7 @@ export function NotificationSettingsScreen({ onBack }: NotificationSettingsScree
         <View style={styles.sectionCard}>
           <SectionHeader 
             title="COACHING DELIVERY" 
-            actionLabel={isPro ? "CUSTOMIZE" : "CUSTOMIZE PRO"}
+            actionLabel={isPro ? "CUSTOMIZE" : "CUSTOMIZE ELITE"}
             onAction={isPro ? undefined : handleProUpsell} // Only Free users have action here to open upsell modal if they tap header action
           />
           
@@ -648,7 +648,7 @@ function ToggleRow({
         <Text style={[styles.advancedLabel, disabled && styles.lockedText]}>{label}</Text>
         {isProOnly && (
           <View style={styles.proPill}>
-            <Text style={styles.proPillText}>PRO</Text>
+            <Text style={styles.proPillText}>ELITE</Text>
           </View>
         )}
       </View>
@@ -766,7 +766,7 @@ function CoachingModeCard({
         <View style={styles.coachingModeShade} />
         {isProOnly && (
           <View style={styles.coachingModeProPill}>
-            <Text style={styles.coachingModeProPillText}>PRO</Text>
+            <Text style={styles.coachingModeProPillText}>ELITE</Text>
           </View>
         )}
       </ImageBackground>
@@ -861,7 +861,7 @@ function AlertPreview({
             <Text style={styles.previewWidgetAppName}>TRADER'S EDGE</Text>
             {activeItem.isProOnly && (
               <View style={styles.previewProPill}>
-                <Text style={styles.previewProPillText}>PRO</Text>
+                <Text style={styles.previewProPillText}>ELITE</Text>
               </View>
             )}
           </View>
