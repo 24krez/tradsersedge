@@ -31,8 +31,8 @@ const RANKS: RankRequirement[] = [
   { rank: "Operator", minAverageScore: 60, minCompletedMissions: 3, minCurrentStreak: 0 },
   { rank: "Senior Operator", minAverageScore: 75, minCompletedMissions: 7, minCurrentStreak: 0 },
   { rank: "Elite Operator", minAverageScore: 85, minCompletedMissions: 14, minCurrentStreak: 0 },
-  { rank: "Special Agent", minAverageScore: 95, minCompletedMissions: 10, minCurrentStreak: 5 },
-  { rank: "Director", minAverageScore: 95, minCompletedMissions: 30, minCurrentStreak: 21 },
+  { rank: "Special Agent", minAverageScore: 90, minCompletedMissions: 25, minCurrentStreak: 5 },
+  { rank: "Director", minAverageScore: 95, minCompletedMissions: 50, minCurrentStreak: 10 },
 ];
 
 export function calculateRankProgression(input: RankInput): RankProgressionResult {
