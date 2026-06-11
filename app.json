@@ -4,8 +4,13 @@
     "slug": "traders-edge",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/TradersEdge_ASappicon.png",
     "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/images/TradersEdge_ASappicon_noborder.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#101415"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.24krez.traders-edge",
@@ -17,7 +22,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#101415",
-        "foregroundImage": "./assets/android-icon-foreground.png",
+        "foregroundImage": "./assets/images/TradersEdge_ASappicon_noborder.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },

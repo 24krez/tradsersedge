@@ -19,6 +19,7 @@ import { MissionDetailRouteScreen } from './src/screens/MissionDetailScreen';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { ProUpsellScreen } from './src/screens/ProUpsellScreen';
 import { LockScreenBriefingRouteScreen } from './src/screens/LockScreenBriefingScreen';
+import { LaunchIntroScreen } from './src/screens/LaunchIntroScreen';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
@@ -96,6 +97,7 @@ function AppContent() {
   const { t } = useTranslation('common');
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
   const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
+  const [hasSeenLaunchIntro, setHasSeenLaunchIntro] = useState(false);
   const { user, isLoading } = useAuth();
 
   const tabs: Array<{ key: TabKey; label: string }> = [
@@ -117,11 +119,12 @@ function AppContent() {
     setActiveTab(tab);
   }
 
-  if (isLoading) {
+  if (!hasSeenLaunchIntro) {
     return (
-      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
-        <StatusBar style="light" />
-      </SafeAreaView>
+      <LaunchIntroScreen
+        isReady={!isLoading}
+        onComplete={() => setHasSeenLaunchIntro(true)}
+      />
     );
   }
 
