@@ -31,6 +31,7 @@ struct TraderEdgeLiveActivity: Widget {
                             .lineLimit(1)
                         MissionTimerText(state: context.state, fontSize: 9)
                             .foregroundColor(TEColor.gold)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
                     }
                     .padding(.trailing, 8)
                 }
