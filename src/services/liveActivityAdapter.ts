@@ -62,10 +62,18 @@ const SESSION_LABELS: Partial<Record<TradingSession, string>> = {
 
 const FOCUS_LABELS: Record<string, string> = {
   patience: 'Patience',
+  discipline: 'Discipline',
   riskControl: 'Risk Control',
   execution: 'Execution',
   confidence: 'Confidence',
   consistency: 'Consistency',
+};
+
+const OBJECTIVE_LABELS: Record<string, string> = {
+  protectCapital: 'Protect Capital',
+  passChallenge: 'Pass Challenge',
+  onlyASetups: 'Take Only A+ Setups',
+  observationMode: 'Observation Mode',
 };
 
 const THREAT_LABELS: Record<string, string> = {
@@ -111,7 +119,8 @@ function unsupportedResult(): MissionLiveActivityResult {
 
 function buildMissionActivityState(mission: MissionLiveActivityMission): MissionActivityState {
   const missionId = mission.missionId || mission.id || 'unknown';
-  const objective = mission.objective || mission.coreFocus || 'Active Mission';
+  const rawObjective = mission.objective || mission.coreFocus || '';
+  const objective = OBJECTIVE_LABELS[rawObjective] || labelize(rawObjective) || 'Active Mission';
   const currentFocus = FOCUS_LABELS[mission.coreFocus || ''] || labelize(mission.coreFocus) || 'Mission Discipline';
   const rawThreat = mission.primaryThreat || mission.threat || mission.selectedThreats?.[0] || mission.threats?.[0] || '';
   const primaryThreat = THREAT_LABELS[rawThreat] || labelize(rawThreat) || 'No Threats';

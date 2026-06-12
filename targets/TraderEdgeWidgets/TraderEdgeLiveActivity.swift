@@ -53,6 +53,7 @@ struct TraderEdgeLiveActivity: Widget {
                 }
             } compactLeading: {
                 HStack(spacing: 5) {
+                    Spacer(minLength: 0)
                     Circle()
                         .fill(statusColor(context.state.status))
                         .frame(width: 6, height: 6)
@@ -62,8 +63,9 @@ struct TraderEdgeLiveActivity: Widget {
                         .lineLimit(1)
                         .minimumScaleFactor(0.68)
                         .multilineTextAlignment(.center)
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: 118, alignment: .center)
+                .frame(width: 130, alignment: .center)
             } compactTrailing: {
                 EmptyView()
             } minimal: {
