@@ -29,6 +29,7 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TraderIcon, traderEdgeIcons } from './src/components/TraderIcon';
 import { OnboardingNavigator } from './src/screens/onboarding/OnboardingNavigator';
 import { TrialPromoModal } from './src/components/TrialPromoModal';
+import { updateLockScreenCoachingWidget } from './src/services/lockScreenCoachingService';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -140,6 +141,17 @@ function AppContent() {
     }
     prevOnboardingStatus.current = userProfile?.onboardingStatus;
   }, [userProfile?.onboardingStatus]);
+
+  useEffect(() => {
+    if (!user || !userProfile) return;
+
+    updateLockScreenCoachingWidget({
+      alertSettings: userProfile.alertSettings,
+      coachingStyle: userProfile.alertSettings?.coaching?.style,
+    }).catch((error) => {
+      console.warn('[LockScreenCoachingWidget] Unable to refresh idle widget message:', error);
+    });
+  }, [user?.uid, userProfile?.alertSettings?.lockScreen?.lockScreenCoaching, userProfile?.alertSettings?.coaching?.style]);
 
   const tabs: Array<{ key: TabKey; label: string }> = [
     { key: 'mission', label: t('tabs.mission', 'Mission') },

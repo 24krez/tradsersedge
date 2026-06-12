@@ -7,8 +7,12 @@ import WidgetKit
 struct TraderEdgeWidgets: WidgetBundle {
     var body: some Widget {
         TraderEdgeLiveActivity()
+        TraderEdgeCoachingWidget()
     }
 }
+
+private let traderEdgeWidgetAppGroup = "group.com.24krez.traders-edge.expowidgets"
+private let coachingWidgetKind = "TraderEdgeCoachingWidget"
 
 struct TraderEdgeLiveActivity: Widget {
     var body: some WidgetConfiguration {
@@ -382,4 +386,237 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
+}
+
+struct TraderEdgeCoachingWidget: Widget {
+    let kind = coachingWidgetKind
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: CoachingWidgetProvider()) { entry in
+            CoachingWidgetView(entry: entry)
+        }
+        .configurationDisplayName("Trader's Edge Coaching")
+        .description("Short discipline prompts for the Lock Screen.")
+        .supportedFamilies([.accessoryRectangular, .accessoryCircular, .systemSmall])
+    }
+}
+
+struct CoachingWidgetEntry: TimelineEntry {
+    let date: Date
+    let rectangularText: String
+    let circularText: String
+    let category: String
+    let style: String
+}
+
+struct CoachingWidgetProvider: TimelineProvider {
+    func placeholder(in context: Context) -> CoachingWidgetEntry {
+        CoachingWidgetEntry(
+            date: Date(),
+            rectangularText: "No setup, no trade.",
+            circularText: "Rules first.",
+            category: "tradingInsight",
+            style: "direct"
+        )
+    }
+
+    func getSnapshot(in context: Context, completion: @escaping (CoachingWidgetEntry) -> Void) {
+        completion(entry(at: Date(), offset: 0))
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<CoachingWidgetEntry>) -> Void) {
+        let now = Date()
+        let entries = (0..<8).map { offset in
+            entry(
+                at: Calendar.current.date(byAdding: .minute, value: offset * refreshMinutes(for: now), to: now) ?? now,
+                offset: offset
+            )
+        }
+        let nextRefresh = Calendar.current.date(byAdding: .minute, value: refreshMinutes(for: now) * 8, to: now) ?? now.addingTimeInterval(60 * 60)
+        completion(Timeline(entries: entries, policy: .after(nextRefresh)))
+    }
+
+    private func entry(at date: Date, offset: Int) -> CoachingWidgetEntry {
+        let cached = cachedMessage()
+        let fallback = fallbackMessage(offset: offset, style: cached.style)
+        let useCachedMessage = offset == 0 && !cached.rectangularText.isEmpty
+
+        return CoachingWidgetEntry(
+            date: date,
+            rectangularText: rectangularSafe(useCachedMessage ? cached.rectangularText : fallback.rectangular),
+            circularText: circularSafe(useCachedMessage ? cached.circularText : fallback.circular),
+            category: cached.category.isEmpty ? fallback.category : cached.category,
+            style: cached.style.isEmpty ? fallback.style : cached.style
+        )
+    }
+
+    private func cachedMessage() -> (rectangularText: String, circularText: String, category: String, style: String) {
+        guard let defaults = UserDefaults(suiteName: traderEdgeWidgetAppGroup) else {
+            return ("", "", "", "")
+        }
+
+        return (
+            defaults.string(forKey: "coachingWidget.rectangularText") ?? "",
+            defaults.string(forKey: "coachingWidget.circularText") ?? "",
+            defaults.string(forKey: "coachingWidget.category") ?? "",
+            defaults.string(forKey: "coachingWidget.style") ?? ""
+        )
+    }
+
+    private func fallbackMessage(offset: Int, style: String) -> (rectangular: String, circular: String, category: String, style: String) {
+        let direct = [
+            ("Do not chase.", "No chase."),
+            ("Respect your stop.", "Respect risk."),
+            ("No revenge trades.", "No revenge."),
+            ("Stick to the plan.", "Plan first."),
+            ("Wait. Confirm. Execute.", "Wait. Confirm."),
+            ("Protect the account.", "Protect capital."),
+        ]
+        let calm = [
+            ("No setup, no trade.", "Rules first."),
+            ("Wait for confirmation.", "Wait. Confirm."),
+            ("Protect capital first.", "Protect capital."),
+            ("Patience is the edge.", "Stay patient."),
+            ("Follow the mission.", "Mission first."),
+            ("Process over outcome.", "Process first."),
+        ]
+        let bank = style == "calm" ? calm : direct
+        let selected = bank[offset % bank.count]
+        return (selected.0, selected.1, "tradingInsight", style.isEmpty ? "direct" : style)
+    }
+
+    private func refreshMinutes(for date: Date) -> Int {
+        let hour = Calendar.current.component(.hour, from: date)
+        if (8...16).contains(hour) {
+            return 30
+        }
+        if (6...21).contains(hour) {
+            return 60
+        }
+        return 180
+    }
+}
+
+struct CoachingWidgetView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: CoachingWidgetEntry
+
+    var body: some View {
+        switch family {
+        case .accessoryCircular:
+            CircularCoachingWidget(entry: entry)
+        case .systemSmall:
+            HomeCoachingWidget(entry: entry)
+        default:
+            RectangularCoachingWidget(entry: entry)
+        }
+    }
+}
+
+struct RectangularCoachingWidget: View {
+    let entry: CoachingWidgetEntry
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 6) {
+            Text("TE")
+                .font(.system(size: 9, weight: .black))
+                .foregroundColor(TEColor.gold)
+                .frame(width: 18, height: 18)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(TEColor.gold, lineWidth: 1)
+                )
+
+            Text(entry.rectangularText)
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundColor(TEColor.text)
+                .lineLimit(2)
+                .minimumScaleFactor(0.78)
+                .widgetAccentable()
+        }
+        .padding(.vertical, 4)
+        .containerBackgroundIfAvailable()
+    }
+}
+
+struct CircularCoachingWidget: View {
+    let entry: CoachingWidgetEntry
+
+    var body: some View {
+        ZStack {
+            AccessoryWidgetBackground()
+            VStack(spacing: 2) {
+                Text("TE")
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundColor(TEColor.gold)
+                Text(entry.circularText)
+                    .font(.system(size: 9, weight: .heavy))
+                    .foregroundColor(TEColor.text)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.65)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(4)
+        }
+        .containerBackgroundIfAvailable()
+    }
+}
+
+struct HomeCoachingWidget: View {
+    let entry: CoachingWidgetEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("TE")
+                .font(.system(size: 11, weight: .black))
+                .foregroundColor(TEColor.surface)
+                .frame(width: 24, height: 24)
+                .background(TEColor.gold)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            Spacer(minLength: 0)
+
+            Text(entry.rectangularText)
+                .font(.system(size: 15, weight: .heavy))
+                .foregroundColor(TEColor.text)
+                .lineLimit(3)
+                .minimumScaleFactor(0.82)
+
+            Text("COACHING")
+                .font(.system(size: 9, weight: .black))
+                .tracking(1)
+                .foregroundColor(TEColor.muted)
+        }
+        .padding(14)
+        .containerBackgroundIfAvailable()
+    }
+}
+
+extension View {
+    @ViewBuilder
+    func containerBackgroundIfAvailable() -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            self.containerBackground(TEColor.surface, for: .widget)
+        } else {
+            self.background(TEColor.surface)
+        }
+    }
+}
+
+func rectangularSafe(_ text: String) -> String {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    let words = trimmed.split { $0.isWhitespace }
+    guard !trimmed.isEmpty, words.count <= 12, trimmed.count <= 56 else {
+        return "No setup, no trade."
+    }
+    return trimmed
+}
+
+func circularSafe(_ text: String) -> String {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    let words = trimmed.split { $0.isWhitespace }
+    guard !trimmed.isEmpty, words.count <= 6, trimmed.count <= 32 else {
+        return "Rules first."
+    }
+    return trimmed
 }

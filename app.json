@@ -15,6 +15,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.24krez.traders-edge",
+      "entitlements": {
+        "com.apple.security.application-groups": [
+          "group.com.24krez.traders-edge.expowidgets"
+        ]
+      },
       "infoPlist": {
         "CFBundleURLTypes": [
           {

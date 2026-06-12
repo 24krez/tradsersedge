@@ -1,6 +1,10 @@
 import ActivityKit
 import ExpoModulesCore
 import Foundation
+import WidgetKit
+
+private let traderEdgeWidgetAppGroup = "group.com.24krez.traders-edge.expowidgets"
+private let coachingWidgetKind = "TraderEdgeCoachingWidget"
 
 public class MyModule: Module {
   public func definition() -> ModuleDefinition {
@@ -100,6 +104,35 @@ public class MyModule: Module {
             return endedActivity
         }
         return false
+    }
+
+    AsyncFunction("updateCoachingWidget") { (
+        messageId: String,
+        rectangularText: String,
+        circularText: String,
+        category: String,
+        style: String,
+        maxSurface: String,
+        expiresAt: String
+    ) async -> Bool in
+        guard let defaults = UserDefaults(suiteName: traderEdgeWidgetAppGroup) else {
+            return false
+        }
+
+        defaults.set(messageId, forKey: "coachingWidget.messageId")
+        defaults.set(rectangularText, forKey: "coachingWidget.rectangularText")
+        defaults.set(circularText, forKey: "coachingWidget.circularText")
+        defaults.set(category, forKey: "coachingWidget.category")
+        defaults.set(style, forKey: "coachingWidget.style")
+        defaults.set(maxSurface, forKey: "coachingWidget.maxSurface")
+        defaults.set(expiresAt, forKey: "coachingWidget.expiresAt")
+        defaults.set(Date().timeIntervalSince1970, forKey: "coachingWidget.updatedAt")
+
+        if #available(iOS 14.0, *) {
+            WidgetCenter.shared.reloadTimelines(ofKind: coachingWidgetKind)
+        }
+
+        return true
     }
   }
 }

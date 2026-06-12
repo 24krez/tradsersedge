@@ -1,7 +1,13 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 import type { AlertSettings } from '../contexts/AuthContext';
 import { getRandomCoachMessage } from '../features/coaching/coachEngine';
+import {
+  formatWidgetMessage,
+  getLockScreenCoachingMessage,
+  LockScreenWidgetMessage,
+} from '../features/coaching/lockScreenWidgetMessages';
 import type { CoachingStyle, ScreenContext } from '../features/coaching/coachTypes';
 
 type CoachingDeliveryStatus =
@@ -9,6 +15,8 @@ type CoachingDeliveryStatus =
   | 'disabled'
   | 'permission_needed'
   | 'home_widget_native_required'
+  | 'widget_updated'
+  | 'unsupported'
   | 'error';
 
 type CoachingDeliveryResult = {
@@ -34,7 +42,14 @@ type SendLockScreenCoachingInput = {
   screenContext: ScreenContext;
 };
 
+type UpdateLockScreenCoachingWidgetInput = {
+  alertSettings?: AlertSettings;
+  coachingStyle?: CoachingStyle;
+  fallback?: string;
+};
+
 const traderEdgeAlertId = 'lock_screen_coaching';
+const nativeModuleName = 'TraderEdgeLiveActivity';
 
 function result(status: CoachingDeliveryStatus, message?: string, error?: unknown): CoachingDeliveryResult {
   return {
@@ -118,9 +133,64 @@ export async function sendMissionCoachingLockScreenNotification({
   }
 }
 
-export async function updateHomeScreenCoachingWidget(): Promise<CoachingDeliveryResult> {
-  return result(
-    'home_widget_native_required',
-    'Home Screen widget updates require an iOS widget extension compiled into the app.',
+export async function updateLockScreenCoachingWidget({
+  alertSettings,
+  coachingStyle = 'tactical',
+  fallback,
+}: UpdateLockScreenCoachingWidgetInput = {}): Promise<CoachingDeliveryResult & { widgetMessage?: LockScreenWidgetMessage }> {
+  if (!lockScreenCoachingEnabled(alertSettings)) {
+    return result('disabled', 'Lock Screen Coaching is disabled.');
+  }
+
+  const widgetMessage = getLockScreenCoachingMessage({
+    coachingStyle,
+    fallback,
+  });
+
+  if (Platform.OS !== 'ios') {
+    return {
+      ...result('unsupported', 'Lock Screen coaching widgets are only supported on iOS.'),
+      widgetMessage,
+    };
+  }
+
+  try {
+    const { requireNativeModule } = require('expo');
+    const mod = requireNativeModule(nativeModuleName);
+
+    if (!mod?.updateCoachingWidget) {
+      return {
+        ...result('home_widget_native_required', 'Native coaching widget updater is unavailable.'),
+        widgetMessage,
+      };
+    }
+
+    await mod.updateCoachingWidget(
+      widgetMessage.id,
+      formatWidgetMessage(widgetMessage, 'rectangular'),
+      formatWidgetMessage(widgetMessage, 'circular'),
+      widgetMessage.category,
+      widgetMessage.style,
+      widgetMessage.maxSurface,
+      widgetMessage.expiresAt || '',
+    );
+
+    return {
+      ...result('widget_updated', 'Lock Screen coaching widget updated.'),
+      widgetMessage,
+    };
+  } catch (error) {
+    return {
+      ...result('error', 'Unable to update Lock Screen coaching widget.', error),
+      widgetMessage,
+    };
+  }
+}
+
+export async function updateHomeScreenCoachingWidget(
+  input: UpdateLockScreenCoachingWidgetInput = {},
+): Promise<CoachingDeliveryResult> {
+  return updateLockScreenCoachingWidget(
+    input.fallback ? input : { ...input, fallback: 'Process over outcome.' },
   );
 }
