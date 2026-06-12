@@ -1,5 +1,6 @@
 import { signOut } from 'firebase/auth';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
@@ -28,6 +29,15 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TraderIcon, traderEdgeIcons } from './src/components/TraderIcon';
 import { OnboardingNavigator } from './src/screens/onboarding/OnboardingNavigator';
 import { TrialPromoModal } from './src/components/TrialPromoModal';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 type TabKey = 'mission' | 'progress' | 'vault' | 'profile';
 export type RootStackParamList = {

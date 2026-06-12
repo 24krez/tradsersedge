@@ -8,6 +8,7 @@ import { Target, AlertTriangle, Compass, Quote, Lock } from 'lucide-react-native
 import { MissionStackNavigationProp } from '../../App';
 import {
   getCurrentSession,
+  getSessionStatus,
   getSessionProgress,
   getTimeRemaining,
   SESSION_LABELS,
@@ -22,6 +23,7 @@ import { ProMissionCockpit } from './ProMissionCockpit';
 import { ProMissionAccomplished } from './ProMissionAccomplished';
 import { CompactMindsetModule } from './CompactMindsetModule';
 import { gradeFromScore } from '../logic/disciplineScore';
+import { endMissionLiveActivity, updateMissionLiveActivity } from '../services/liveActivityAdapter';
 
 type UserStats = {
   bestDisciplineScore?: number;
@@ -263,7 +265,7 @@ function LiveTimerModule({
 export function MissionActiveScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const { t } = useTranslation('mission');
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [missionData, setMissionData] = useState<any>(undefined);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [recentCompletedCount, setRecentCompletedCount] = useState(0);
@@ -271,6 +273,7 @@ export function MissionActiveScreen() {
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const isPro = useIsPro();
+  const liveActivitiesEnabled = isPro && userProfile?.alertSettings?.lockScreen?.liveActivityUpdates !== false;
 
   async function handleCompleteMission() {
     if (!missionData?.id || isCompleting) return;
@@ -291,7 +294,7 @@ export function MissionActiveScreen() {
           },
         }),
       });
-      // TODO: Close iOS Live Activity
+      await endMissionLiveActivity('mission_completed');
       setShowCompleteModal(false);
       
       if (isPro) {
@@ -478,6 +481,51 @@ export function MissionActiveScreen() {
     missionData: missionData || null,
   });
 
+  const activeMissionSessionKey: TradingSession =
+    missionData?.session === 'new_york' || missionData?.session === 'london' || missionData?.session === 'asia' || missionData?.session === 'custom'
+      ? missionData.session
+      : currentSession.session || 'custom';
+  const activeSessionProgress = activeMissionSessionKey === 'custom' ? 0 : getSessionProgress(activeMissionSessionKey);
+  const activeSessionRemainingPercent = activeMissionSessionKey === 'custom' ? 100 : Math.max(0, 100 - activeSessionProgress);
+
+  useEffect(() => {
+    if (!liveActivitiesEnabled || !missionData?.id || missionData.status !== 'active') return;
+
+    updateMissionLiveActivity({
+      ...missionData,
+      currentCoachingMessage: freeCoachMessage?.text,
+      coachingStyle: freeCoachMessage?.style,
+      session: activeMissionSessionKey,
+      sessionRemainingPercent: activeSessionRemainingPercent,
+    });
+  }, [
+    missionData?.id,
+    missionData?.objective,
+    missionData?.coreFocus,
+    missionData?.status,
+    missionData?.missionStatus,
+    missionData?.currentMindsetStatus,
+    missionData?.session,
+    JSON.stringify(missionData?.threats || []),
+    freeCoachMessage?.text,
+    freeCoachMessage?.style,
+    activeMissionSessionKey,
+    activeSessionRemainingPercent,
+    liveActivitiesEnabled,
+  ]);
+
+  useEffect(() => {
+    if (liveActivitiesEnabled || !missionData?.id || missionData.status !== 'active') return;
+    endMissionLiveActivity('disabled_by_user');
+  }, [liveActivitiesEnabled, missionData?.id, missionData?.status]);
+
+  useEffect(() => {
+    if (!missionData?.id || missionData.status !== 'active' || activeMissionSessionKey === 'custom') return;
+    if (getSessionStatus(activeMissionSessionKey) === 'completed') {
+      endMissionLiveActivity('market_closed');
+    }
+  }, [missionData?.id, missionData?.status, activeMissionSessionKey, activeSessionProgress]);
+
   if (!missionData) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -492,7 +540,7 @@ export function MissionActiveScreen() {
   const objectiveKey = objective;
   const focusKey = coreFocus;
   const shouldShowStats = hasStats(userStats);
-  const progress = getSessionProgress(currentSession.session || 'new_york');
+  const progress = activeSessionProgress;
 
   // ── Elite Phase Routing ──
   // Elite users get Briefing for pending missions, and Cockpit for active missions.
@@ -685,9 +733,13 @@ export function MissionActiveScreen() {
             <>
               <LiveTimerModule 
                 focusKey={focusKey} 
-                sessionKey={currentSession.session || 'new_york'} 
+                sessionKey={activeMissionSessionKey}
               />
-              <CompactMindsetModule missionId={missionData?.id} />
+              <CompactMindsetModule
+                alertSettings={userProfile?.alertSettings}
+                liveActivitiesEnabled={liveActivitiesEnabled}
+                missionId={missionData?.id}
+              />
               <SessionNotesModule missionId={missionData?.id} />
               
               <Pressable

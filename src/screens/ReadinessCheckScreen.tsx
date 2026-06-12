@@ -8,6 +8,8 @@ import { firebaseAuth, firestore } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateMissionStatus } from '../logic/missionStatus';
 import { getCurrentSession } from '../logic/sessionEngine';
+import { startMissionLiveActivity } from '../services/liveActivityAdapter';
+import { sendMissionCoachingLockScreenNotification } from '../services/lockScreenCoachingService';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
@@ -70,7 +72,8 @@ export function ReadinessCheckScreen() {
   });
 
   const [missionData, setMissionData] = useState<any>(null);
-  const { user } = useAuth();
+  const { user, userProfile, isPro } = useAuth();
+  const liveActivitiesEnabled = isPro && userProfile?.alertSettings?.lockScreen?.liveActivityUpdates !== false;
 
   useEffect(() => {
     if (!user) return;
@@ -181,12 +184,14 @@ export function ReadinessCheckScreen() {
         createdAt: serverTimestamp(),
       });
 
+      const missionSession = getCurrentSession().session || missionData.session || 'custom';
+
       // Update the mission document to mark it as active and save initial status
       await updateDoc(doc(firestore, 'missions', missionData.id), {
         status: 'active',
         missionStatus: newStatusResult.status,
         missionPhase: 'active',
-        session: getCurrentSession().session || missionData.session || 'custom',
+        session: missionSession,
         sessionStartedAt: serverTimestamp(),
         readinessScore: newStatusResult.score,
         lastMindsetScore: newStatusResult.score,
@@ -198,6 +203,27 @@ export function ReadinessCheckScreen() {
           missionStatus: newStatusResult.status,
         },
         currentMindsetStatus: newStatusResult.status === 'Locked In' ? 'locked_in' : newStatusResult.status === 'On Track' ? 'on_track' : newStatusResult.status === 'Caution' ? 'caution' : 'high_risk',
+      });
+
+      if (liveActivitiesEnabled) {
+        await startMissionLiveActivity({
+          ...missionData,
+          status: 'active',
+          missionStatus: newStatusResult.status,
+          currentMindsetStatus: newStatusResult.status === 'Locked In' ? 'locked_in' : newStatusResult.status === 'On Track' ? 'on_track' : newStatusResult.status === 'Caution' ? 'caution' : 'high_risk',
+          session: missionSession,
+        });
+      }
+
+      await sendMissionCoachingLockScreenNotification({
+        alertSettings: userProfile?.alertSettings,
+        coachingStyle: userProfile?.alertSettings?.coaching?.style,
+        mission: {
+          ...missionData,
+          missionStatus: newStatusResult.status,
+          currentMindsetStatus: newStatusResult.status === 'Locked In' ? 'locked_in' : newStatusResult.status === 'On Track' ? 'on_track' : newStatusResult.status === 'Caution' ? 'caution' : 'high_risk',
+        },
+        screenContext: 'lock_screen',
       });
 
       navigation.goBack();

@@ -11,6 +11,7 @@ import { buildMissionSummary } from '../services/missionSummary';
 import { updateUserStatsAfterDebrief } from '../services/userStats';
 import { getRandomCoachMessage } from '../features/coaching/coachEngine';
 import { calculateDisciplineScore, DisciplineScoreResult, YesMostlyNo } from '../logic/disciplineScore';
+import { endMissionLiveActivity } from '../services/liveActivityAdapter';
 
 type MissionData = {
   id: string;
@@ -582,6 +583,8 @@ export function MissionDebriefScreen() {
           currentStreak,
         }),
       });
+
+      await endMissionLiveActivity('debrief_completed');
       
       if (isPro) {
         navigation.replace('MissionResults', {

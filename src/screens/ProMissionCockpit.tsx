@@ -34,6 +34,7 @@ import {
   getSessionProgress,
   getTimeRemaining,
   SESSION_LABELS,
+  TradingSession,
 } from '../logic/sessionEngine';
 import { firestore } from '../services/firebase';
 import { buildMissionSummary } from '../services/missionSummary';
@@ -41,6 +42,7 @@ import {
   startMissionActivity,
   updateMissionActivity,
   endMissionActivity,
+  endMissionLiveActivity,
 } from '../services/liveActivityAdapter';
 import { CompactMindsetModule } from './CompactMindsetModule';
 
@@ -185,8 +187,9 @@ function AnimatedMissionHeader() {
 export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
   const navigation = useNavigation<MissionStackNavigationProp>();
   const { t } = useTranslation('mission');
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const isPro = useIsPro();
+  const liveActivitiesEnabled = isPro && userProfile?.alertSettings?.lockScreen?.liveActivityUpdates !== false;
 
   // Mindset
   const currentMindset: CockpitMindsetStatus =
@@ -254,39 +257,52 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const currentSessionKey = sessionInfo.session || 'new_york';
+  const currentSessionKey: TradingSession =
+    mission.session === 'new_york' || mission.session === 'london' || mission.session === 'asia' || mission.session === 'custom'
+      ? mission.session
+      : sessionInfo.session || 'custom';
   const remaining = getTimeRemaining(currentSessionKey);
   const progress = getSessionProgress(currentSessionKey);
+  const remainingPercent = currentSessionKey === 'custom' ? 100 : Math.max(0, 100 - progress);
 
   // ── Live Activity Sync ──
   useEffect(() => {
-    if (!mission.id) return;
+    if (!liveActivitiesEnabled || !mission.id) return;
     const activityState = {
       missionId: mission.id,
       objective: objectiveKey ? t(`data.objectives.${objectiveKey}.title`) : 'Mission Active',
       status: currentMindset,
       threatsIdentified: threats.length,
       timeRemaining: remaining.formatted,
+      session: currentSessionKey,
+      sessionRemainingPercent: remainingPercent,
     };
     // If it's the first time, start it; otherwise update it.
     // The adapter is idempotent enough for Expo Go testing, but typically you'd track if it's started.
     updateMissionActivity(activityState);
-  }, [mission.id, objectiveKey, currentMindset, threats.length, remaining.formatted, t]);
+  }, [mission.id, objectiveKey, currentMindset, threats.length, remaining.formatted, t, liveActivitiesEnabled]);
 
   useEffect(() => {
     // Start activity on mount
-    if (mission.id) {
+    if (liveActivitiesEnabled && mission.id) {
       startMissionActivity({
         missionId: mission.id,
         objective: objectiveKey ? t(`data.objectives.${objectiveKey}.title`) : 'Mission Active',
         status: currentMindset,
         threatsIdentified: threats.length,
         timeRemaining: remaining.formatted,
+        session: currentSessionKey,
+        sessionRemainingPercent: remainingPercent,
       });
     }
     // Note: We don't end it on unmount because they might put the app in the background.
     // We only end it when the mission is explicitly completed.
-  }, [mission.id]);
+  }, [mission.id, liveActivitiesEnabled]);
+
+  useEffect(() => {
+    if (liveActivitiesEnabled || !mission.id) return;
+    endMissionLiveActivity('disabled_by_user');
+  }, [liveActivitiesEnabled, mission.id]);
 
   // ── Started at display ──
   const startedAtDisplay = useMemo(() => {
@@ -401,7 +417,7 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
             </View>
           </View>
           <Text style={s.timeRemaining}>
-            {remaining.formatted.toUpperCase()} | {progress}% SESSION REMAINING
+            {remaining.formatted.toUpperCase()} | {remainingPercent}% SESSION REMAINING
           </Text>
         </View>
 
@@ -513,7 +529,11 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
 
         {/* ── Mindset Controls ── */}
         <View style={{ marginHorizontal: 20 }}>
-          <CompactMindsetModule missionId={mission.id} />
+          <CompactMindsetModule
+            alertSettings={userProfile?.alertSettings}
+            liveActivitiesEnabled={liveActivitiesEnabled}
+            missionId={mission.id}
+          />
         </View>
 
         {/* ── Session Note Shortcuts ── */}

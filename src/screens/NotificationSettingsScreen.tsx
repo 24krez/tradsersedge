@@ -387,10 +387,10 @@ export function NotificationSettingsScreen({ onBack, onProUpsell }: Notification
           />
         </View>
 
-        {/* LOCK SCREEN & NOOK */}
+        {/* LOCK SCREEN & WIDGET */}
         <View style={styles.sectionCard}>
-          <SectionHeader 
-            title="LOCK SCREEN & NOOK" 
+          <SectionHeader
+            title="LOCK SCREEN & WIDGET"
             actionLabel={isPro ? "ENABLE ALL" : "ENABLE FREE"}
             onAction={handleEnableLockScreen}
           />
@@ -405,7 +405,7 @@ export function NotificationSettingsScreen({ onBack, onProUpsell }: Notification
             onToggle={(val) => updateSettingGroup('lockScreen', { lockScreenCoaching: val })}
           />
           <ToggleRow
-            label="Nook Monitoring"
+            label="Home Screen Widget"
             value={settings.lockScreen.nookMonitoring}
             onToggle={(val) => updateSettingGroup('lockScreen', { nookMonitoring: val })}
           />
@@ -594,6 +594,7 @@ function settingsHaveNewEnables(saved: AlertSettings, current: AlertSettings): b
     const currentGroup = currentFlat[groupKey];
     if (typeof currentGroup !== 'object' || !currentGroup) continue;
     for (const key of Object.keys(currentGroup)) {
+      if (groupKey === 'lockScreen' && key === 'liveActivityUpdates') continue;
       if (currentGroup[key] === true && savedGroup?.[key] !== true) return true;
     }
   }

@@ -6,11 +6,22 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { calculateMissionStatus, MindsetCheckin } from '../logic/missionStatus';
 import { mapMissionStatusToCockpit } from '../logic/missionPhase';
 import { firebaseAuth, firestore } from '../services/firebase';
+import { updateMissionLiveActivity } from '../services/liveActivityAdapter';
+import { sendMissionCoachingLockScreenNotification } from '../services/lockScreenCoachingService';
+import type { AlertSettings } from '../contexts/AuthContext';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 type AssessmentKey = 'executionConfidence' | 'patienceReserve' | 'marketFocus';
 
-export function CompactMindsetModule({ missionId }: { missionId: string }) {
+export function CompactMindsetModule({
+  alertSettings,
+  liveActivitiesEnabled = false,
+  missionId,
+}: {
+  alertSettings?: AlertSettings;
+  liveActivitiesEnabled?: boolean;
+  missionId: string;
+}) {
   const { t } = useTranslation('mission');
   const [isSaving, setIsSaving] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -116,6 +127,26 @@ export function CompactMindsetModule({ missionId }: { missionId: string }) {
         currentMindsetStatus,
         missionStatus: newStatusResult.status,
         lastMindsetScore: newStatusResult.score,
+      });
+
+      if (liveActivitiesEnabled) {
+        await updateMissionLiveActivity({
+          id: missionId,
+          status: 'active',
+          missionStatus: newStatusResult.status,
+          currentMindsetStatus,
+        });
+      }
+
+      await sendMissionCoachingLockScreenNotification({
+        alertSettings,
+        coachingStyle: alertSettings?.coaching?.style,
+        mission: {
+          id: missionId,
+          missionStatus: newStatusResult.status,
+          currentMindsetStatus,
+        },
+        screenContext: 'lock_screen',
       });
 
       setIsExpanded(false);

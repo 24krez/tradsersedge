@@ -29,7 +29,7 @@ export const defaultAlertSettings: AlertSettings = {
     missionBriefings: true,
     lockScreenCoaching: true,
     nookMonitoring: true,
-    liveActivityUpdates: false,
+    liveActivityUpdates: true,
   },
   coaching: {
     style: 'tactical',

@@ -1,85 +1,237 @@
 import { Platform } from 'react-native';
 
-// Lazy-loaded reference — resolved at runtime only on iOS to avoid
-// bundler errors when the native module isn't installed (e.g. Expo Go).
-let LiveActivity: any = null;
+import { getSessionProgress, getTimeRemaining, TradingSession } from '../logic/sessionEngine';
 
-async function getLiveActivity() {
-  if (LiveActivity) return LiveActivity;
-  if (Platform.OS !== 'ios') return null;
-  try {
-    LiveActivity = await import('@heojeongbo/expo-live-activity');
-    return LiveActivity;
-  } catch {
-    console.warn('[LiveActivityAdapter] Native module not available — running in Expo Go?');
-    return null;
-  }
-}
+const ACTIVITY_NAME = 'TraderEdgeLiveActivity';
+
+let LiveActivity: any = null;
+let lastKnownMissionId: string | null = null;
+let lastKnownStatus: MissionLiveActivityResult['status'] = 'ended';
+
+export type MissionLiveActivityStatus =
+  | 'active'
+  | 'updated'
+  | 'ended'
+  | 'unsupported'
+  | 'dev_build_required'
+  | 'not_available_on_device'
+  | 'error';
+
+export type MissionLiveActivityResult = {
+  status: MissionLiveActivityStatus;
+  message?: string;
+  error?: string;
+};
 
 export type MissionActivityState = {
   missionId: string;
   objective: string;
   status: 'on_track' | 'caution' | 'high_risk' | 'locked_in';
   threatsIdentified: number;
-  timeRemaining?: string; // e.g. "01:45"
+  timeRemaining?: string;
 };
 
-/**
- * Safely starts a Live Activity.
- * Gracefully logs and prevents crashes if running in Expo Go or an unsupported environment.
- */
-export async function startMissionActivity(state: MissionActivityState) {
-  console.log('[LiveActivityAdapter] Requesting start for mission:', state.missionId, state);
-  
+export type MissionLiveActivityMission = {
+  id?: string;
+  missionId?: string;
+  objective?: string;
+  threats?: string[];
+  selectedThreats?: string[];
+  primaryThreat?: string;
+  threat?: string;
+  coreFocus?: string;
+  status?: string;
+  missionStatus?: string;
+  currentMindsetStatus?: string;
+  session?: TradingSession | string;
+  sessionRemainingPercent?: number;
+  threatsIdentified?: number;
+  timeRemaining?: string;
+  currentCoachingMessage?: string;
+  coachingStyle?: string;
+};
+
+function statusResult(
+  status: MissionLiveActivityStatus,
+  message?: string,
+  error?: unknown,
+): MissionLiveActivityResult {
+  return {
+    status,
+    message,
+    error: error instanceof Error ? error.message : typeof error === 'string' ? error : undefined,
+  };
+}
+
+async function getLiveActivity() {
+  if (Platform.OS !== 'ios') return null;
+  if (LiveActivity) return LiveActivity;
+
+  try {
+    LiveActivity = await import('@heojeongbo/expo-live-activity');
+    return LiveActivity;
+  } catch (error) {
+    console.warn('[LiveActivityAdapter] Native module unavailable. Install/run a development build with the Live Activity module.', error);
+    return null;
+  }
+}
+
+function normalizeStatus(status?: string): MissionActivityState['status'] {
+  const key = (status || '').toLowerCase().replace(/[\s-]+/g, '_');
+  if (key.includes('locked')) return 'locked_in';
+  if (key.includes('high') || key.includes('risk')) return 'high_risk';
+  if (key.includes('caution')) return 'caution';
+  return 'on_track';
+}
+
+function getThreats(mission: MissionLiveActivityMission): string[] {
+  if (typeof mission.threatsIdentified === 'number' && mission.threatsIdentified > 0) {
+    return Array.from({ length: mission.threatsIdentified }, (_, index) => `threat-${index}`);
+  }
+  if (Array.isArray(mission.threats)) return mission.threats;
+  if (Array.isArray(mission.selectedThreats)) return mission.selectedThreats;
+  if (mission.primaryThreat) return [mission.primaryThreat];
+  if (mission.threat) return [mission.threat];
+  return [];
+}
+
+function formatSessionRemaining(session?: string, sessionRemainingPercent?: number): string | undefined {
+  if (typeof sessionRemainingPercent === 'number' && Number.isFinite(sessionRemainingPercent)) {
+    return `${Math.max(0, Math.min(100, Math.round(sessionRemainingPercent)))}% Remaining`;
+  }
+
+  if (session === 'new_york' || session === 'london' || session === 'asia' || session === 'custom') {
+    return session === 'custom'
+      ? undefined
+      : getTimeRemaining(session).formatted;
+  }
+
+  return undefined;
+}
+
+export function buildMissionActivityState(mission: MissionLiveActivityMission): MissionActivityState {
+  const missionId = mission.id || mission.missionId || 'unknown-mission';
+  const session = mission.session;
+  const remainingPercent = typeof mission.sessionRemainingPercent === 'number'
+    ? mission.sessionRemainingPercent
+    : session === 'new_york' || session === 'london' || session === 'asia'
+      ? 100 - getSessionProgress(session)
+      : undefined;
+
+  return {
+    missionId,
+    objective: mission.objective || 'Mission Active',
+    status: normalizeStatus(mission.currentMindsetStatus || mission.missionStatus || mission.status),
+    threatsIdentified: getThreats(mission).length,
+    timeRemaining: mission.timeRemaining || formatSessionRemaining(session, remainingPercent),
+  };
+}
+
+function unsupportedResult(): MissionLiveActivityResult {
   if (Platform.OS !== 'ios') {
-    console.log('[LiveActivityAdapter] Skipped: Live Activities are only supported on iOS.');
-    return;
+    return statusResult('unsupported', 'Live Activities are only supported on iOS.');
   }
+
+  return statusResult(
+    'dev_build_required',
+    'Live Activity native module is not compiled into this app yet. Rebuild the installed development app with the iOS Live Activity bridge and widget extension.',
+  );
+}
+
+export async function startMissionLiveActivity(
+  mission: MissionLiveActivityMission,
+): Promise<MissionLiveActivityResult> {
+  const state = buildMissionActivityState(mission);
+  console.log('[LiveActivityAdapter] startMissionLiveActivity', state);
+
+  if (Platform.OS !== 'ios') return unsupportedResult();
 
   try {
     const la = await getLiveActivity();
-    if (!la) return;
-    // The exact API signature depends on the plugin version, 
-    // but typically it accepts an object matching the Swift ActivityAttributes struct.
-    await la.startActivity('TraderEdgeLiveActivity', state);
-    console.log('[LiveActivityAdapter] Live Activity started successfully.');
-  } catch (err) {
-    console.warn('[LiveActivityAdapter] Error starting live activity (Are you in Expo Go?):', err);
+    if (!la?.startActivity) return unsupportedResult();
+
+    await la.startActivity(ACTIVITY_NAME, state);
+    lastKnownMissionId = state.missionId;
+    lastKnownStatus = 'active';
+    return statusResult('active', 'Live Activity started.');
+  } catch (error) {
+    console.warn('[LiveActivityAdapter] Failed to start Live Activity:', error);
+    return statusResult('error', 'Unable to start Live Activity.', error);
   }
 }
 
-/**
- * Updates an ongoing Live Activity.
- */
-export async function updateMissionActivity(state: MissionActivityState) {
-  console.log('[LiveActivityAdapter] Requesting update for mission:', state.missionId, state);
-  
-  if (Platform.OS !== 'ios') return;
+export async function updateMissionLiveActivity(
+  mission: MissionLiveActivityMission,
+): Promise<MissionLiveActivityResult> {
+  const state = buildMissionActivityState(mission);
+  console.log('[LiveActivityAdapter] updateMissionLiveActivity', state);
+
+  if (Platform.OS !== 'ios') return unsupportedResult();
 
   try {
     const la = await getLiveActivity();
-    if (!la) return;
-    await la.updateActivity('TraderEdgeLiveActivity', state);
-    console.log('[LiveActivityAdapter] Live Activity updated successfully.');
-  } catch (err) {
-    console.warn('[LiveActivityAdapter] Error updating live activity:', err);
+    if (!la?.updateActivity) return unsupportedResult();
+
+    await la.updateActivity(ACTIVITY_NAME, state);
+    lastKnownMissionId = state.missionId;
+    lastKnownStatus = 'updated';
+    return statusResult('updated', 'Live Activity updated.');
+  } catch (error) {
+    console.warn('[LiveActivityAdapter] Failed to update Live Activity:', error);
+    return statusResult('error', 'Unable to update Live Activity.', error);
   }
 }
 
-/**
- * Ends the Live Activity.
- */
-export async function endMissionActivity(missionId: string) {
-  console.log('[LiveActivityAdapter] Requesting end for mission:', missionId);
-  
-  if (Platform.OS !== 'ios') return;
+export async function endMissionLiveActivity(reason = 'mission_ended'): Promise<MissionLiveActivityResult> {
+  console.log('[LiveActivityAdapter] endMissionLiveActivity', { missionId: lastKnownMissionId, reason });
+
+  if (Platform.OS !== 'ios') return unsupportedResult();
 
   try {
     const la = await getLiveActivity();
-    if (!la) return;
-    await la.endActivity('TraderEdgeLiveActivity');
-    console.log('[LiveActivityAdapter] Live Activity ended successfully.');
-  } catch (err) {
-    console.warn('[LiveActivityAdapter] Error ending live activity:', err);
+    if (!la?.endActivity) return unsupportedResult();
+
+    await la.endActivity(ACTIVITY_NAME, { reason });
+    lastKnownStatus = 'ended';
+    lastKnownMissionId = null;
+    return statusResult('ended', 'Live Activity ended.');
+  } catch (error) {
+    console.warn('[LiveActivityAdapter] Failed to end Live Activity:', error);
+    return statusResult('error', 'Unable to end Live Activity.', error);
   }
+}
+
+export async function getMissionLiveActivityStatus(): Promise<MissionLiveActivityResult> {
+  if (Platform.OS !== 'ios') return unsupportedResult();
+
+  const la = await getLiveActivity();
+  if (!la) return unsupportedResult();
+
+  if (typeof la.getActivityStatus === 'function') {
+    try {
+      const nativeStatus = await la.getActivityStatus(ACTIVITY_NAME);
+      if (nativeStatus?.isActive) return statusResult('active', 'Native Live Activity is active.');
+      return statusResult('ended', 'No active Live Activity reported by native layer.');
+    } catch (error) {
+      return statusResult('error', 'Unable to read Live Activity status.', error);
+    }
+  }
+
+  if (lastKnownStatus === 'active' || lastKnownStatus === 'updated') {
+    return statusResult('active', 'Live Activity was started in this app session.');
+  }
+
+  return statusResult('not_available_on_device', 'Native status API is not available on this device/build.');
+}
+
+export async function startMissionActivity(state: MissionLiveActivityMission): Promise<MissionLiveActivityResult> {
+  return startMissionLiveActivity(state);
+}
+
+export async function updateMissionActivity(state: MissionLiveActivityMission): Promise<MissionLiveActivityResult> {
+  return updateMissionLiveActivity(state);
+}
+
+export async function endMissionActivity(_missionId?: string): Promise<MissionLiveActivityResult> {
+  return endMissionLiveActivity('mission_completed');
 }

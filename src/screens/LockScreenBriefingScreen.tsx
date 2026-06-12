@@ -6,8 +6,15 @@ import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'rea
 import { MissionStackNavigationProp } from '../../App';
 import { useAuth, useIsPro } from '../contexts/AuthContext';
 import { useCoachMessage } from '../features/coaching/useCoachMessage';
-import { getCurrentSession, getSessionProgress, SESSION_LABELS } from '../logic/sessionEngine';
+import { getCurrentSession, getSessionProgress, SESSION_LABELS, TradingSession } from '../logic/sessionEngine';
 import { firestore } from '../services/firebase';
+import {
+  endMissionLiveActivity,
+  getMissionLiveActivityStatus,
+  startMissionLiveActivity,
+  updateMissionLiveActivity,
+} from '../services/liveActivityAdapter';
+import { sendMissionCoachingLockScreenNotification } from '../services/lockScreenCoachingService';
 
 type LockScreenBriefingProps = {
   onBack: () => void;
@@ -27,10 +34,11 @@ export function LockScreenBriefingRouteScreen() {
 }
 
 export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNavigateToActiveProtocols }: LockScreenBriefingProps) {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const isPro = useIsPro();
   const [missionData, setMissionData] = useState<any>(null);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [activityResult, setActivityResult] = useState<{ status: string; message?: string } | null>(null);
 
   // Load latest mission
   useEffect(() => {
@@ -61,10 +69,15 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
   }, [user]);
 
   const hasMission = !!missionData;
-  const isActive = missionData?.status === 'active' || missionData?.status === 'pending';
+  const isActive = missionData?.status === 'active';
   const sessionInfo = getCurrentSession();
-  const sessionKey = sessionInfo.session || 'new_york';
-  const progress = getSessionProgress(sessionKey);
+  const missionSession = missionData?.session;
+  const sessionKey: TradingSession =
+    missionSession === 'new_york' || missionSession === 'london' || missionSession === 'asia' || missionSession === 'custom'
+      ? missionSession
+      : sessionInfo.session || 'custom';
+  const sessionElapsedPercent = sessionKey === 'custom' ? 0 : getSessionProgress(sessionKey);
+  const sessionRemainingPercent = sessionKey === 'custom' ? 100 : Math.max(0, 100 - sessionElapsedPercent);
 
   // Coach message hook
   const screenContext = isActive ? 'lock_screen' : 'idle';
@@ -107,6 +120,35 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
     ? (threatLabels[missionData.threats[0]] || missionData.threats[0].toUpperCase())
     : '—';
   const nookThreatDisplay = missionData?.threats?.[0] ? threatDisplay : 'NO THREATS';
+  const activityMission = {
+    ...missionData,
+    objective: objectiveDisplay === '—' ? missionData?.objective : objectiveDisplay,
+    currentCoachingMessage: message?.text,
+    coachingStyle,
+    session: sessionKey,
+    sessionRemainingPercent,
+  };
+
+  async function runActivityControl(action: 'start' | 'update' | 'end' | 'status' | 'coach') {
+    if (!missionData?.id) return;
+
+    const result = action === 'start'
+      ? await startMissionLiveActivity(activityMission)
+      : action === 'update'
+        ? await updateMissionLiveActivity(activityMission)
+        : action === 'end'
+          ? await endMissionLiveActivity('dev_control')
+          : action === 'coach'
+            ? await sendMissionCoachingLockScreenNotification({
+              alertSettings: userProfile?.alertSettings,
+              coachingStyle,
+              mission: missionData,
+              screenContext: 'lock_screen',
+            })
+            : await getMissionLiveActivityStatus();
+
+    setActivityResult(result);
+  }
 
   if (!hasLoaded) {
     return (
@@ -198,7 +240,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
                 </View>
                 <View style={s.missionGridItem}>
                   <Text style={s.gridLabel}>SESSION</Text>
-                  <Text style={s.gridValue}>{progress}%</Text>
+                  <Text style={s.gridValue}>{sessionRemainingPercent}% LEFT</Text>
                 </View>
               </View>
             </View>
@@ -250,7 +292,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
               <View style={s.nookPill}>
                 <View style={s.nookDot} />
                 <Text style={s.nookText}>MISSION ACTIVE</Text>
-                <Text style={s.nookProgress}>{progress}%</Text>
+                <Text style={s.nookProgress}>{sessionRemainingPercent}%</Text>
               </View>
             </View>
 
@@ -264,7 +306,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
                   </View>
                   <View style={s.nookExpandedRight}>
                     <Text style={s.nookExpandedSessionLabel}>SESSION</Text>
-                    <Text style={s.nookExpandedSessionValue}>{progress}% REMAINING</Text>
+                    <Text style={s.nookExpandedSessionValue}>{sessionRemainingPercent}% REMAINING</Text>
                   </View>
                 </View>
                 <View style={s.nookExpandedGrid}>
@@ -278,7 +320,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
                   </View>
                 </View>
                 <View style={s.nookProgressTrack}>
-                  <View style={[s.nookProgressFill, { width: `${progress}%` }]} />
+                  <View style={[s.nookProgressFill, { width: `${sessionElapsedPercent}%` }]} />
                 </View>
               </View>
             </View>
@@ -298,7 +340,7 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
               </Text>
               <View style={s.widgetFooter}>
                 <Text style={s.widgetFooterLabel}>
-                  {SESSION_LABELS[sessionKey].toUpperCase()} • {progress}%
+                  {SESSION_LABELS[sessionKey].toUpperCase()} • {sessionRemainingPercent}% LEFT
                 </Text>
               </View>
             </View>
@@ -322,6 +364,34 @@ export function LockScreenBriefingScreen({ onBack, onNavigateToMission, onNaviga
                 <Text style={s.rotateButtonText}>↻ ROTATE MESSAGE</Text>
               </Pressable>
             </View>
+
+            {__DEV__ && (
+              <View style={s.devControlsCard}>
+                <Text style={s.sectionEyebrow}>DEV LOCK SCREEN</Text>
+                <View style={s.devControlsRow}>
+                  <Pressable onPress={() => runActivityControl('coach')} style={({ pressed }) => [s.devControlButton, pressed && s.buttonPressed]}>
+                    <Text style={s.devControlText}>COACH</Text>
+                  </Pressable>
+                  <Pressable onPress={() => runActivityControl('start')} style={({ pressed }) => [s.devControlButton, pressed && s.buttonPressed]}>
+                    <Text style={s.devControlText}>START</Text>
+                  </Pressable>
+                  <Pressable onPress={() => runActivityControl('update')} style={({ pressed }) => [s.devControlButton, pressed && s.buttonPressed]}>
+                    <Text style={s.devControlText}>UPDATE</Text>
+                  </Pressable>
+                  <Pressable onPress={() => runActivityControl('end')} style={({ pressed }) => [s.devControlButton, pressed && s.buttonPressed]}>
+                    <Text style={s.devControlText}>END</Text>
+                  </Pressable>
+                  <Pressable onPress={() => runActivityControl('status')} style={({ pressed }) => [s.devControlButton, pressed && s.buttonPressed]}>
+                    <Text style={s.devControlText}>STATUS</Text>
+                  </Pressable>
+                </View>
+                {activityResult && (
+                  <Text style={s.devStatusText}>
+                    {activityResult.status.toUpperCase()}{activityResult.message ? ` - ${activityResult.message}` : ''}
+                  </Text>
+                )}
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -920,6 +990,41 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 1.5,
+  },
+  devControlsCard: {
+    backgroundColor: '#15191a',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    marginBottom: 16,
+    marginHorizontal: 22,
+    padding: 16,
+  },
+  devControlsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  devControlButton: {
+    alignItems: 'center',
+    borderColor: 'rgba(233, 193, 118, 0.5)',
+    borderWidth: 1,
+    flexGrow: 1,
+    minWidth: 72,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  devControlText: {
+    color: '#e9c176',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  devStatusText: {
+    color: '#8a8f93',
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+    marginTop: 12,
   },
 
   buttonPressed: {
