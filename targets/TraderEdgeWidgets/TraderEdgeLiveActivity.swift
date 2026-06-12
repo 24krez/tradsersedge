@@ -20,11 +20,11 @@ struct TraderEdgeLiveActivity: Widget {
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     IslandStatusBlock(context: context)
-                        .padding(.leading, 4)
+                        .padding(.leading, 8)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 3) {
+                    VStack(alignment: .trailing, spacing: 2) {
                         Text(context.state.sessionLabel.uppercased())
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(TEColor.muted)
@@ -34,39 +34,36 @@ struct TraderEdgeLiveActivity: Widget {
                             .foregroundColor(TEColor.gold)
                             .lineLimit(1)
                     }
-                    .padding(.trailing, 4)
+                    .padding(.trailing, 8)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
                         DividerLine()
 
-                        HStack(alignment: .top, spacing: 14) {
+                        HStack(alignment: .top, spacing: 12) {
                             IslandMetric(label: "CURRENT FOCUS", value: context.state.currentFocus)
                             IslandMetric(label: "OBJECTIVE", value: context.state.objective)
                         }
 
                         ProgressRail(percent: context.state.sessionRemainingPercent)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 2)
                 }
             } compactLeading: {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Circle()
                         .fill(statusColor(context.state.status))
                         .frame(width: 6, height: 6)
-                    Text(compactStatusLabel(context.state.status))
-                        .font(.system(size: 10, weight: .heavy))
-                        .foregroundColor(TEColor.gold)
+                    Text(context.state.objective.uppercased())
+                        .font(.system(size: 11, weight: .heavy))
+                        .foregroundColor(TEColor.text)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.72)
                 }
             } compactTrailing: {
-                Text(context.state.timeRemaining.isEmpty ? "\(context.state.sessionRemainingPercent)%" : context.state.timeRemaining)
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(TEColor.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
+                EmptyView()
             } minimal: {
                 Circle()
                     .fill(statusColor(context.state.status))
@@ -141,7 +138,7 @@ struct IslandStatusBlock: View {
     let context: ActivityViewContext<TraderEdgeAttributes>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             Text("MISSION STATUS")
                 .font(.system(size: 8, weight: .heavy))
                 .foregroundColor(TEColor.muted)
@@ -152,7 +149,7 @@ struct IslandStatusBlock: View {
                     .fill(statusColor(context.state.status))
                     .frame(width: 7, height: 7)
                 Text(statusLabel(context.state.status))
-                    .font(.system(size: 13, weight: .heavy))
+                    .font(.system(size: 12, weight: .heavy))
                     .foregroundColor(TEColor.text)
                     .lineLimit(1)
             }
@@ -165,13 +162,13 @@ struct IslandMetric: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(label)
                 .font(.system(size: 8, weight: .heavy))
                 .foregroundColor(TEColor.muted)
                 .lineLimit(1)
             Text(value)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(TEColor.text)
                 .lineLimit(2)
                 .minimumScaleFactor(0.78)
