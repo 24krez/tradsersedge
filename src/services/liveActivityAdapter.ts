@@ -2,8 +2,6 @@ import { Platform } from 'react-native';
 
 import { getTimeRemaining, TradingSession } from '../logic/sessionEngine';
 
-const ACTIVITY_TITLE = "Trader's Edge Mission";
-
 let lastKnownMissionId: string | null = null;
 let lastKnownStatus: MissionLiveActivityResult['status'] = 'ended';
 
@@ -242,13 +240,11 @@ export async function startMissionLiveActivity(
     }
 
     // Call the native module with individual parameters
-    // Signature: startActivity(title, missionId, objective, currentFocus, primaryThreat, status, threatsIdentified, timeRemaining, sessionLabel, sessionRemainingPercent, coachingMessage)
+    // Signature: startActivity(missionId, objective, currentFocus, status, threatsIdentified, timeRemaining, sessionLabel, sessionRemainingPercent, coachingMessage)
     const activityId = await mod.startActivity(
-      ACTIVITY_TITLE,
       state.missionId,
       state.objective,
       state.currentFocus,
-      state.primaryThreat,
       state.status,
       state.threatsIdentified,
       state.timeRemaining,
@@ -295,13 +291,12 @@ export async function updateMissionLiveActivity(
     }
 
     // Call the native module with individual parameters
-    // Signature: updateActivity(activityId, missionId, objective, currentFocus, primaryThreat, status, threatsIdentified, timeRemaining, sessionLabel, sessionRemainingPercent, coachingMessage)
+    // Signature: updateActivity(activityId, missionId, objective, currentFocus, status, threatsIdentified, timeRemaining, sessionLabel, sessionRemainingPercent, coachingMessage)
     const success = await mod.updateActivity(
       lastKnownMissionId,
       state.missionId,
       state.objective,
       state.currentFocus,
-      state.primaryThreat,
       state.status,
       state.threatsIdentified,
       state.timeRemaining,

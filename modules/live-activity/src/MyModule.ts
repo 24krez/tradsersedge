@@ -3,8 +3,8 @@ import { NativeModule, requireNativeModule } from 'expo';
 type TraderEdgeLiveActivityModuleEvents = {};
 
 declare class TraderEdgeLiveActivityModule extends NativeModule<TraderEdgeLiveActivityModuleEvents> {
-  startActivity(title: string, missionId: string, objective: string, currentFocus: string, primaryThreat: string, status: string, threatsIdentified: number, timeRemaining: string, sessionLabel: string, sessionRemainingPercent: number, coachingMessage: string): Promise<string | null>;
-  updateActivity(activityId: string, missionId: string, objective: string, currentFocus: string, primaryThreat: string, status: string, threatsIdentified: number, timeRemaining: string, sessionLabel: string, sessionRemainingPercent: number, coachingMessage: string): Promise<boolean>;
+  startActivity(missionId: string, objective: string, currentFocus: string, status: string, threatsIdentified: number, timeRemaining: string, sessionLabel: string, sessionRemainingPercent: number, coachingMessage: string): Promise<string | null>;
+  updateActivity(activityId: string, missionId: string, objective: string, currentFocus: string, status: string, threatsIdentified: number, timeRemaining: string, sessionLabel: string, sessionRemainingPercent: number, coachingMessage: string): Promise<boolean>;
   endActivity(activityId: string): Promise<boolean>;
 }
 

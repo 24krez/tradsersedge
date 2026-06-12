@@ -7,11 +7,9 @@ public class MyModule: Module {
     Name("TraderEdgeLiveActivity")
 
     AsyncFunction("startActivity") { (
-        title: String,
         missionId: String,
         objective: String,
         currentFocus: String,
-        primaryThreat: String,
         status: String,
         threatsIdentified: Int,
         timeRemaining: String,
@@ -20,12 +18,12 @@ public class MyModule: Module {
         coachingMessage: String
     ) async -> String? in
         if #available(iOS 16.2, *) {
-            let attributes = TraderEdgeAttributes(title: title)
+            let attributes = TraderEdgeAttributes(title: "Trader's Edge Mission")
             let contentState = TraderEdgeAttributes.ContentState(
                 missionId: missionId,
                 objective: objective,
                 currentFocus: currentFocus,
-                primaryThreat: primaryThreat,
+                primaryThreat: "No Threats",
                 status: status,
                 threatsIdentified: threatsIdentified,
                 timeRemaining: timeRemaining,
@@ -59,7 +57,6 @@ public class MyModule: Module {
         missionId: String,
         objective: String,
         currentFocus: String,
-        primaryThreat: String,
         status: String,
         threatsIdentified: Int,
         timeRemaining: String,
@@ -72,7 +69,7 @@ public class MyModule: Module {
                 missionId: missionId,
                 objective: objective,
                 currentFocus: currentFocus,
-                primaryThreat: primaryThreat,
+                primaryThreat: "No Threats",
                 status: status,
                 threatsIdentified: threatsIdentified,
                 timeRemaining: timeRemaining,
