@@ -1,0 +1,10 @@
+{
+  "type": "widget",
+  "name": "TraderEdgeWidgets",
+  "deploymentTarget": "16.1",
+  "entitlements": {
+    "com.apple.security.application-groups": [
+      "group.com.24krez.traders-edge.expowidgets"
+    ]
+  }
+}

@@ -35,7 +35,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.x24krez.tradersedge"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -47,6 +48,10 @@
         {
           "sounds": []
         }
+      ],
+      [
+        "@bacons/apple-targets",
+        {}
       ]
     ]
   }

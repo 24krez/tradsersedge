@@ -1,10 +1,9 @@
 import { Platform } from 'react-native';
 
-import { getSessionProgress, getTimeRemaining, TradingSession } from '../logic/sessionEngine';
+import { getTimeRemaining, TradingSession } from '../logic/sessionEngine';
 
-const ACTIVITY_NAME = 'TraderEdgeLiveActivity';
+const ACTIVITY_TITLE = "Trader's Edge Mission";
 
-let LiveActivity: any = null;
 let lastKnownMissionId: string | null = null;
 let lastKnownStatus: MissionLiveActivityResult['status'] = 'ended';
 
@@ -28,7 +27,7 @@ export type MissionActivityState = {
   objective: string;
   status: 'on_track' | 'caution' | 'high_risk' | 'locked_in';
   threatsIdentified: number;
-  timeRemaining?: string;
+  timeRemaining: string;
 };
 
 export type MissionLiveActivityMission = {
@@ -51,6 +50,10 @@ export type MissionLiveActivityMission = {
   coachingStyle?: string;
 };
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
 function statusResult(
   status: MissionLiveActivityStatus,
   message?: string,
@@ -63,80 +66,96 @@ function statusResult(
   };
 }
 
-async function getLiveActivity() {
+function unsupportedResult(): MissionLiveActivityResult {
+  return statusResult('unsupported', 'Live Activities are not supported on this platform.');
+}
+
+function buildMissionActivityState(mission: MissionLiveActivityMission): MissionActivityState {
+  const missionId = mission.missionId || mission.id || 'unknown';
+  const objective = mission.objective || mission.coreFocus || 'Active Mission';
+
+  // Resolve the status from various possible fields
+  const rawStatus = mission.currentMindsetStatus || mission.missionStatus || mission.status || 'on_track';
+  const validStatuses = ['on_track', 'caution', 'high_risk', 'locked_in'] as const;
+  const status = (validStatuses as readonly string[]).includes(rawStatus)
+    ? (rawStatus as MissionActivityState['status'])
+    : 'on_track';
+
+  // Count threats
+  const threatsIdentified =
+    mission.threatsIdentified ??
+    mission.selectedThreats?.length ??
+    mission.threats?.length ??
+    0;
+
+  // Resolve time remaining
+  let timeRemaining = mission.timeRemaining || '';
+  if (!timeRemaining && mission.session && typeof mission.session === 'string') {
+    const validSessions: TradingSession[] = ['new_york', 'london', 'asia', 'custom'];
+    if (validSessions.includes(mission.session as TradingSession)) {
+      const remaining = getTimeRemaining(mission.session as TradingSession);
+      if (remaining) {
+        const h = String(remaining.hours).padStart(2, '0');
+        const m = String(remaining.minutes).padStart(2, '0');
+        timeRemaining = `${h}:${m}`;
+      }
+    }
+  }
+
+  return {
+    missionId,
+    objective,
+    status,
+    threatsIdentified,
+    timeRemaining,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Native module loader — uses the local TraderEdgeLiveActivity module.
+//
+// The local module bridges to MyModule.swift which calls
+// Activity<TraderEdgeAttributes>.request() — this is what makes
+// the TraderEdgeLiveActivity widget render on the Lock Screen
+// and Dynamic Island.
+//
+// ---------------------------------------------------------------------------
+
+let _nativeModule: any = null;
+let _moduleLoadAttempted = false;
+let _moduleError: Error | null = null;
+
+const NATIVE_MODULE_NAME = 'TraderEdgeLiveActivity';
+
+function getNativeModule(): any {
   if (Platform.OS !== 'ios') return null;
-  if (LiveActivity) return LiveActivity;
+
+  // Return cached module if already loaded
+  if (_moduleLoadAttempted) {
+    if (_moduleError) {
+      console.debug('[LiveActivityAdapter] Native module unavailable (previously failed)');
+    }
+    return _nativeModule;
+  }
+
+  _moduleLoadAttempted = true;
 
   try {
-    LiveActivity = await import('@heojeongbo/expo-live-activity');
-    return LiveActivity;
+    const { requireNativeModule } = require('expo');
+
+    _nativeModule = requireNativeModule(NATIVE_MODULE_NAME);
+    console.log(`[LiveActivityAdapter] Loaded native module: ${NATIVE_MODULE_NAME}`);
+    return _nativeModule;
   } catch (error) {
-    console.warn('[LiveActivityAdapter] Native module unavailable. Install/run a development build with the Live Activity module.', error);
+    _moduleError = error instanceof Error ? error : new Error(String(error));
+    console.warn('[LiveActivityAdapter] Failed to load native module:', _moduleError.message);
     return null;
   }
 }
 
-function normalizeStatus(status?: string): MissionActivityState['status'] {
-  const key = (status || '').toLowerCase().replace(/[\s-]+/g, '_');
-  if (key.includes('locked')) return 'locked_in';
-  if (key.includes('high') || key.includes('risk')) return 'high_risk';
-  if (key.includes('caution')) return 'caution';
-  return 'on_track';
-}
-
-function getThreats(mission: MissionLiveActivityMission): string[] {
-  if (typeof mission.threatsIdentified === 'number' && mission.threatsIdentified > 0) {
-    return Array.from({ length: mission.threatsIdentified }, (_, index) => `threat-${index}`);
-  }
-  if (Array.isArray(mission.threats)) return mission.threats;
-  if (Array.isArray(mission.selectedThreats)) return mission.selectedThreats;
-  if (mission.primaryThreat) return [mission.primaryThreat];
-  if (mission.threat) return [mission.threat];
-  return [];
-}
-
-function formatSessionRemaining(session?: string, sessionRemainingPercent?: number): string | undefined {
-  if (typeof sessionRemainingPercent === 'number' && Number.isFinite(sessionRemainingPercent)) {
-    return `${Math.max(0, Math.min(100, Math.round(sessionRemainingPercent)))}% Remaining`;
-  }
-
-  if (session === 'new_york' || session === 'london' || session === 'asia' || session === 'custom') {
-    return session === 'custom'
-      ? undefined
-      : getTimeRemaining(session).formatted;
-  }
-
-  return undefined;
-}
-
-export function buildMissionActivityState(mission: MissionLiveActivityMission): MissionActivityState {
-  const missionId = mission.id || mission.missionId || 'unknown-mission';
-  const session = mission.session;
-  const remainingPercent = typeof mission.sessionRemainingPercent === 'number'
-    ? mission.sessionRemainingPercent
-    : session === 'new_york' || session === 'london' || session === 'asia'
-      ? 100 - getSessionProgress(session)
-      : undefined;
-
-  return {
-    missionId,
-    objective: mission.objective || 'Mission Active',
-    status: normalizeStatus(mission.currentMindsetStatus || mission.missionStatus || mission.status),
-    threatsIdentified: getThreats(mission).length,
-    timeRemaining: mission.timeRemaining || formatSessionRemaining(session, remainingPercent),
-  };
-}
-
-function unsupportedResult(): MissionLiveActivityResult {
-  if (Platform.OS !== 'ios') {
-    return statusResult('unsupported', 'Live Activities are only supported on iOS.');
-  }
-
-  return statusResult(
-    'dev_build_required',
-    'Live Activity native module is not compiled into this app yet. Rebuild the installed development app with the iOS Live Activity bridge and widget extension.',
-  );
-}
+// ---------------------------------------------------------------------------
+// Core Live Activity Functions
+// ---------------------------------------------------------------------------
 
 export async function startMissionLiveActivity(
   mission: MissionLiveActivityMission,
@@ -147,13 +166,39 @@ export async function startMissionLiveActivity(
   if (Platform.OS !== 'ios') return unsupportedResult();
 
   try {
-    const la = await getLiveActivity();
-    if (!la?.startActivity) return unsupportedResult();
+    const mod = getNativeModule();
+    if (!mod) {
+      const msg = _moduleError
+        ? `Native module error: ${_moduleError.message}`
+        : 'Native live activity module not available on this device.';
+      console.warn('[LiveActivityAdapter] Cannot start activity:', msg);
+      return statusResult('not_available_on_device', msg);
+    }
 
-    await la.startActivity(ACTIVITY_NAME, state);
-    lastKnownMissionId = state.missionId;
-    lastKnownStatus = 'active';
-    return statusResult('active', 'Live Activity started.');
+    if (!mod?.startActivity) {
+      console.warn('[LiveActivityAdapter] Native module missing startActivity method');
+      return statusResult('error', 'Live Activity method not available');
+    }
+
+    // Call the native module with individual parameters
+    // Signature: startActivity(title, missionId, objective, status, threatsIdentified, timeRemaining)
+    const activityId = await mod.startActivity(
+      ACTIVITY_TITLE,
+      state.missionId,
+      state.objective,
+      state.status,
+      state.threatsIdentified,
+      state.timeRemaining,
+    );
+
+    if (activityId) {
+      lastKnownMissionId = activityId;
+      lastKnownStatus = 'active';
+      console.log('[LiveActivityAdapter] Live Activity started with id:', activityId);
+      return statusResult('active', 'Live Activity started.');
+    } else {
+      return statusResult('error', 'Unable to start Live Activity.');
+    }
   } catch (error) {
     console.warn('[LiveActivityAdapter] Failed to start Live Activity:', error);
     return statusResult('error', 'Unable to start Live Activity.', error);
@@ -169,13 +214,37 @@ export async function updateMissionLiveActivity(
   if (Platform.OS !== 'ios') return unsupportedResult();
 
   try {
-    const la = await getLiveActivity();
-    if (!la?.updateActivity) return unsupportedResult();
+    const mod = getNativeModule();
+    if (!mod) {
+      const msg = _moduleError
+        ? `Native module error: ${_moduleError.message}`
+        : 'Native live activity module not available on this device.';
+      console.warn('[LiveActivityAdapter] Cannot update activity:', msg);
+      return statusResult('not_available_on_device', msg);
+    }
 
-    await la.updateActivity(ACTIVITY_NAME, state);
-    lastKnownMissionId = state.missionId;
-    lastKnownStatus = 'updated';
-    return statusResult('updated', 'Live Activity updated.');
+    if (!mod?.updateActivity || !lastKnownMissionId) {
+      console.warn('[LiveActivityAdapter] Cannot update: missing method or activity id');
+      return statusResult('error', 'No active Live Activity to update');
+    }
+
+    // Call the native module with individual parameters
+    // Signature: updateActivity(activityId, missionId, objective, status, threatsIdentified, timeRemaining)
+    const success = await mod.updateActivity(
+      lastKnownMissionId,
+      state.missionId,
+      state.objective,
+      state.status,
+      state.threatsIdentified,
+      state.timeRemaining,
+    );
+
+    if (success) {
+      lastKnownStatus = 'updated';
+      return statusResult('updated', 'Live Activity updated.');
+    } else {
+      return statusResult('error', 'Unable to update Live Activity.');
+    }
   } catch (error) {
     console.warn('[LiveActivityAdapter] Failed to update Live Activity:', error);
     return statusResult('error', 'Unable to update Live Activity.', error);
@@ -188,41 +257,56 @@ export async function endMissionLiveActivity(reason = 'mission_ended'): Promise<
   if (Platform.OS !== 'ios') return unsupportedResult();
 
   try {
-    const la = await getLiveActivity();
-    if (!la?.endActivity) return unsupportedResult();
+    const mod = getNativeModule();
+    if (!mod) {
+      const msg = _moduleError
+        ? `Native module error: ${_moduleError.message}`
+        : 'Native live activity module not available on this device.';
+      console.warn('[LiveActivityAdapter] Cannot end activity:', msg);
+      // Still clear state even if native call fails
+      lastKnownMissionId = null;
+      lastKnownStatus = 'ended';
+      return statusResult('ended', 'Live Activity cleared locally (native unavailable).');
+    }
 
-    await la.endActivity(ACTIVITY_NAME, { reason });
-    lastKnownStatus = 'ended';
+    if (!mod?.endActivity || !lastKnownMissionId) {
+      console.warn('[LiveActivityAdapter] Cannot end: missing method or activity id');
+      lastKnownMissionId = null;
+      lastKnownStatus = 'ended';
+      return statusResult('ended', 'No active Live Activity to end.');
+    }
+
+    // Call the native module
+    // Signature: endActivity(activityId)
+    await mod.endActivity(lastKnownMissionId);
+
     lastKnownMissionId = null;
+    lastKnownStatus = 'ended';
     return statusResult('ended', 'Live Activity ended.');
   } catch (error) {
     console.warn('[LiveActivityAdapter] Failed to end Live Activity:', error);
-    return statusResult('error', 'Unable to end Live Activity.', error);
+    // Always clear state locally even if native call failed
+    lastKnownMissionId = null;
+    lastKnownStatus = 'ended';
+    return statusResult('ended', 'Live Activity ended (with error).', error);
   }
 }
 
 export async function getMissionLiveActivityStatus(): Promise<MissionLiveActivityResult> {
   if (Platform.OS !== 'ios') return unsupportedResult();
 
-  const la = await getLiveActivity();
-  if (!la) return unsupportedResult();
-
-  if (typeof la.getActivityStatus === 'function') {
-    try {
-      const nativeStatus = await la.getActivityStatus(ACTIVITY_NAME);
-      if (nativeStatus?.isActive) return statusResult('active', 'Native Live Activity is active.');
-      return statusResult('ended', 'No active Live Activity reported by native layer.');
-    } catch (error) {
-      return statusResult('error', 'Unable to read Live Activity status.', error);
-    }
-  }
-
+  // Fall back to local state tracking since the local module
+  // doesn't expose a status query API
   if (lastKnownStatus === 'active' || lastKnownStatus === 'updated') {
     return statusResult('active', 'Live Activity was started in this app session.');
   }
 
-  return statusResult('not_available_on_device', 'Native status API is not available on this device/build.');
+  return statusResult('not_available_on_device', 'No active Live Activity in this session.');
 }
+
+// ---------------------------------------------------------------------------
+// Convenience aliases
+// ---------------------------------------------------------------------------
 
 export async function startMissionActivity(state: MissionLiveActivityMission): Promise<MissionLiveActivityResult> {
   return startMissionLiveActivity(state);
@@ -234,4 +318,36 @@ export async function updateMissionActivity(state: MissionLiveActivityMission): 
 
 export async function endMissionActivity(_missionId?: string): Promise<MissionLiveActivityResult> {
   return endMissionLiveActivity('mission_completed');
+}
+
+// ---------------------------------------------------------------------------
+// Diagnostics & Resilience
+// ---------------------------------------------------------------------------
+
+/**
+ * Check if the native live activity module is available and working
+ */
+export function isNativeModuleAvailable(): boolean {
+  if (Platform.OS !== 'ios') return false;
+  const mod = getNativeModule();
+  return mod !== null && typeof mod.startActivity === 'function';
+}
+
+/**
+ * Get detailed error information if the native module failed to load
+ */
+export function getNativeModuleError(): string | null {
+  if (!_moduleError) return null;
+  return _moduleError.message;
+}
+
+/**
+ * Reset the module cache to retry loading on next call
+ * Useful during dev when rebuilding native binaries
+ */
+export function resetNativeModuleCache(): void {
+  console.log('[LiveActivityAdapter] Resetting native module cache');
+  _nativeModule = null;
+  _moduleLoadAttempted = false;
+  _moduleError = null;
 }

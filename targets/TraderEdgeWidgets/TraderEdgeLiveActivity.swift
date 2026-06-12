@@ -1,6 +1,14 @@
 import ActivityKit
+import MyModule
 import WidgetKit
 import SwiftUI
+
+@main
+struct TraderEdgeWidgets: WidgetBundle {
+    var body: some Widget {
+        TraderEdgeLiveActivity()
+    }
+}
 
 struct TraderEdgeLiveActivity: Widget {
     var body: some WidgetConfiguration {
