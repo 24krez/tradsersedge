@@ -57,11 +57,13 @@ struct TraderEdgeLiveActivity: Widget {
                         .fill(statusColor(context.state.status))
                         .frame(width: 6, height: 6)
                     Text(context.state.objective.uppercased())
-                        .font(.system(size: 11, weight: .heavy))
+                        .font(.system(size: 10, weight: .heavy))
                         .foregroundColor(TEColor.text)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                        .minimumScaleFactor(0.68)
+                        .multilineTextAlignment(.center)
                 }
+                .frame(maxWidth: 118, alignment: .center)
             } compactTrailing: {
                 EmptyView()
             } minimal: {
