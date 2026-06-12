@@ -213,6 +213,23 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
     }
   }
 
+  async function handleDevSetDay1() {
+    if (!user || !userProfile) return;
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 7); // 7 days remaining
+    try {
+      await updateDoc(doc(firestore, 'users', user.uid), {
+        trialEndsAt: trialEnd,
+        hasSeenTrialWelcome: false,
+        hasSeenTrialEnding: false,
+        hasSeenTrialExpired: false,
+      });
+      Alert.alert('DEV MODE', 'Trial restarted (Day 1). Go to missions to see the welcome popup.');
+    } catch (e) {
+      console.error('Error setting day 1:', e);
+    }
+  }
+
   if (isShowingNotifications) {
     return <NotificationSettingsScreen onBack={() => setIsShowingNotifications(false)} onProUpsell={onOpenPaywall} />;
   }
@@ -554,6 +571,14 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
               style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
             >
               <Text style={styles.devButtonText}>DEV: TOGGLE ELITE STATUS</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevSetDay1}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: RESTART TRIAL TO DAY 1</Text>
             </Pressable>
 
             <Pressable

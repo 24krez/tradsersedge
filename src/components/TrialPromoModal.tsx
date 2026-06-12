@@ -93,7 +93,7 @@ export function TrialPromoModal({ onOpenPaywall }: TrialPromoModalProps) {
                 : "Your Elite trial has ended. You have been placed on the Free tier. Upgrade to Elite to regain access to advanced mission intelligence and your discipline tracking."}
           </Text>
 
-          {modalType === 'expired' ? (
+          {modalType === 'expired' || modalType === 'ending' ? (
             <View style={{ gap: 12 }}>
               <Pressable
                 accessibilityRole="button"
@@ -107,7 +107,9 @@ export function TrialPromoModal({ onOpenPaywall }: TrialPromoModalProps) {
                 onPress={() => handleDismiss()}
                 style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
               >
-                <Text style={styles.secondaryButtonText}>CONTINUE ON FREE TIER</Text>
+                <Text style={styles.secondaryButtonText}>
+                  {modalType === 'ending' ? 'NOT NOW' : 'CONTINUE ON FREE TIER'}
+                </Text>
               </Pressable>
             </View>
           ) : (
@@ -116,9 +118,7 @@ export function TrialPromoModal({ onOpenPaywall }: TrialPromoModalProps) {
               onPress={() => handleDismiss()}
               style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
             >
-              <Text style={styles.primaryButtonText}>
-                {modalType === 'welcome' ? 'ACKNOWLEDGE' : 'CONTINUE'}
-              </Text>
+              <Text style={styles.primaryButtonText}>ACKNOWLEDGE</Text>
             </Pressable>
           )}
         </View>
