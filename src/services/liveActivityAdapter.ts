@@ -1,9 +1,10 @@
 import { Platform } from 'react-native';
 
-import { getTimeRemaining, TradingSession } from '../logic/sessionEngine';
+import { TradingSession } from '../logic/sessionEngine';
 
 let lastKnownMissionId: string | null = null;
 let lastKnownStatus: MissionLiveActivityResult['status'] = 'ended';
+const missionStartedAtByMissionId: Record<string, number> = {};
 
 export type MissionLiveActivityStatus =
   | 'active'
@@ -49,6 +50,10 @@ export type MissionLiveActivityMission = {
   sessionRemainingPercent?: number;
   threatsIdentified?: number;
   timeRemaining?: string;
+  missionStartedAt?: unknown;
+  missionStartedAtMs?: number;
+  sessionStartedAt?: unknown;
+  startedAt?: unknown;
   currentCoachingMessage?: string;
   coachingStyle?: string;
 };
@@ -97,6 +102,52 @@ function labelize(value?: string): string {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function dateFromUnknown(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const ms = value > 10_000_000_000 ? value : value * 1000;
+    return new Date(ms);
+  }
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+  if (typeof value === 'object') {
+    const maybeTimestamp = value as {
+      toDate?: () => Date;
+      seconds?: number;
+      _seconds?: number;
+      nanoseconds?: number;
+      _nanoseconds?: number;
+    };
+    if (typeof maybeTimestamp.toDate === 'function') {
+      const date = maybeTimestamp.toDate();
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+    const seconds = maybeTimestamp.seconds ?? maybeTimestamp._seconds;
+    if (typeof seconds === 'number') {
+      const nanos = maybeTimestamp.nanoseconds ?? maybeTimestamp._nanoseconds ?? 0;
+      return new Date(seconds * 1000 + Math.floor(nanos / 1_000_000));
+    }
+  }
+  return null;
+}
+
+function missionStartedAtMs(mission: MissionLiveActivityMission, missionId: string): number {
+  const explicitMs = typeof mission.missionStartedAtMs === 'number' ? mission.missionStartedAtMs : null;
+  const startedAt =
+    explicitMs ??
+    dateFromUnknown(mission.missionStartedAt)?.getTime() ??
+    dateFromUnknown(mission.sessionStartedAt)?.getTime() ??
+    dateFromUnknown(mission.startedAt)?.getTime() ??
+    missionStartedAtByMissionId[missionId] ??
+    Date.now();
+
+  missionStartedAtByMissionId[missionId] = startedAt;
+  return startedAt;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -139,19 +190,8 @@ function buildMissionActivityState(mission: MissionLiveActivityMission): Mission
     mission.threats?.length ??
     0;
 
-  // Resolve time remaining
-  let timeRemaining = mission.timeRemaining || '';
-  if (!timeRemaining && mission.session && typeof mission.session === 'string') {
-    const validSessions: TradingSession[] = ['new_york', 'london', 'asia', 'custom'];
-    if (validSessions.includes(mission.session as TradingSession)) {
-      const remaining = getTimeRemaining(mission.session as TradingSession);
-      if (remaining) {
-        const h = String(remaining.hours).padStart(2, '0');
-        const m = String(remaining.minutes).padStart(2, '0');
-        timeRemaining = `${h}:${m}`;
-      }
-    }
-  }
+  const missionElapsedStartedAtMs = missionStartedAtMs(mission, missionId);
+  const timeRemaining = `missionElapsed:${missionElapsedStartedAtMs}`;
 
   const sessionKey = typeof mission.session === 'string' ? (mission.session as TradingSession) : undefined;
   const sessionLabel = (sessionKey && SESSION_LABELS[sessionKey]) || 'Active Session';

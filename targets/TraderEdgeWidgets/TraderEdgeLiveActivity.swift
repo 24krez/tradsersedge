@@ -68,9 +68,9 @@ struct CompactRotatingNook: View {
     let context: ActivityViewContext<TraderEdgeAttributes>
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { timeline in
-            let showTime = Int(timeline.date.timeIntervalSince1970 / 30).isMultiple(of: 2) == false
-            let label = showTime ? compactTimeLabel(context.state) : context.state.objective.uppercased()
+        TimelineView(.periodic(from: .now, by: 1)) { timeline in
+            let showTime = Int(timeline.date.timeIntervalSince1970 / 15).isMultiple(of: 2) == false
+            let label = showTime ? compactMissionLengthLabel(context.state, now: timeline.date) : context.state.objective.uppercased()
 
             HStack(spacing: 5) {
                 Spacer(minLength: 0)
@@ -272,7 +272,23 @@ func compactStatusLabel(_ status: String) -> String {
     }
 }
 
-func compactTimeLabel(_ state: TraderEdgeAttributes.ContentState) -> String {
+func compactMissionLengthLabel(_ state: TraderEdgeAttributes.ContentState, now: Date) -> String {
+    if state.timeRemaining.hasPrefix("missionElapsed:") {
+        let rawValue = state.timeRemaining.replacingOccurrences(of: "missionElapsed:", with: "")
+        if let startedAtMs = Double(rawValue) {
+            let elapsedSeconds = max(0, Int(now.timeIntervalSince1970 - (startedAtMs / 1000)))
+            let hours = elapsedSeconds / 3600
+            let minutes = (elapsedSeconds % 3600) / 60
+            let seconds = elapsedSeconds % 60
+
+            if hours > 0 {
+                return "\(hours)H \(String(format: "%02d", minutes))M \(String(format: "%02d", seconds))S"
+            }
+
+            return "\(minutes)M \(String(format: "%02d", seconds))S"
+        }
+    }
+
     let trimmed = state.timeRemaining
         .replacingOccurrences(of: " Remaining", with: "")
         .replacingOccurrences(of: " remaining", with: "")
