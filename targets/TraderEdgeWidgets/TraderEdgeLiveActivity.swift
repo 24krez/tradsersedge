@@ -68,8 +68,8 @@ struct CompactRotatingNook: View {
     let context: ActivityViewContext<TraderEdgeAttributes>
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 4)) { timeline in
-            let showTime = Int(timeline.date.timeIntervalSince1970 / 4).isMultiple(of: 2) == false
+        TimelineView(.periodic(from: .now, by: 30)) { timeline in
+            let showTime = Int(timeline.date.timeIntervalSince1970 / 30).isMultiple(of: 2) == false
             let label = showTime ? compactTimeLabel(context.state) : context.state.objective.uppercased()
 
             HStack(spacing: 5) {
