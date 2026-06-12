@@ -29,7 +29,7 @@ struct TraderEdgeLiveActivity: Widget {
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(TEColor.muted)
                             .lineLimit(1)
-                        MissionTimerText(state: context.state, fontSize: 9)
+                        ExpandedMissionTimerText(state: context.state)
                             .foregroundColor(TEColor.gold)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                     }
@@ -77,6 +77,21 @@ struct CompactMissionClockLabel: View {
             .multilineTextAlignment(.trailing)
             .frame(maxWidth: 88, alignment: .trailing)
             .padding(.trailing, 6)
+    }
+}
+
+struct ExpandedMissionTimerText: View {
+    let state: TraderEdgeAttributes.ContentState
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { timeline in
+            Text(expandedMissionClockLabel(state, now: timeline.date))
+                .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                .lineLimit(1)
+                .monospacedDigit()
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
     }
 }
 
@@ -295,6 +310,23 @@ func compactMissionLengthLabel(_ state: TraderEdgeAttributes.ContentState, now: 
     }
 
     return "\(state.sessionRemainingPercent)% LEFT"
+}
+
+func expandedMissionClockLabel(_ state: TraderEdgeAttributes.ContentState, now: Date) -> String {
+    guard let startedAtMs = missionStartedAtMs(state) else {
+        return compactMissionLengthLabel(state, now: now)
+    }
+
+    let elapsedSeconds = max(0, Int(now.timeIntervalSince1970 - (startedAtMs / 1000)))
+    let hours = elapsedSeconds / 3600
+    let minutes = (elapsedSeconds % 3600) / 60
+    let seconds = elapsedSeconds % 60
+
+    if hours > 0 {
+        return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
+    }
+
+    return "\(minutes):\(String(format: "%02d", seconds))"
 }
 
 func missionStartedAtDate(_ state: TraderEdgeAttributes.ContentState) -> Date? {
