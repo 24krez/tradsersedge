@@ -370,6 +370,7 @@ export function ProMissionCockpit({ mission }: ProMissionCockpitProps) {
           },
         }),
       });
+      await endMissionLiveActivity('mission_completed');
       setShowCompleteModal(false);
 
       if (isPro) {

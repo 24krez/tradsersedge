@@ -148,6 +148,10 @@ function missionStartedAtMs(mission: MissionLiveActivityMission, missionId: stri
   return startedAt;
 }
 
+function isCompletedMission(mission: MissionLiveActivityMission): boolean {
+  return mission.status === 'completed' || mission.missionStatus === 'completed';
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -268,6 +272,10 @@ function getNativeModule(): any {
 export async function startMissionLiveActivity(
   mission: MissionLiveActivityMission,
 ): Promise<MissionLiveActivityResult> {
+  if (isCompletedMission(mission)) {
+    return endMissionLiveActivity('mission_completed');
+  }
+
   const state = buildMissionActivityState(mission);
   console.log('[LiveActivityAdapter] startMissionLiveActivity', state);
 
@@ -319,6 +327,10 @@ export async function startMissionLiveActivity(
 export async function updateMissionLiveActivity(
   mission: MissionLiveActivityMission,
 ): Promise<MissionLiveActivityResult> {
+  if (isCompletedMission(mission)) {
+    return endMissionLiveActivity('mission_completed');
+  }
+
   const state = buildMissionActivityState(mission);
   console.log('[LiveActivityAdapter] updateMissionLiveActivity', state);
 
@@ -384,8 +396,8 @@ export async function endMissionLiveActivity(reason = 'mission_ended'): Promise<
       return statusResult('ended', 'Live Activity cleared locally (native unavailable).');
     }
 
-    if (!mod?.endActivity || !lastKnownMissionId) {
-      console.warn('[LiveActivityAdapter] Cannot end: missing method or activity id');
+    if (!mod?.endActivity) {
+      console.warn('[LiveActivityAdapter] Cannot end: missing method');
       lastKnownMissionId = null;
       lastKnownStatus = 'ended';
       return statusResult('ended', 'No active Live Activity to end.');
@@ -393,8 +405,11 @@ export async function endMissionLiveActivity(reason = 'mission_ended'): Promise<
 
     // Call the native module
     // Signature: endActivity(activityId)
-    await mod.endActivity(lastKnownMissionId);
+    await mod.endActivity(lastKnownMissionId || '');
 
+    if (lastKnownMissionId) {
+      delete missionStartedAtByMissionId[lastKnownMissionId];
+    }
     lastKnownMissionId = null;
     lastKnownStatus = 'ended';
     return statusResult('ended', 'Live Activity ended.');

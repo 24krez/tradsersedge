@@ -92,10 +92,12 @@ public class MyModule: Module {
 
     AsyncFunction("endActivity") { (activityId: String) async -> Bool in
         if #available(iOS 16.2, *) {
-            for activity in Activity<TraderEdgeAttributes>.activities where activity.id == activityId {
+            var endedActivity = false
+            for activity in Activity<TraderEdgeAttributes>.activities where activityId.isEmpty || activity.id == activityId || activity.content.state.missionId == activityId {
                 await activity.end(nil, dismissalPolicy: .immediate)
-                return true
+                endedActivity = true
             }
+            return endedActivity
         }
         return false
     }

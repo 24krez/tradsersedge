@@ -84,14 +84,18 @@ struct ExpandedMissionTimerText: View {
     let state: TraderEdgeAttributes.ContentState
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            Text(expandedMissionClockLabel(state, now: timeline.date))
+        Group {
+            if let startedAt = missionStartedAtDate(state) {
+                Text(timerInterval: startedAt...Date.distantFuture, countsDown: false)
+            } else {
+                Text(compactMissionLengthLabel(state, now: Date()))
+            }
+        }
                 .font(.system(size: 9, weight: .heavy, design: .monospaced))
                 .lineLimit(1)
                 .monospacedDigit()
                 .multilineTextAlignment(.trailing)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
+                .frame(width: 72, alignment: .trailing)
     }
 }
 
@@ -310,23 +314,6 @@ func compactMissionLengthLabel(_ state: TraderEdgeAttributes.ContentState, now: 
     }
 
     return "\(state.sessionRemainingPercent)% LEFT"
-}
-
-func expandedMissionClockLabel(_ state: TraderEdgeAttributes.ContentState, now: Date) -> String {
-    guard let startedAtMs = missionStartedAtMs(state) else {
-        return compactMissionLengthLabel(state, now: now)
-    }
-
-    let elapsedSeconds = max(0, Int(now.timeIntervalSince1970 - (startedAtMs / 1000)))
-    let hours = elapsedSeconds / 3600
-    let minutes = (elapsedSeconds % 3600) / 60
-    let seconds = elapsedSeconds % 60
-
-    if hours > 0 {
-        return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
-    }
-
-    return "\(minutes):\(String(format: "%02d", seconds))"
 }
 
 func missionStartedAtDate(_ state: TraderEdgeAttributes.ContentState) -> Date? {
