@@ -25,14 +25,12 @@ struct TraderEdgeLiveActivity: Widget {
 
                 DynamicIslandExpandedRegion(.trailing) {
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(context.state.sessionLabel.uppercased())
+                        Text("MISSION CLOCK")
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(TEColor.muted)
                             .lineLimit(1)
-                        Text("\(context.state.sessionRemainingPercent)% REMAINING")
-                            .font(.system(size: 9, weight: .heavy, design: .monospaced))
+                        MissionTimerText(state: context.state, fontSize: 9)
                             .foregroundColor(TEColor.gold)
-                            .lineLimit(1)
                     }
                     .padding(.trailing, 8)
                 }
@@ -57,7 +55,7 @@ struct TraderEdgeLiveActivity: Widget {
                     .frame(width: 7, height: 7)
                     .padding(.leading, 6)
             } compactTrailing: {
-                CompactRotatingLabel(context: context)
+                CompactMissionClockLabel(context: context)
             } minimal: {
                 Circle()
                     .fill(statusColor(context.state.status))
@@ -67,32 +65,34 @@ struct TraderEdgeLiveActivity: Widget {
     }
 }
 
-struct CompactRotatingLabel: View {
+struct CompactMissionClockLabel: View {
     let context: ActivityViewContext<TraderEdgeAttributes>
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { timeline in
-            let startedAt = missionStartedAtDate(context.state)
-            let rotationStart = startedAt ?? timeline.date
-            let elapsedSeconds = max(0, Int(timeline.date.timeIntervalSince(rotationStart)))
-            let showTime = (elapsedSeconds / 5).isMultiple(of: 2) == false
-
-            Group {
-                if showTime, let startedAt {
-                    Text(startedAt, style: .timer)
-                } else {
-                    Text(context.state.objective.uppercased())
-                }
-            }
-            .font(.system(size: 10, weight: .heavy))
+        MissionTimerText(state: context.state, fontSize: 10)
             .foregroundColor(TEColor.text)
-            .lineLimit(1)
             .minimumScaleFactor(0.62)
-            .monospacedDigit()
             .multilineTextAlignment(.trailing)
             .frame(maxWidth: 88, alignment: .trailing)
             .padding(.trailing, 6)
+    }
+}
+
+struct MissionTimerText: View {
+    let state: TraderEdgeAttributes.ContentState
+    let fontSize: CGFloat
+
+    var body: some View {
+        Group {
+            if let startedAt = missionStartedAtDate(state) {
+                Text(startedAt, style: .timer)
+            } else {
+                Text(compactMissionLengthLabel(state, now: Date()))
+            }
         }
+        .font(.system(size: fontSize, weight: .heavy, design: .monospaced))
+        .lineLimit(1)
+        .monospacedDigit()
     }
 }
 
