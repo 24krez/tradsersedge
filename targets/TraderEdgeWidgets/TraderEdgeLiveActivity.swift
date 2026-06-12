@@ -52,20 +52,7 @@ struct TraderEdgeLiveActivity: Widget {
                     .padding(.bottom, 2)
                 }
             } compactLeading: {
-                HStack(spacing: 5) {
-                    Spacer(minLength: 0)
-                    Circle()
-                        .fill(statusColor(context.state.status))
-                        .frame(width: 6, height: 6)
-                    Text(context.state.objective.uppercased())
-                        .font(.system(size: 10, weight: .heavy))
-                        .foregroundColor(TEColor.text)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.68)
-                        .multilineTextAlignment(.center)
-                    Spacer(minLength: 0)
-                }
-                .frame(width: 130, alignment: .center)
+                CompactRotatingNook(context: context)
             } compactTrailing: {
                 EmptyView()
             } minimal: {
@@ -73,6 +60,32 @@ struct TraderEdgeLiveActivity: Widget {
                     .fill(statusColor(context.state.status))
                     .frame(width: 9, height: 9)
             }
+        }
+    }
+}
+
+struct CompactRotatingNook: View {
+    let context: ActivityViewContext<TraderEdgeAttributes>
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 4)) { timeline in
+            let showTime = Int(timeline.date.timeIntervalSince1970 / 4).isMultiple(of: 2) == false
+            let label = showTime ? compactTimeLabel(context.state) : context.state.objective.uppercased()
+
+            HStack(spacing: 5) {
+                Spacer(minLength: 0)
+                Circle()
+                    .fill(statusColor(context.state.status))
+                    .frame(width: 6, height: 6)
+                Text(label)
+                    .font(.system(size: 10, weight: .heavy))
+                    .foregroundColor(TEColor.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.68)
+                    .multilineTextAlignment(.center)
+                Spacer(minLength: 0)
+            }
+            .frame(width: 130, alignment: .center)
         }
     }
 }
@@ -257,6 +270,19 @@ func compactStatusLabel(_ status: String) -> String {
     case "high_risk": return "RISK"
     default: return "LIVE"
     }
+}
+
+func compactTimeLabel(_ state: TraderEdgeAttributes.ContentState) -> String {
+    let trimmed = state.timeRemaining
+        .replacingOccurrences(of: " Remaining", with: "")
+        .replacingOccurrences(of: " remaining", with: "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+
+    if !trimmed.isEmpty {
+        return trimmed.uppercased()
+    }
+
+    return "\(state.sessionRemainingPercent)% LEFT"
 }
 
 extension Color {
