@@ -25,9 +25,14 @@ export type MissionLiveActivityResult = {
 export type MissionActivityState = {
   missionId: string;
   objective: string;
+  currentFocus: string;
+  primaryThreat: string;
   status: 'on_track' | 'caution' | 'high_risk' | 'locked_in';
   threatsIdentified: number;
   timeRemaining: string;
+  sessionLabel: string;
+  sessionRemainingPercent: number;
+  coachingMessage: string;
 };
 
 export type MissionLiveActivityMission = {
@@ -49,6 +54,42 @@ export type MissionLiveActivityMission = {
   currentCoachingMessage?: string;
   coachingStyle?: string;
 };
+
+const SESSION_LABELS: Partial<Record<TradingSession, string>> = {
+  new_york: 'NY Session',
+  london: 'London Session',
+  asia: 'Asia Session',
+  custom: 'Custom Session',
+};
+
+const FOCUS_LABELS: Record<string, string> = {
+  patience: 'Patience',
+  riskControl: 'Risk Control',
+  execution: 'Execution',
+  confidence: 'Confidence',
+  consistency: 'Consistency',
+};
+
+const THREAT_LABELS: Record<string, string> = {
+  fomo: 'FOMO',
+  overtrading: 'Overtrading',
+  revengeTrading: 'Revenge Trading',
+  movingStops: 'Moving Stops',
+  enteringEarly: 'Entering Early',
+  chasingBreakouts: 'Chasing Breakouts',
+  lackOfPatience: 'Lack of Patience',
+  overLeverage: 'Over-Leverage',
+};
+
+function labelize(value?: string): string {
+  if (!value) return '';
+  return value
+    .replace(/[_-]/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,6 +114,9 @@ function unsupportedResult(): MissionLiveActivityResult {
 function buildMissionActivityState(mission: MissionLiveActivityMission): MissionActivityState {
   const missionId = mission.missionId || mission.id || 'unknown';
   const objective = mission.objective || mission.coreFocus || 'Active Mission';
+  const currentFocus = FOCUS_LABELS[mission.coreFocus || ''] || labelize(mission.coreFocus) || 'Mission Discipline';
+  const rawThreat = mission.primaryThreat || mission.threat || mission.selectedThreats?.[0] || mission.threats?.[0] || '';
+  const primaryThreat = THREAT_LABELS[rawThreat] || labelize(rawThreat) || 'No Threats';
 
   // Resolve the status from various possible fields
   const rawStatus = mission.currentMindsetStatus || mission.missionStatus || mission.status || 'on_track';
@@ -102,12 +146,29 @@ function buildMissionActivityState(mission: MissionLiveActivityMission): Mission
     }
   }
 
+  const sessionKey = typeof mission.session === 'string' ? (mission.session as TradingSession) : undefined;
+  const sessionLabel = (sessionKey && SESSION_LABELS[sessionKey]) || 'Active Session';
+  const sessionRemainingPercent =
+    typeof mission.sessionRemainingPercent === 'number'
+      ? Math.max(0, Math.min(100, Math.round(mission.sessionRemainingPercent)))
+      : 100;
+  const coachingMessage =
+    mission.currentCoachingMessage ||
+    (primaryThreat !== 'No Threats'
+      ? `Monitor ${primaryThreat.toLowerCase()}. Protect capital.`
+      : 'Your discipline is your edge.');
+
   return {
     missionId,
     objective,
+    currentFocus,
+    primaryThreat,
     status,
     threatsIdentified,
     timeRemaining,
+    sessionLabel,
+    sessionRemainingPercent,
+    coachingMessage,
   };
 }
 
@@ -181,14 +242,19 @@ export async function startMissionLiveActivity(
     }
 
     // Call the native module with individual parameters
-    // Signature: startActivity(title, missionId, objective, status, threatsIdentified, timeRemaining)
+    // Signature: startActivity(title, missionId, objective, currentFocus, primaryThreat, status, threatsIdentified, timeRemaining, sessionLabel, sessionRemainingPercent, coachingMessage)
     const activityId = await mod.startActivity(
       ACTIVITY_TITLE,
       state.missionId,
       state.objective,
+      state.currentFocus,
+      state.primaryThreat,
       state.status,
       state.threatsIdentified,
       state.timeRemaining,
+      state.sessionLabel,
+      state.sessionRemainingPercent,
+      state.coachingMessage,
     );
 
     if (activityId) {
@@ -229,14 +295,19 @@ export async function updateMissionLiveActivity(
     }
 
     // Call the native module with individual parameters
-    // Signature: updateActivity(activityId, missionId, objective, status, threatsIdentified, timeRemaining)
+    // Signature: updateActivity(activityId, missionId, objective, currentFocus, primaryThreat, status, threatsIdentified, timeRemaining, sessionLabel, sessionRemainingPercent, coachingMessage)
     const success = await mod.updateActivity(
       lastKnownMissionId,
       state.missionId,
       state.objective,
+      state.currentFocus,
+      state.primaryThreat,
       state.status,
       state.threatsIdentified,
       state.timeRemaining,
+      state.sessionLabel,
+      state.sessionRemainingPercent,
+      state.coachingMessage,
     );
 
     if (success) {
