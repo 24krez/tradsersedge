@@ -1,1 +1,1 @@
-pod 'MyModule/Core', :path => '../modules/live-activity/ios'
+pod 'MyWidgetCore', :path => '../modules/live-activity/ios'

@@ -1,5 +1,5 @@
 import ActivityKit
-import MyModule
+import MyWidgetCore
 import SwiftUI
 import WidgetKit
 

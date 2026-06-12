@@ -5,7 +5,7 @@
     "scheme": "tradersedge",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/TradersEdge_ASappicon.png",
+    "icon": "./assets/images/TradersEdge_ASappicon_noborder_padded.png",
     "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/TradersEdge_ASappicon_noborder.png",
