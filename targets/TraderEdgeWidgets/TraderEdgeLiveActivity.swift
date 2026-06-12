@@ -33,6 +33,7 @@ struct TraderEdgeLiveActivity: Widget {
                             .foregroundColor(TEColor.gold)
                             .frame(maxWidth: .infinity, alignment: .trailing)
                     }
+                    .frame(width: 108, alignment: .trailing)
                     .padding(.trailing, 8)
                 }
 
