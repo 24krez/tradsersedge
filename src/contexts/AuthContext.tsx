@@ -51,6 +51,7 @@ export interface UserProfile {
   subscriptionTier: SubscriptionTier;
   onboardingStatus: string;
   email?: string;
+  tradingSession?: 'new_york' | 'london' | 'asia' | 'custom';
   tradingStartTime?: string; // HH:mm format, e.g. '09:30'
   tradingEndTime?: string;   // HH:mm format, e.g. '16:00'
   trialStartedAt?: any;
@@ -179,4 +180,3 @@ export function useRequireAuth() {
 export function canAccessProFeature(tier: SubscriptionTier): boolean {
   return tier === 'pro' || tier === 'lifetime' || tier === 'founder';
 }
-

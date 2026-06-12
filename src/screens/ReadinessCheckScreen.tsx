@@ -7,6 +7,7 @@ import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { calculateMissionStatus } from '../logic/missionStatus';
+import { getCurrentSession } from '../logic/sessionEngine';
 
 type ReadinessLevel = 'Low' | 'Medium' | 'High';
 
@@ -185,6 +186,7 @@ export function ReadinessCheckScreen() {
         status: 'active',
         missionStatus: newStatusResult.status,
         missionPhase: 'active',
+        session: getCurrentSession().session || missionData.session || 'custom',
         sessionStartedAt: serverTimestamp(),
         readinessScore: newStatusResult.score,
         lastMindsetScore: newStatusResult.score,

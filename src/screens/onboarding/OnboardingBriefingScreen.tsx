@@ -51,10 +51,11 @@ export function OnboardingBriefingScreen() {
     if (!user) return;
     setIsInitializing(true);
     try {
-      const { tradingStartTime, tradingEndTime, callSign, threat, focus } = route.params;
+      const { tradingSession, tradingStartTime, tradingEndTime, callSign, threat, focus } = route.params;
 
       await updateUserProfile(user.uid, {
         onboardingStatus: 'completed',
+        tradingSession,
         tradingStartTime,
         tradingEndTime,
         callsign: callSign,

@@ -174,7 +174,7 @@ export function MissionDetailScreen({ missionId, onBack }: MissionDetailProps) {
   const sessionStartedAt = dateFromUnknown(mission?.sessionStartedAt || mission?.startedAt);
   const sessionEndedAt = dateFromUnknown(mission?.sessionEndedAt || mission?.endedAt || summary?.completedAt || mission?.completedAt);
   const sessionDuration = formatDuration(sessionStartedAt, sessionEndedAt, debrief?.summary?.sessionLengthMinutes);
-  const sessionLabel = (debrief?.session || mission?.session || 'new_york').toString().replace(/_/g, ' ').toUpperCase();
+  const sessionLabel = (debrief?.session || summary?.session || mission?.session || 'unknown').toString().replace(/_/g, ' ').toUpperCase();
   const tradeStatus = (summary?.tradeStatus || debrief?.execution?.tradeStatus || '—').toString().replace(/_/g, ' ').toUpperCase();
 
   if (isLoading) {

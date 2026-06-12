@@ -17,6 +17,7 @@ type MissionData = {
   objective: string;
   threats: string[];
   coreFocus: string;
+  session?: string;
   status: string;
   createdAt: any;
   missionStatus?: string;
@@ -127,6 +128,7 @@ function buildDisciplineScoreDocument({
       objective: missionData.objective,
       threatsIdentified: missionData.threats || [],
       coreFocus: missionData.coreFocus,
+      session: missionData.session || 'custom',
       tradeStatus: traded ? 'traded' : 'no_trade',
     },
     createdAt: serverTimestamp(),
@@ -457,11 +459,12 @@ export function MissionDebriefScreen() {
         userId: user.uid,
         missionId: missionData.id,
         date: now.toISOString().split('T')[0],
-        session: 'new_york',
+        session: missionData.session || 'custom',
         missionSnapshot: {
           objective: missionData.objective,
           threatsIdentified: missionData.threats || [],
-          coreFocus: missionData.coreFocus
+          coreFocus: missionData.coreFocus,
+          session: missionData.session || 'custom',
         },
         execution: traded ? {
           tradeStatus: 'traded',

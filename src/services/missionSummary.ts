@@ -7,6 +7,7 @@ export type MissionSummary = {
   status: 'completed';
   objective?: string;
   coreFocus?: string;
+  session?: string;
   threats: string[];
   primaryThreat?: string | null;
   createdAt?: unknown;
@@ -65,6 +66,7 @@ export function buildMissionSummary({
     status: 'completed',
     objective: mission?.objective,
     coreFocus: mission?.coreFocus,
+    session: mission?.session,
     threats,
     primaryThreat: threats[0] || null,
     createdAt: mission?.createdAt,

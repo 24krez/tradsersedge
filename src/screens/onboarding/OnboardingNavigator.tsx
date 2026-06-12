@@ -10,10 +10,10 @@ import { OnboardingCallSignScreen } from './OnboardingCallSignScreen';
 export type OnboardingStackParamList = {
   OnboardingWelcome: undefined;
   OnboardingSession: undefined;
-  OnboardingThreat: { tradingStartTime: string; tradingEndTime: string };
-  OnboardingFocus: { tradingStartTime: string; tradingEndTime: string; threat: string };
-  OnboardingCallSign: { tradingStartTime: string; tradingEndTime: string; threat: string; focus: string };
-  OnboardingBriefing: { tradingStartTime: string; tradingEndTime: string; threat: string; focus: string; callSign: string };
+  OnboardingThreat: { tradingSession: 'new_york' | 'london' | 'asia'; tradingStartTime: string; tradingEndTime: string };
+  OnboardingFocus: { tradingSession: 'new_york' | 'london' | 'asia'; tradingStartTime: string; tradingEndTime: string; threat: string };
+  OnboardingCallSign: { tradingSession: 'new_york' | 'london' | 'asia'; tradingStartTime: string; tradingEndTime: string; threat: string; focus: string };
+  OnboardingBriefing: { tradingSession: 'new_york' | 'london' | 'asia'; tradingStartTime: string; tradingEndTime: string; threat: string; focus: string; callSign: string };
 };
 
 export type OnboardingNavigationProp = NativeStackNavigationProp<OnboardingStackParamList>;

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { firestore } from '../services/firebase';
+import { getCurrentSession } from '../logic/sessionEngine';
 
 type Template = {
   key: string;
@@ -92,8 +93,10 @@ export function MissionSetupScreen() {
         threats: selectedThreats,
         coreFocus: selectedFocus,
       };
+      const activeSession = getCurrentSession().session || 'custom';
       const missionParameters = {
         ...newPreferences,
+        session: activeSession,
         selectedThreats,
         primaryThreat: selectedThreats[0] || null,
         threat: selectedThreats[0] || null,

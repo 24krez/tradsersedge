@@ -339,6 +339,7 @@ export function MissionActiveScreen() {
           objective: missionData.objective,
           coreFocus: missionData.coreFocus,
           threats: missionData.threats,
+          session: getCurrentSession().session || missionData.session || 'custom',
           status: 'pending',
           createdAt: serverTimestamp(),
           lastMindsetScore: 100,

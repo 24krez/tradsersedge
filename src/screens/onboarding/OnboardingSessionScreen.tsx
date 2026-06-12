@@ -4,11 +4,11 @@ import { SafeAreaView, StyleSheet, Text, View, Pressable, ScrollView } from 'rea
 
 import { OnboardingNavigationProp } from './OnboardingNavigator';
 
-type SessionType = 'newyork' | 'london' | 'asia';
+type SessionType = 'new_york' | 'london' | 'asia';
 
 const SESSIONS = [
   {
-    id: 'newyork' as SessionType,
+    id: 'new_york' as SessionType,
     title: 'New York',
     subtitle: '08:00—17:00 EST • HIGH VOLATILITY',
     icon: 'NY',
@@ -35,13 +35,14 @@ const SESSIONS = [
 
 export function OnboardingSessionScreen() {
   const navigation = useNavigation<OnboardingNavigationProp>();
-  const [selectedSessionId, setSelectedSessionId] = useState<SessionType>('newyork');
+  const [selectedSessionId, setSelectedSessionId] = useState<SessionType>('new_york');
 
   function handleContinue() {
     const selectedSession = SESSIONS.find((s) => s.id === selectedSessionId);
     if (!selectedSession) return;
 
     navigation.navigate('OnboardingThreat', {
+      tradingSession: selectedSession.id,
       tradingStartTime: selectedSession.startTime,
       tradingEndTime: selectedSession.endTime,
     });
