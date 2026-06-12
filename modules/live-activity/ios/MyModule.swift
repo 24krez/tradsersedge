@@ -19,6 +19,7 @@ public class MyModule: Module {
     ) async -> String? in
         if #available(iOS 16.2, *) {
             let attributes = TraderEdgeAttributes(title: "Trader's Edge Mission")
+            let missionTime = normalizedMissionTime(timeRemaining)
             let contentState = TraderEdgeAttributes.ContentState(
                 missionId: missionId,
                 objective: objective,
@@ -26,7 +27,8 @@ public class MyModule: Module {
                 primaryThreat: "No Threats",
                 status: status,
                 threatsIdentified: threatsIdentified,
-                timeRemaining: timeRemaining,
+                timeRemaining: missionTime.label,
+                missionStartedAtMs: missionTime.startedAtMs,
                 sessionLabel: sessionLabel,
                 sessionRemainingPercent: sessionRemainingPercent,
                 coachingMessage: coachingMessage
@@ -65,6 +67,7 @@ public class MyModule: Module {
         coachingMessage: String
     ) async -> Bool in
         if #available(iOS 16.2, *) {
+            let missionTime = normalizedMissionTime(timeRemaining)
             let contentState = TraderEdgeAttributes.ContentState(
                 missionId: missionId,
                 objective: objective,
@@ -72,7 +75,8 @@ public class MyModule: Module {
                 primaryThreat: "No Threats",
                 status: status,
                 threatsIdentified: threatsIdentified,
-                timeRemaining: timeRemaining,
+                timeRemaining: missionTime.label,
+                missionStartedAtMs: missionTime.startedAtMs,
                 sessionLabel: sessionLabel,
                 sessionRemainingPercent: sessionRemainingPercent,
                 coachingMessage: coachingMessage
@@ -96,4 +100,31 @@ public class MyModule: Module {
         return false
     }
   }
+}
+
+private func normalizedMissionTime(_ timeRemaining: String) -> (label: String, startedAtMs: Double?) {
+    let marker = "missionElapsed:"
+    guard timeRemaining.hasPrefix(marker) else {
+        return (timeRemaining, nil)
+    }
+
+    let rawValue = timeRemaining.replacingOccurrences(of: marker, with: "")
+    guard let startedAtMs = Double(rawValue) else {
+        return (timeRemaining, nil)
+    }
+
+    let elapsedSeconds = max(0, Int(Date().timeIntervalSince1970 - (startedAtMs / 1000)))
+    return (formatMissionElapsed(seconds: elapsedSeconds), startedAtMs)
+}
+
+private func formatMissionElapsed(seconds: Int) -> String {
+    let hours = seconds / 3600
+    let minutes = (seconds % 3600) / 60
+    let remainingSeconds = seconds % 60
+
+    if hours > 0 {
+        return "\(hours)H \(String(format: "%02d", minutes))M \(String(format: "%02d", remainingSeconds))S"
+    }
+
+    return "\(minutes)M \(String(format: "%02d", remainingSeconds))S"
 }

@@ -10,6 +10,7 @@ public struct TraderEdgeAttributes: ActivityAttributes {
         public var status: String
         public var threatsIdentified: Int
         public var timeRemaining: String
+        public var missionStartedAtMs: Double?
         public var sessionLabel: String
         public var sessionRemainingPercent: Int
         public var coachingMessage: String
@@ -22,6 +23,7 @@ public struct TraderEdgeAttributes: ActivityAttributes {
             status: String,
             threatsIdentified: Int,
             timeRemaining: String,
+            missionStartedAtMs: Double? = nil,
             sessionLabel: String,
             sessionRemainingPercent: Int,
             coachingMessage: String
@@ -33,6 +35,7 @@ public struct TraderEdgeAttributes: ActivityAttributes {
             self.status = status
             self.threatsIdentified = threatsIdentified
             self.timeRemaining = timeRemaining
+            self.missionStartedAtMs = missionStartedAtMs
             self.sessionLabel = sessionLabel
             self.sessionRemainingPercent = sessionRemainingPercent
             self.coachingMessage = coachingMessage

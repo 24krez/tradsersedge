@@ -52,9 +52,12 @@ struct TraderEdgeLiveActivity: Widget {
                     .padding(.bottom, 2)
                 }
             } compactLeading: {
-                CompactRotatingNook(context: context)
+                Circle()
+                    .fill(statusColor(context.state.status))
+                    .frame(width: 7, height: 7)
+                    .padding(.leading, 2)
             } compactTrailing: {
-                EmptyView()
+                CompactRotatingLabel(context: context)
             } minimal: {
                 Circle()
                     .fill(statusColor(context.state.status))
@@ -64,7 +67,7 @@ struct TraderEdgeLiveActivity: Widget {
     }
 }
 
-struct CompactRotatingNook: View {
+struct CompactRotatingLabel: View {
     let context: ActivityViewContext<TraderEdgeAttributes>
 
     var body: some View {
@@ -72,20 +75,15 @@ struct CompactRotatingNook: View {
             let showTime = Int(timeline.date.timeIntervalSince1970 / 15).isMultiple(of: 2) == false
             let label = showTime ? compactMissionLengthLabel(context.state, now: timeline.date) : context.state.objective.uppercased()
 
-            HStack(spacing: 5) {
-                Spacer(minLength: 0)
-                Circle()
-                    .fill(statusColor(context.state.status))
-                    .frame(width: 6, height: 6)
-                Text(label)
-                    .font(.system(size: 10, weight: .heavy))
-                    .foregroundColor(TEColor.text)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.68)
-                    .multilineTextAlignment(.center)
-                Spacer(minLength: 0)
-            }
-            .frame(width: 130, alignment: .center)
+            Text(label)
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundColor(TEColor.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.62)
+                .monospacedDigit()
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 92, alignment: .trailing)
+                .padding(.trailing, 2)
         }
     }
 }
@@ -273,19 +271,14 @@ func compactStatusLabel(_ status: String) -> String {
 }
 
 func compactMissionLengthLabel(_ state: TraderEdgeAttributes.ContentState, now: Date) -> String {
+    if let startedAtMs = state.missionStartedAtMs {
+        return formatMissionElapsed(startedAtMs: startedAtMs, now: now)
+    }
+
     if state.timeRemaining.hasPrefix("missionElapsed:") {
         let rawValue = state.timeRemaining.replacingOccurrences(of: "missionElapsed:", with: "")
         if let startedAtMs = Double(rawValue) {
-            let elapsedSeconds = max(0, Int(now.timeIntervalSince1970 - (startedAtMs / 1000)))
-            let hours = elapsedSeconds / 3600
-            let minutes = (elapsedSeconds % 3600) / 60
-            let seconds = elapsedSeconds % 60
-
-            if hours > 0 {
-                return "\(hours)H \(String(format: "%02d", minutes))M \(String(format: "%02d", seconds))S"
-            }
-
-            return "\(minutes)M \(String(format: "%02d", seconds))S"
+            return formatMissionElapsed(startedAtMs: startedAtMs, now: now)
         }
     }
 
@@ -299,6 +292,19 @@ func compactMissionLengthLabel(_ state: TraderEdgeAttributes.ContentState, now: 
     }
 
     return "\(state.sessionRemainingPercent)% LEFT"
+}
+
+func formatMissionElapsed(startedAtMs: Double, now: Date) -> String {
+    let elapsedSeconds = max(0, Int(now.timeIntervalSince1970 - (startedAtMs / 1000)))
+    let hours = elapsedSeconds / 3600
+    let minutes = (elapsedSeconds % 3600) / 60
+    let seconds = elapsedSeconds % 60
+
+    if hours > 0 {
+        return "\(hours)H \(String(format: "%02d", minutes))M \(String(format: "%02d", seconds))S"
+    }
+
+    return "\(minutes)M \(String(format: "%02d", seconds))S"
 }
 
 extension Color {
