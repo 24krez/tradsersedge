@@ -2,6 +2,7 @@
   "expo": {
     "name": "Trader's Edge",
     "slug": "traders-edge",
+    "scheme": "tradersedge",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/TradersEdge_ASappicon.png",
@@ -15,6 +16,14 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.24krez.traders-edge",
       "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.24krez.traders-edge",
+              "com.googleusercontent.apps.403753278229-trh1i10jghtqebafpru89b27mjth1uc4"
+            ]
+          }
+        ],
         "NSSupportsLiveActivities": true,
         "NSSupportsLiveActivitiesFrequentUpdates": true
       }

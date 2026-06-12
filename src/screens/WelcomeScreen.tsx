@@ -1,7 +1,6 @@
-import * as AuthSession from 'expo-auth-session';
-import * as Crypto from 'expo-crypto';
-import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Google from 'expo-auth-session/providers/google';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   getAuthErrorMessage,
@@ -15,7 +14,37 @@ import {
 
 type AuthView = 'login' | 'signup' | 'forgotPassword';
 
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
+
+function getGoogleIosRedirectScheme() {
+  const clientIdPrefix = GOOGLE_IOS_CLIENT_ID.replace('.apps.googleusercontent.com', '');
+  return clientIdPrefix ? `com.googleusercontent.apps.${clientIdPrefix}` : '';
+}
+
+function getGoogleClientId() {
+  return Platform.select({
+    ios: GOOGLE_IOS_CLIENT_ID,
+    android: GOOGLE_ANDROID_CLIENT_ID,
+    default: GOOGLE_WEB_CLIENT_ID,
+  }) || '';
+}
+
+function getGoogleClientIdEnvName() {
+  return Platform.select({
+    ios: 'EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID',
+    android: 'EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID',
+    default: 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
+  }) || 'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID';
+}
+
+function getGoogleRedirectUri() {
+  if (Platform.OS !== 'ios') return undefined;
+
+  const redirectScheme = getGoogleIosRedirectScheme();
+  return redirectScheme ? `${redirectScheme}:/oauthredirect` : undefined;
+}
 
 export function WelcomeScreen() {
   const [view, setView] = useState<AuthView>('login');
@@ -26,8 +55,36 @@ export function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const googleClientId = getGoogleClientId();
+  const googleClientIdEnvName = getGoogleClientIdEnvName();
+  const googleRedirectUri = getGoogleRedirectUri();
 
-  const discovery = AuthSession.useAutoDiscovery('https://accounts.google.com');
+  // Google Sign-In via the built-in provider.
+  // Native clients use code flow with a platform redirect; web uses id_token implicit flow.
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useIdTokenAuthRequest({
+    clientId: googleClientId,
+    redirectUri: googleRedirectUri,
+  });
+
+  // Handle Google auth response
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const idToken = googleResponse.params?.id_token;
+      if (idToken) {
+        setIsLoading(true);
+        signInWithGoogleCredential(idToken)
+          .catch((err) => {
+            setError(getAuthErrorMessage(err));
+          })
+          .finally(() => setIsLoading(false));
+      } else {
+        setError('Google Sign-In did not return an identity token. Check the OAuth client setup.');
+      }
+    } else if (googleResponse?.type === 'error') {
+      const description = googleResponse.params?.error_description || googleResponse.params?.error;
+      setError(description ? `Google Sign-In failed: ${description}` : 'Google Sign-In failed. Try again.');
+    }
+  }, [googleResponse]);
 
   function clearForm() {
     setEmail('');
@@ -108,48 +165,20 @@ export function WelcomeScreen() {
   // ─── Google Sign-In ───────────────────────────────────────────────────────
 
   async function handleGoogleSignIn() {
-    if (isLoading || !GOOGLE_CLIENT_ID) {
-      if (!GOOGLE_CLIENT_ID) {
-        setError('Google Sign-In is not configured yet. Use email/password to continue.');
-      }
+    if (isLoading) return;
+    setError(null);
+
+    if (!googleClientId) {
+      setError(`Google Sign-In is missing ${googleClientIdEnvName}. Use email/password or add that OAuth client ID.`);
       return;
     }
 
-    setError(null);
-
-    try {
-      setIsLoading(true);
-
-      const nonce = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        Math.random().toString(36),
-      );
-
-      const redirectUri = AuthSession.makeRedirectUri();
-
-      const request = new AuthSession.AuthRequest({
-        clientId: GOOGLE_CLIENT_ID,
-        redirectUri,
-        scopes: ['openid', 'profile', 'email'],
-        responseType: AuthSession.ResponseType.IdToken,
-        extraParams: { nonce },
-      });
-
-      const result = await request.promptAsync(discovery!);
-
-      if (result.type === 'success' && result.params?.id_token) {
-        await signInWithGoogleCredential(result.params.id_token);
-        // AuthProvider listener fires → navigation handled by App.tsx
-      } else if (result.type === 'cancel' || result.type === 'dismiss') {
-        setIsLoading(false);
-      } else {
-        setError('Google Sign-In failed. Try again.');
-        setIsLoading(false);
-      }
-    } catch (err) {
-      setError(getAuthErrorMessage(err));
-      setIsLoading(false);
+    if (!googleRequest) {
+      setError('Google Sign-In is not configured. Use email/password to continue.');
+      return;
     }
+
+    await googlePromptAsync();
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────

@@ -115,6 +115,7 @@ export function MissionSetupScreen() {
 
       await updateDoc(doc(firestore, 'users', user.uid), {
         missionPreferences: newPreferences,
+        onboardingStatus: 'completed',
       });
 
       navigation.navigate('MissionActive');

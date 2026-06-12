@@ -12,6 +12,7 @@
     "expo": "~54.0.0",
     "expo-auth-session": "~7.0.11",
     "expo-crypto": "~15.0.9",
+    "expo-dev-client": "~6.0.21",
     "expo-localization": "~17.0.9",
     "expo-notifications": "~0.32.17",
     "expo-status-bar": "~3.0.9",

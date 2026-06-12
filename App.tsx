@@ -109,6 +109,9 @@ function AppContent() {
   const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
   const [hasSeenLaunchIntro, setHasSeenLaunchIntro] = useState(false);
   const { user, userProfile, isLoading, isAnonymous } = useAuth();
+  const hasCompletedOnboarding =
+    userProfile?.onboardingStatus === 'completed' ||
+    Boolean(userProfile?.missionPreferences);
   
   const prevOnboardingStatus = useRef(userProfile?.onboardingStatus);
 
@@ -165,7 +168,7 @@ function AppContent() {
     );
   }
 
-  if (userProfile && userProfile.onboardingStatus !== 'completed') {
+  if (userProfile && !hasCompletedOnboarding) {
     return (
       <NavigationContainer theme={DarkNavTheme}>
         <OnboardingNavigator />
