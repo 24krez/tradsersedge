@@ -18,27 +18,10 @@ struct TraderEdgeLiveActivity: Widget {
                 .activitySystemActionForegroundColor(TEColor.gold)
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    IslandStatusBlock(context: context)
-                        .padding(.leading, 8)
-                }
-
-                DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("MISSION CLOCK")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(TEColor.muted)
-                            .lineLimit(1)
-                        ExpandedMissionTimerText(state: context.state)
-                            .foregroundColor(TEColor.gold)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                    }
-                    .frame(width: 108, alignment: .trailing)
-                    .padding(.trailing, 8)
-                }
-
                 DynamicIslandExpandedRegion(.bottom) {
                     VStack(alignment: .leading, spacing: 8) {
+                        IslandHeaderRow(context: context)
+
                         DividerLine()
 
                         HStack(alignment: .top, spacing: 12) {
@@ -67,6 +50,29 @@ struct TraderEdgeLiveActivity: Widget {
     }
 }
 
+struct IslandHeaderRow: View {
+    let context: ActivityViewContext<TraderEdgeAttributes>
+
+    var body: some View {
+        HStack(alignment: .top) {
+            IslandStatusBlock(context: context)
+
+            Spacer(minLength: 12)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("MISSION CLOCK")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(TEColor.muted)
+                    .lineLimit(1)
+
+                ExpandedMissionTimerText(state: context.state)
+                    .foregroundColor(TEColor.gold)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
 struct CompactMissionClockLabel: View {
     let context: ActivityViewContext<TraderEdgeAttributes>
 
@@ -91,11 +97,11 @@ struct ExpandedMissionTimerText: View {
                 Text(compactMissionLengthLabel(state, now: Date()))
             }
         }
-                .font(.system(size: 9, weight: .heavy, design: .monospaced))
-                .lineLimit(1)
-                .monospacedDigit()
-                .multilineTextAlignment(.trailing)
-                .frame(width: 72, alignment: .trailing)
+        .font(.system(size: 9, weight: .heavy, design: .monospaced))
+        .lineLimit(1)
+        .monospacedDigit()
+        .multilineTextAlignment(.trailing)
+        .frame(width: 72, alignment: .trailing)
     }
 }
 
