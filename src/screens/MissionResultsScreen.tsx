@@ -209,7 +209,7 @@ export function MissionResultsScreen() {
               <View style={styles.gradeRow}>
                 <Text style={styles.gradeLetter}>{displayGrade}</Text>
                 <View style={styles.gradeBadge}>
-                  <Text style={styles.gradeBadgeText}>{gradeLabel(grade)}</Text>
+                  <Text style={styles.gradeBadgeText}>{gradeLabel(grade || '')}</Text>
                 </View>
               </View>
             </View>
