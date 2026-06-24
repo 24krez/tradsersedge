@@ -1,4 +1,6 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
+import * as Crypto from 'expo-crypto';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -6,6 +8,7 @@ import {
   getAuthErrorMessage,
   loginWithEmail,
   sendPasswordReset,
+  signInWithAppleCredential,
   signInWithGoogleCredential,
   signUpWithEmail,
   validateEmail,
@@ -46,6 +49,14 @@ function getGoogleRedirectUri() {
   return redirectScheme ? `${redirectScheme}:/oauthredirect` : undefined;
 }
 
+function randomNonce(length = 32) {
+  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+  const randomBytes = Crypto.getRandomBytes(length);
+  return Array.from(randomBytes)
+    .map((byte) => charset[byte % charset.length])
+    .join('');
+}
+
 export function WelcomeScreen() {
   const [view, setView] = useState<AuthView>('login');
   const [email, setEmail] = useState('');
@@ -55,6 +66,7 @@ export function WelcomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAppleSignInAvailable, setIsAppleSignInAvailable] = useState(false);
   const googleClientId = getGoogleClientId();
   const googleClientIdEnvName = getGoogleClientIdEnvName();
   const googleRedirectUri = getGoogleRedirectUri();
@@ -65,6 +77,12 @@ export function WelcomeScreen() {
     clientId: googleClientId,
     redirectUri: googleRedirectUri,
   });
+
+  useEffect(() => {
+    AppleAuthentication.isAvailableAsync()
+      .then(setIsAppleSignInAvailable)
+      .catch(() => setIsAppleSignInAvailable(false));
+  }, []);
 
   // Handle Google auth response
   useEffect(() => {
@@ -179,6 +197,44 @@ export function WelcomeScreen() {
     }
 
     await googlePromptAsync();
+  }
+
+  // ─── Apple Sign-In ────────────────────────────────────────────────────────
+
+  async function handleAppleSignIn() {
+    if (isLoading) return;
+    setError(null);
+
+    try {
+      setIsLoading(true);
+      const rawNonce = randomNonce();
+      const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+      const appleCredential = await AppleAuthentication.signInAsync({
+        nonce: hashedNonce,
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!appleCredential.identityToken) {
+        throw new Error('Apple Sign-In did not return an identity token. Try again.');
+      }
+
+      const fullName = appleCredential.fullName
+        ? AppleAuthentication.formatFullName(appleCredential.fullName).trim()
+        : '';
+
+      await signInWithAppleCredential({
+        identityToken: appleCredential.identityToken,
+        rawNonce,
+        fullName,
+        providerUid: appleCredential.user,
+      });
+    } catch (err) {
+      setError(getAuthErrorMessage(err));
+      setIsLoading(false);
+    }
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -308,7 +364,7 @@ export function WelcomeScreen() {
           )}
         </Pressable>
 
-        {/* Google Sign-In */}
+        {/* Third-party Sign-In */}
         {view !== 'forgotPassword' && (
           <>
             <View style={styles.dividerRow}>
@@ -329,6 +385,23 @@ export function WelcomeScreen() {
             >
               <Text style={styles.googleButtonText}>SIGN IN WITH GOOGLE</Text>
             </Pressable>
+
+            {isAppleSignInAvailable && (
+              <View style={[isLoading && styles.buttonDisabled, styles.appleButtonFrame]}>
+                <AppleAuthentication.AppleAuthenticationButton
+                  accessibilityLabel={view === 'signup' ? 'Sign up with Apple' : 'Sign in with Apple'}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                  buttonType={
+                    view === 'signup'
+                      ? AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP
+                      : AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+                  }
+                  cornerRadius={0}
+                  onPress={handleAppleSignIn}
+                  style={styles.appleButton}
+                />
+              </View>
+            )}
           </>
         )}
 
@@ -551,6 +624,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 54,
     paddingHorizontal: 18,
+  },
+  appleButtonFrame: {
+    marginTop: 12,
+  },
+  appleButton: {
+    height: 56,
+    width: '100%',
   },
   googleButtonText: {
     color: '#f8fafc',

@@ -8,13 +8,13 @@
     "icon": "./assets/images/TradersEdge_ASappicon_noborder_padded.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/images/TradersEdge_ASappicon_noborder.png",
-      "resizeMode": "contain",
       "backgroundColor": "#101415"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.24krez.traders-edge",
+      "buildNumber": "2",
+      "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.security.application-groups": [
           "group.com.24krez.traders-edge.expowidgets"
@@ -57,7 +57,8 @@
       [
         "@bacons/apple-targets",
         {}
-      ]
+      ],
+      "expo-apple-authentication"
     ]
   }
 }

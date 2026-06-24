@@ -44,9 +44,14 @@ export const defaultAlertSettings: AlertSettings = {
 
 type CreateUserProfileParams = {
   user: User;
+  providerProfile?: {
+    displayName?: string;
+    providerId?: string;
+    providerUid?: string;
+  };
 };
 
-export async function createUserProfile({ user }: CreateUserProfileParams) {
+export async function createUserProfile({ user, providerProfile }: CreateUserProfileParams) {
   const userRef = doc(firestore, 'users', user.uid);
   const existingProfile = await getDoc(userRef);
 
@@ -54,6 +59,9 @@ export async function createUserProfile({ user }: CreateUserProfileParams) {
     await updateDoc(userRef, {
       email: user.email || existingProfile.data().email || '',
       lastSeenAt: serverTimestamp(),
+      name: providerProfile?.displayName || user.displayName || existingProfile.data().name || '',
+      providerId: providerProfile?.providerId || user.providerData[0]?.providerId || existingProfile.data().providerId || '',
+      providerUid: providerProfile?.providerUid || user.providerData[0]?.uid || existingProfile.data().providerUid || '',
     });
     return;
   }
@@ -67,7 +75,10 @@ export async function createUserProfile({ user }: CreateUserProfileParams) {
     email: user.email || '',
     lastSeenAt: serverTimestamp(),
     motto: '',
+    name: providerProfile?.displayName || user.displayName || '',
     onboardingStatus: 'welcome_started',
+    providerId: providerProfile?.providerId || user.providerData[0]?.providerId || '',
+    providerUid: providerProfile?.providerUid || user.providerData[0]?.uid || '',
     subscriptionTier: 'free',
     trialStartedAt: serverTimestamp(),
     trialEndsAt: Timestamp.fromDate(trialEnd),

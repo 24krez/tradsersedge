@@ -29,7 +29,14 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { TraderIcon, traderEdgeIcons } from './src/components/TraderIcon';
 import { OnboardingNavigator } from './src/screens/onboarding/OnboardingNavigator';
 import { TrialPromoModal } from './src/components/TrialPromoModal';
+import { OnboardingAccountActions } from './src/components/OnboardingAccountActions';
 import { updateLockScreenCoachingWidget } from './src/services/lockScreenCoachingService';
+import {
+  addRevenueCatCustomerInfoListener,
+  configureRevenueCatForUser,
+  getRevenueCatCustomerInfo,
+  syncRevenueCatCustomerInfoToProfile,
+} from './src/services/revenueCat';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -119,7 +126,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
   const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
   const [hasSeenLaunchIntro, setHasSeenLaunchIntro] = useState(false);
-  const { user, userProfile, isLoading, isAnonymous } = useAuth();
+  const { user, userProfile, isLoading, isAnonymous, isPro, isTrialExpired } = useAuth();
   const hasCompletedOnboarding =
     userProfile?.onboardingStatus === 'completed' ||
     Boolean(userProfile?.missionPreferences);
@@ -153,6 +160,43 @@ function AppContent() {
     });
   }, [user?.uid, userProfile?.alertSettings?.lockScreen?.lockScreenCoaching, userProfile?.alertSettings?.coaching?.style]);
 
+  useEffect(() => {
+    if (!user || !userProfile) return;
+
+    let isActive = true;
+    let removeCustomerInfoListener: (() => boolean) | undefined;
+    const userId = user.uid;
+    const syncOptions = {
+      currentProvider: userProfile.subscriptionProvider,
+      currentTier: userProfile.subscriptionTier,
+    };
+
+    async function syncRevenueCat() {
+      try {
+        const configured = await configureRevenueCatForUser(userId);
+        if (!configured || !isActive) return;
+
+        const customerInfo = await getRevenueCatCustomerInfo();
+        await syncRevenueCatCustomerInfoToProfile(userId, customerInfo, syncOptions);
+
+        removeCustomerInfoListener = addRevenueCatCustomerInfoListener((updatedCustomerInfo) => {
+          syncRevenueCatCustomerInfoToProfile(userId, updatedCustomerInfo, syncOptions).catch((error) => {
+            console.warn('[RevenueCat] Unable to sync customer info update:', error);
+          });
+        });
+      } catch (error) {
+        console.warn('[RevenueCat] Unable to configure subscription sync:', error);
+      }
+    }
+
+    syncRevenueCat();
+
+    return () => {
+      isActive = false;
+      removeCustomerInfoListener?.();
+    };
+  }, [user?.uid, userProfile?.subscriptionProvider, userProfile?.subscriptionTier]);
+
   const tabs: Array<{ key: TabKey; label: string }> = [
     { key: 'mission', label: t('tabs.mission', 'Mission') },
     { key: 'progress', label: t('tabs.progress', 'Progress') },
@@ -164,6 +208,12 @@ function AppContent() {
     setMissionInitialRoute('ProUpsell');
     setActiveTab('mission');
   }
+
+  useEffect(() => {
+    if (isTrialExpired && !isPro && (activeTab === 'progress' || activeTab === 'vault')) {
+      openProUpsell();
+    }
+  }, [activeTab, isPro, isTrialExpired]);
 
   function handleTabPress(tab: TabKey) {
     if (tab === 'mission') {
@@ -192,10 +242,13 @@ function AppContent() {
 
   if (userProfile && !hasCompletedOnboarding) {
     return (
-      <NavigationContainer theme={DarkNavTheme}>
-        <OnboardingNavigator />
+      <View style={styles.onboardingShell}>
+        <NavigationContainer theme={DarkNavTheme}>
+          <OnboardingNavigator />
+        </NavigationContainer>
+        <OnboardingAccountActions />
         <StatusBar style="light" />
-      </NavigationContainer>
+      </View>
     );
   }
 
@@ -249,6 +302,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#101415',
   },
   screen: {
+    flex: 1,
+  },
+  onboardingShell: {
+    backgroundColor: '#101415',
     flex: 1,
   },
   tabBar: {

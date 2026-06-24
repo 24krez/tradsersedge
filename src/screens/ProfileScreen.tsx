@@ -10,6 +10,7 @@ import { getRankBadge } from '../utils/rankBadges';
 import { calculateRankProgression } from '../logic/rankProgression';
 import { syncAlertSchedules } from '../services/alertScheduler';
 import { sendPasswordReset } from '../services/authService';
+import { deleteCurrentUserAccount } from '../services/accountDeletion';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 import { LockScreenBriefingScreen } from './LockScreenBriefingScreen';
 import { buildProgressModel, DebriefRecord, MissionRecord, UserStats } from './ProgressScreen';
@@ -32,6 +33,7 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
   const [debriefs, setDebriefs] = useState<DebriefRecord[]>([]);
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const hasChanges =
     callsign.trim() !== (userProfile?.callsign || '') ||
@@ -167,6 +169,42 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
       const message = e instanceof Error ? e.message : 'Could not send reset email.';
       Alert.alert('ERROR', message);
     }
+  }
+
+  function handleDeleteAccount() {
+    if (!user || isDeletingAccount) return;
+
+    Alert.alert(
+      'DELETE ACCOUNT',
+      'This permanently deletes your account, profile, missions, debriefs, stats, and notification settings. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeletingAccount(true);
+            try {
+              await deleteCurrentUserAccount(user);
+              Alert.alert('ACCOUNT DELETED', 'Your account has been permanently deleted.');
+            } catch (e) {
+              const code = (e as any)?.code;
+              if (code === 'auth/requires-recent-login') {
+                Alert.alert(
+                  'SIGN IN AGAIN',
+                  'For security, please log out and sign back in, then return here to delete your account.',
+                );
+              } else {
+                const message = e instanceof Error ? e.message : 'Could not delete your account. Try again.';
+                Alert.alert('DELETE FAILED', message);
+              }
+            } finally {
+              setIsDeletingAccount(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleDevTogglePro() {
@@ -554,6 +592,23 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
             </Pressable>
           )}
 
+          {user && (
+            <Pressable
+              accessibilityRole="button"
+              disabled={isDeletingAccount}
+              onPress={handleDeleteAccount}
+              style={({ pressed }) => [
+                styles.deleteAccountButton,
+                pressed && styles.buttonPressed,
+                isDeletingAccount && styles.buttonDisabled,
+              ]}
+            >
+              <Text style={styles.deleteAccountText}>
+                {isDeletingAccount ? 'DELETING ACCOUNT...' : 'DELETE ACCOUNT'}
+              </Text>
+            </Pressable>
+          )}
+
           <Pressable
             accessibilityRole="button"
             onPress={handleSignOut}
@@ -628,7 +683,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 112,
   },
   header: {
     alignItems: 'center',
@@ -1023,12 +1078,27 @@ const styles = StyleSheet.create({
     borderColor: '#2a3135',
     borderWidth: 1,
     justifyContent: 'center',
+    marginBottom: 12,
     minHeight: 56,
   },
   signOutText: {
     color: '#8a8f93',
     fontSize: 12,
     fontWeight: '800',
+    letterSpacing: 1,
+  },
+  deleteAccountButton: {
+    alignItems: 'center',
+    borderColor: '#7f2b31',
+    borderWidth: 1,
+    justifyContent: 'center',
+    marginBottom: 12,
+    minHeight: 56,
+  },
+  deleteAccountText: {
+    color: '#f3a0a4',
+    fontSize: 12,
+    fontWeight: '900',
     letterSpacing: 1,
   },
   devButton: {
@@ -1159,4 +1229,3 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
 });
-

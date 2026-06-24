@@ -1,9 +1,21 @@
 import { useNavigation } from '@react-navigation/native';
-import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MissionStackNavigationProp } from '../../App';
+import { useAuth } from '../contexts/AuthContext';
 import { TraderIcon, traderEdgeIcons } from '../components/TraderIcon';
-import { subscriptionPaywallCopy, subscriptionPlans } from '../services/subscriptionPlans';
+import { subscriptionPaywallCopy, subscriptionPlans, termsOfUseUrl } from '../services/subscriptionPlans';
+import {
+  configureRevenueCatForUser,
+  fetchCurrentOffering,
+  getPackageMapFromOffering,
+  isRevenueCatPurchaseCancelled,
+  purchaseRevenueCatPackage,
+  restoreRevenueCatPurchases,
+  syncRevenueCatCustomerInfoToProfile,
+  type RevenueCatPackageMap,
+} from '../services/revenueCat';
 
 const featureCards = [
   {
@@ -25,8 +37,138 @@ const featureCards = [
 
 export function ProUpsellScreen() {
   const navigation = useNavigation<MissionStackNavigationProp>();
+  const { user, userProfile } = useAuth();
+  const [pendingProductId, setPendingProductId] = useState<string | null>(null);
+  const [restoreInProgress, setRestoreInProgress] = useState(false);
+  const [packageMap, setPackageMap] = useState<RevenueCatPackageMap>({});
+  const [isLoadingOfferings, setIsLoadingOfferings] = useState(true);
+  const [storeUnavailableMessage, setStoreUnavailableMessage] = useState<string | null>(null);
   const annualPlan = subscriptionPlans.find((plan) => plan.id === 'pro_annual') || subscriptionPlans[0];
   const secondaryPlans = subscriptionPlans.filter((plan) => plan.id !== annualPlan.id);
+
+  useEffect(() => {
+    if (!user) {
+      setIsLoadingOfferings(false);
+      return;
+    }
+
+    let isActive = true;
+    const userId = user.uid;
+
+    async function loadOfferings() {
+      setIsLoadingOfferings(true);
+      setStoreUnavailableMessage(null);
+
+      try {
+        const configured = await configureRevenueCatForUser(userId);
+        if (!configured) {
+          if (isActive) {
+            setStoreUnavailableMessage('RevenueCat is missing its public SDK key for this platform.');
+          }
+          return;
+        }
+
+        const offering = await fetchCurrentOffering();
+        if (isActive) {
+          setPackageMap(getPackageMapFromOffering(offering));
+          if (!offering) {
+            setStoreUnavailableMessage('No RevenueCat offering is configured yet.');
+          }
+        }
+      } catch (error) {
+        console.warn('[ProUpsell] Unable to load RevenueCat offerings:', error);
+        if (isActive) {
+          setStoreUnavailableMessage('The App Store is not ready yet. Check your connection and try again.');
+        }
+      } finally {
+        if (isActive) setIsLoadingOfferings(false);
+      }
+    }
+
+    loadOfferings();
+
+    return () => {
+      isActive = false;
+    };
+  }, [user]);
+
+  function getDisplayPrice(plan: typeof subscriptionPlans[number]) {
+    return packageMap[plan.id]?.product.priceString || plan.displayPrice;
+  }
+
+  async function handlePurchase(plan: typeof subscriptionPlans[number]) {
+    if (!user) {
+      Alert.alert('SIGN IN REQUIRED', 'Sign in before unlocking Elite access.');
+      return;
+    }
+
+    const storePackage = packageMap[plan.id];
+    if (!storePackage) {
+      Alert.alert('STORE UNAVAILABLE', storeUnavailableMessage || 'This plan is not available from RevenueCat yet.');
+      return;
+    }
+
+    setPendingProductId(plan.productId);
+
+    try {
+      const customerInfo = await purchaseRevenueCatPackage(storePackage);
+      await syncRevenueCatCustomerInfoToProfile(user.uid, customerInfo, {
+        currentProvider: userProfile?.subscriptionProvider,
+        currentTier: userProfile?.subscriptionTier,
+      });
+      Alert.alert('ELITE UNLOCKED', 'Your TraderEdge Elite access is active.');
+    } catch (error) {
+      if (isRevenueCatPurchaseCancelled(error)) return;
+      const message = error instanceof Error ? error.message : 'Could not start the App Store purchase.';
+      Alert.alert('PURCHASE UNAVAILABLE', message);
+    } finally {
+      setPendingProductId(null);
+    }
+  }
+
+  async function handleRestorePurchases() {
+    if (!user) {
+      Alert.alert('SIGN IN REQUIRED', 'Sign in before restoring purchases.');
+      return;
+    }
+
+    setRestoreInProgress(true);
+    try {
+      const configured = await configureRevenueCatForUser(user.uid);
+      if (!configured) {
+        Alert.alert('STORE UNAVAILABLE', 'RevenueCat is missing its public SDK key for this platform.');
+        return;
+      }
+
+      const customerInfo = await restoreRevenueCatPurchases();
+      await syncRevenueCatCustomerInfoToProfile(user.uid, customerInfo, {
+        currentProvider: userProfile?.subscriptionProvider,
+        currentTier: userProfile?.subscriptionTier,
+      });
+      Alert.alert('RESTORE COMPLETE', 'If an active purchase is available, Elite access has been restored.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not restore purchases.';
+      Alert.alert('RESTORE FAILED', message);
+    } finally {
+      setRestoreInProgress(false);
+    }
+  }
+
+  function showPrivacyPolicy() {
+    Alert.alert(
+      'PRIVACY POLICY',
+      'TraderEdge stores the minimum account data needed to run the app: Firebase UID, provider ID, name, email, profile settings, missions, debriefs, progress stats, and notification preferences. We do not sell personal data. Apple private relay emails are handled as the account email when provided by Apple. You can delete your account and personal app data from Profile > Account > Delete Account.',
+    );
+  }
+
+  async function openTermsOfUse() {
+    const supported = await Linking.canOpenURL(termsOfUseUrl);
+    if (supported) {
+      await Linking.openURL(termsOfUseUrl);
+    } else {
+      Alert.alert('TERMS OF USE', termsOfUseUrl);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -68,16 +210,22 @@ export function ProUpsellScreen() {
           <Text style={styles.planAccess}>{annualPlan.badge || annualPlan.accessLabel}</Text>
           <Text style={styles.annualTitle}>{annualPlan.title}</Text>
           <View style={styles.annualPriceRow}>
-            <Text style={styles.annualPrice}>{annualPlan.displayPrice}</Text>
+            <Text style={styles.annualPrice}>{getDisplayPrice(annualPlan)}</Text>
             <Text style={styles.annualInterval}>{annualPlan.billingInterval}</Text>
           </View>
+          <Text style={styles.planDuration}>{annualPlan.duration}</Text>
           <Text style={styles.annualHelper}>{annualPlan.helperText}</Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => console.log('TODO: Implement RevenueCat Paywall', annualPlan.productId)}
+            disabled={pendingProductId != null || isLoadingOfferings}
+            onPress={() => handlePurchase(annualPlan)}
             style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
           >
-            <Text style={styles.primaryButtonText}>{subscriptionPaywallCopy.primaryCta}</Text>
+            {pendingProductId === annualPlan.productId || isLoadingOfferings ? (
+              <ActivityIndicator color="#101415" />
+            ) : (
+              <Text style={styles.primaryButtonText}>{subscriptionPaywallCopy.primaryCta}</Text>
+            )}
           </Pressable>
         </View>
 
@@ -86,20 +234,22 @@ export function ProUpsellScreen() {
             <Pressable
               accessibilityRole="button"
               key={plan.id}
-              onPress={() => console.log('TODO: Implement RevenueCat Paywall', plan.productId)}
+              disabled={pendingProductId != null}
+              onPress={() => handlePurchase(plan)}
               style={({ pressed }) => [styles.secondaryPlanCard, pressed && styles.secondaryPlanCardPressed]}
             >
               <View style={styles.secondaryPlanCopy}>
                 <Text style={styles.secondaryAccess}>{plan.accessLabel}</Text>
                 <Text style={styles.secondaryTitle}>{plan.title}</Text>
+                <Text style={styles.secondaryDuration}>{plan.duration}</Text>
                 <Text style={styles.secondaryHelper}>{plan.helperText}</Text>
               </View>
               <View style={styles.secondaryPriceBlock}>
                 <View style={styles.secondaryPriceRow}>
-                  <Text style={styles.secondaryPrice}>{plan.displayPrice}</Text>
+                  <Text style={styles.secondaryPrice}>{getDisplayPrice(plan)}</Text>
                   <Text style={styles.secondaryInterval}>{plan.billingInterval}</Text>
                 </View>
-                <Text style={styles.secondaryAction}>{plan.subtext}</Text>
+                <Text style={styles.secondaryAction}>{pendingProductId === plan.productId ? 'Opening store' : plan.subtext}</Text>
               </View>
             </Pressable>
           ))}
@@ -127,17 +277,26 @@ export function ProUpsellScreen() {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => console.log('TODO: Restore Purchases')}
+          disabled={restoreInProgress}
+          onPress={handleRestorePurchases}
           style={({ pressed }) => [styles.restoreButton, pressed && styles.restoreButtonPressed]}
         >
-          <Text style={styles.restoreText}>RESTORE ACCESS</Text>
+          <Text style={styles.restoreText}>{restoreInProgress ? 'RESTORING...' : 'RESTORE PURCHASES'}</Text>
         </Pressable>
 
         <Text style={styles.trustLine}>Secure • Private • Instant access</Text>
 
+        <View style={styles.legalLinksRow}>
+          <Pressable accessibilityRole="link" onPress={showPrivacyPolicy} style={styles.legalLink}>
+            <Text style={styles.legalLinkText}>PRIVACY POLICY</Text>
+          </Pressable>
+          <Pressable accessibilityRole="link" onPress={openTermsOfUse} style={styles.legalLink}>
+            <Text style={styles.legalLinkText}>TERMS OF USE</Text>
+          </Pressable>
+        </View>
+
         <Text style={styles.finePrint}>
-          By unlocking Elite Status, you agree to our Operational Terms of Service and Psychological Safety Privacy Policy.
-          Subscriptions automatically renew unless cancelled 24 hours before the end of the current session.
+          Payment is charged to your Apple ID. Auto-renewable subscriptions renew unless cancelled at least 24 hours before the end of the current period. Manage or cancel in App Store account settings.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -336,6 +495,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     maxWidth: 265,
   },
+  planDuration: {
+    color: '#d8d2c7',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.6,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
   primaryButton: {
     alignItems: 'center',
     backgroundColor: '#f1ce89',
@@ -402,6 +569,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  secondaryDuration: {
+    color: '#d8d2c7',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    marginBottom: 7,
+    textTransform: 'uppercase',
+  },
   secondaryPriceBlock: {
     alignItems: 'flex-end',
     minWidth: 96,
@@ -455,6 +630,24 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     textAlign: 'center',
     textTransform: 'uppercase',
+  },
+  legalLinksRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  legalLink: {
+    minHeight: 28,
+    justifyContent: 'center',
+  },
+  legalLinkText: {
+    color: '#f7d99a',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
+    textDecorationLine: 'underline',
   },
   finePrint: {
     color: '#c0b7aa',

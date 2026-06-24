@@ -78,6 +78,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isAnonymous: boolean;
   isInTrial: boolean;
+  isTrialExpired: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -89,16 +90,29 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   isAnonymous: false,
   isInTrial: false,
+  isTrialExpired: false,
 });
 
-function checkTrialActive(userProfile: UserProfile | null): boolean {
-  if (!userProfile?.trialEndsAt) return false;
+function getTrialEndDate(userProfile: UserProfile | null): Date | null {
+  if (!userProfile?.trialEndsAt) return null;
 
-  const trialEnd = typeof userProfile.trialEndsAt.toDate === 'function'
+  return typeof userProfile.trialEndsAt.toDate === 'function'
     ? userProfile.trialEndsAt.toDate()
     : new Date(userProfile.trialEndsAt);
+}
+
+function checkTrialActive(userProfile: UserProfile | null): boolean {
+  const trialEnd = getTrialEndDate(userProfile);
+  if (!trialEnd) return false;
 
   return new Date() < trialEnd;
+}
+
+function checkTrialExpired(userProfile: UserProfile | null): boolean {
+  const trialEnd = getTrialEndDate(userProfile);
+  if (!trialEnd) return false;
+
+  return new Date() >= trialEnd;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -146,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isAuthenticated = user != null;
   const isAnonymous = user?.isAnonymous ?? false;
   const isInTrial = useMemo(() => checkTrialActive(userProfile), [userProfile]);
+  const isTrialExpired = useMemo(() => checkTrialExpired(userProfile), [userProfile]);
 
   const isPro = useMemo(() => {
     const paidTier = subscriptionTier === 'pro' || subscriptionTier === 'lifetime' || subscriptionTier === 'founder';
@@ -153,8 +168,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [subscriptionTier, isInTrial]);
 
   const value = useMemo(
-    () => ({ user, userProfile, subscriptionTier, isLoading, isPro, isAuthenticated, isAnonymous, isInTrial }),
-    [user, userProfile, subscriptionTier, isLoading, isPro, isAuthenticated, isAnonymous, isInTrial],
+    () => ({ user, userProfile, subscriptionTier, isLoading, isPro, isAuthenticated, isAnonymous, isInTrial, isTrialExpired }),
+    [user, userProfile, subscriptionTier, isLoading, isPro, isAuthenticated, isAnonymous, isInTrial, isTrialExpired],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

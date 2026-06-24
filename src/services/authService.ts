@@ -1,4 +1,4 @@
-import { GoogleAuthProvider, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { GoogleAuthProvider, OAuthProvider, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithCredential, signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth';
 
 import { firebaseAuth } from './firebase';
 import { createUserProfile } from './userProfile';
@@ -55,9 +55,43 @@ export async function signInWithGoogleCredential(idToken: string) {
   const credential = GoogleAuthProvider.credential(idToken);
   const userCredential = await signInWithCredential(firebaseAuth, credential);
 
-  // Create profile if this is a new user
   if (userCredential.user.metadata.creationTime === userCredential.user.metadata.lastSignInTime) {
     await createUserProfile({ user: userCredential.user });
+  }
+
+  return userCredential;
+}
+
+// ─── Apple Sign-In ──────────────────────────────────────────────────────────
+
+type AppleSignInParams = {
+  identityToken: string;
+  rawNonce: string;
+  fullName?: string | null;
+  providerUid?: string | null;
+};
+
+export async function signInWithAppleCredential({ identityToken, rawNonce, fullName, providerUid }: AppleSignInParams) {
+  const provider = new OAuthProvider('apple.com');
+  const credential = provider.credential({
+    idToken: identityToken,
+    rawNonce,
+  });
+  const userCredential = await signInWithCredential(firebaseAuth, credential);
+
+  if (fullName && !userCredential.user.displayName) {
+    await updateProfile(userCredential.user, { displayName: fullName });
+  }
+
+  if (userCredential.user.metadata.creationTime === userCredential.user.metadata.lastSignInTime) {
+    await createUserProfile({
+      user: userCredential.user,
+      providerProfile: {
+        displayName: fullName || userCredential.user.displayName || '',
+        providerId: 'apple.com',
+        providerUid: providerUid || '',
+      },
+    });
   }
 
   return userCredential;
@@ -102,8 +136,15 @@ export function getAuthErrorMessage(error: unknown): string {
       return 'Password is too weak. Use at least 8 characters with a mix of uppercase and numbers.';
     case 'auth/network-request-failed':
       return 'Network error. Check your connection and try again.';
+    case 'auth/account-exists-with-different-credential':
+      return 'An account already exists with this email. Sign in with the original method, then connect Apple from your account settings.';
+    case 'auth/credential-already-in-use':
+      return 'This sign-in method is already linked to another account.';
+    case 'auth/requires-recent-login':
+      return 'For security, please sign out and sign back in, then try again.';
     case 'auth/popup-closed-by-user':
     case 'auth/cancelled-popup-request':
+    case 'ERR_REQUEST_CANCELED':
       return 'Sign-in was cancelled.';
     default:
       return error.message || 'Authentication failed.';
