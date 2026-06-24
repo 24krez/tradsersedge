@@ -405,13 +405,17 @@ function PreviewParameterRow({
   );
 }
 
+function formatRankTitle(rank: string) {
+  return rank.toUpperCase().split(' ').join('\n');
+}
+
 function RankCard({ model, callsign }: { model: ProgressModel; callsign: string }) {
   return (
     <View style={styles.rankCard}>
       <View style={styles.rankHeader}>
         <View style={styles.rankIdentity}>
           <Text style={styles.rankKicker}>CURRENT RANK</Text>
-          <Text style={styles.rankTitle}>{model.currentRank.toUpperCase()}</Text>
+          <Text style={styles.rankTitle}>{formatRankTitle(model.currentRank)}</Text>
           <Text style={styles.nextRank}>NEXT RANK: {model.nextRank || 'MAX RANK'}</Text>
         </View>
         <Image source={getRankBadge(model.currentRank)} style={styles.rankBadgeImage} resizeMode="contain" />
@@ -1562,16 +1566,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
   },
   rankIdentity: {
     flex: 1,
     minWidth: 0,
   },
   rankBadgeImage: {
-    width: 140,
-    height: 140,
-    marginLeft: 16,
+    width: 118,
+    height: 118,
+    marginLeft: 8,
     flexShrink: 0,
     aspectRatio: 1,
   },
@@ -1588,10 +1592,9 @@ const styles = StyleSheet.create({
   },
   rankTitle: {
     color: '#e9c176',
-    fontSize: 24,
+    fontSize: 23,
     fontWeight: '900',
-    lineHeight: 29,
-    maxWidth: 205,
+    lineHeight: 28,
   },
   rankBadge: {
     alignItems: 'center',
