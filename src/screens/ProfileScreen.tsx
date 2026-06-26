@@ -1,4 +1,5 @@
 import { signOut } from 'firebase/auth';
+import * as Notifications from 'expo-notifications';
 import { collection, doc, limit, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +35,7 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
   const [hasLoadedStats, setHasLoadedStats] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [devNotificationStatus, setDevNotificationStatus] = useState('Notifications not checked');
 
   const hasChanges =
     callsign.trim() !== (userProfile?.callsign || '') ||
@@ -265,6 +267,102 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
       Alert.alert('DEV MODE', 'Trial restarted (Day 1). Go to missions to see the welcome popup.');
     } catch (e) {
       console.error('Error setting day 1:', e);
+    }
+  }
+
+  async function ensureDevNotificationPermission() {
+    const current = await Notifications.getPermissionsAsync();
+    if (current.status === 'granted') {
+      setDevNotificationStatus('Permission granted');
+      return true;
+    }
+
+    const requested = await Notifications.requestPermissionsAsync();
+    const granted = requested.status === 'granted';
+    setDevNotificationStatus(granted ? 'Permission granted' : `Permission ${requested.status}`);
+    return granted;
+  }
+
+  async function handleDevRequestNotifications() {
+    try {
+      await ensureDevNotificationPermission();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not request notification permission.';
+      setDevNotificationStatus(message);
+      Alert.alert('DEV NOTIFICATIONS', message);
+    }
+  }
+
+  async function handleDevSendNotificationNow() {
+    try {
+      const hasPermission = await ensureDevNotificationPermission();
+      if (!hasPermission) {
+        Alert.alert('DEV NOTIFICATIONS', 'Notification permission is required for this test.');
+        return;
+      }
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Trader\'s Edge Dev Test',
+          body: 'Immediate local notification delivered from the dev build.',
+          data: {
+            devTest: true,
+            reminderType: 'dev-immediate',
+          },
+        },
+        trigger: null,
+      });
+      setDevNotificationStatus('Immediate notification sent');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not send immediate notification.';
+      setDevNotificationStatus(message);
+      Alert.alert('DEV NOTIFICATIONS', message);
+    }
+  }
+
+  async function handleDevScheduleNotification() {
+    try {
+      const hasPermission = await ensureDevNotificationPermission();
+      if (!hasPermission) {
+        Alert.alert('DEV NOTIFICATIONS', 'Notification permission is required for this test.');
+        return;
+      }
+
+      const id = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Trader\'s Edge Dev Test',
+          body: 'This scheduled local notification fired after 5 seconds.',
+          data: {
+            devTest: true,
+            reminderType: 'dev-delayed',
+          },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: 5,
+        },
+      });
+      setDevNotificationStatus(`Scheduled 5-second notification: ${id.slice(0, 8)}`);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not schedule notification.';
+      setDevNotificationStatus(message);
+      Alert.alert('DEV NOTIFICATIONS', message);
+    }
+  }
+
+  async function handleDevShowScheduledNotifications() {
+    try {
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      const devScheduled = scheduled.filter((notification) => notification.content.data?.devTest);
+      setDevNotificationStatus(`${scheduled.length} scheduled total, ${devScheduled.length} dev test`);
+      Alert.alert(
+        'DEV NOTIFICATIONS',
+        `${scheduled.length} scheduled notifications found.\n${devScheduled.length} are dev test notifications.`,
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not read scheduled notifications.';
+      setDevNotificationStatus(message);
+      Alert.alert('DEV NOTIFICATIONS', message);
     }
   }
 
@@ -650,6 +748,40 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
               style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
             >
               <Text style={styles.devButtonText}>DEV: SET TRIAL TO DAY 8 (EXPIRED)</Text>
+            </Pressable>
+
+            <Text style={styles.devStatusText}>{devNotificationStatus}</Text>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevRequestNotifications}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: REQUEST NOTIFICATION PERMISSION</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevSendNotificationNow}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: SEND NOTIFICATION NOW</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevScheduleNotification}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: SCHEDULE NOTIFICATION 5S</Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleDevShowScheduledNotifications}
+              style={({ pressed }) => [styles.devButton, pressed && styles.buttonPressed, { marginBottom: 0 }]}
+            >
+              <Text style={styles.devButtonText}>DEV: SHOW SCHEDULED COUNT</Text>
             </Pressable>
           </View>
         )}
@@ -1115,6 +1247,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,
+  },
+  devStatusText: {
+    color: '#d1c5b4',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    textAlign: 'center',
   },
   buttonPressed: {
     opacity: 0.7,

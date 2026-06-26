@@ -47,6 +47,7 @@ function getGoogleRedirectUri() {
 }
 
 export function WelcomeScreen() {
+  const shouldShowGoogleSignIn = Platform.OS !== 'ios';
   const [view, setView] = useState<AuthView>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,6 +69,8 @@ export function WelcomeScreen() {
 
   // Handle Google auth response
   useEffect(() => {
+    if (!shouldShowGoogleSignIn) return;
+
     if (googleResponse?.type === 'success') {
       const idToken = googleResponse.params?.id_token;
       if (idToken) {
@@ -84,7 +87,7 @@ export function WelcomeScreen() {
       const description = googleResponse.params?.error_description || googleResponse.params?.error;
       setError(description ? `Google Sign-In failed: ${description}` : 'Google Sign-In failed. Try again.');
     }
-  }, [googleResponse]);
+  }, [googleResponse, shouldShowGoogleSignIn]);
 
   function clearForm() {
     setEmail('');
@@ -167,6 +170,8 @@ export function WelcomeScreen() {
   async function handleGoogleSignIn() {
     if (isLoading) return;
     setError(null);
+
+    if (!shouldShowGoogleSignIn) return;
 
     if (!googleClientId) {
       setError(`Google Sign-In is missing ${googleClientIdEnvName}. Use email/password or add that OAuth client ID.`);
@@ -309,7 +314,7 @@ export function WelcomeScreen() {
         </Pressable>
 
         {/* Third-party Sign-In */}
-        {view !== 'forgotPassword' && (
+        {shouldShowGoogleSignIn && view !== 'forgotPassword' && (
           <>
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
