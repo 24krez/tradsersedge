@@ -240,18 +240,18 @@ function LiveTimerModule({
           </View>
           <View style={timerStyles.textColumn}>
             <Text style={timerStyles.protocolText}>{t('missionActive.protocolActive')}</Text>
-            <Text style={timerStyles.lockText}>
+            <Text adjustsFontSizeToFit minimumFontScale={0.78} numberOfLines={1} style={timerStyles.lockText}>
               {focusKey ? t(`data.focusAreas.${focusKey}`).toUpperCase() : ''} {t('missionActive.lockSuffix')}
             </Text>
-            <Text style={timerStyles.sessionText}>
+            <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={timerStyles.sessionText}>
               {SESSION_LABELS[sessionKey].toUpperCase()} MONITORING
             </Text>
           </View>
         </View>
 
         <View style={timerStyles.timeBlock}>
-          <Text style={timerStyles.timeText}>{timeLeft}</Text>
-          <Text style={timerStyles.untilClose}>{t('missionActive.untilClose')}</Text>
+          <Text adjustsFontSizeToFit minimumFontScale={0.64} numberOfLines={1} style={timerStyles.timeText}>{timeLeft}</Text>
+          <Text adjustsFontSizeToFit minimumFontScale={0.72} numberOfLines={1} style={timerStyles.untilClose}>{t('missionActive.untilClose')}</Text>
         </View>
       </View>
 
@@ -831,6 +831,7 @@ const timerStyles = StyleSheet.create({
     borderColor: 'rgba(233, 193, 118, 0.2)',
     borderRadius: 20,
     borderWidth: 1,
+    overflow: 'hidden',
     padding: 20,
     paddingBottom: 24,
     width: '100%',
@@ -843,7 +844,10 @@ const timerStyles = StyleSheet.create({
   },
   infoRow: {
     alignItems: 'center',
+    flex: 1,
     flexDirection: 'row',
+    minWidth: 0,
+    paddingRight: 12,
   },
   iconCircle: {
     alignItems: 'center',
@@ -859,7 +863,9 @@ const timerStyles = StyleSheet.create({
     fontSize: 20,
   },
   textColumn: {
+    flex: 1,
     justifyContent: 'center',
+    minWidth: 0,
   },
   protocolText: {
     color: '#e9c176',
@@ -867,6 +873,7 @@ const timerStyles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.5,
     marginBottom: 4,
+    flexShrink: 1,
   },
   lockText: {
     color: '#f8fafc',
@@ -874,12 +881,14 @@ const timerStyles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1,
     marginBottom: 4,
+    flexShrink: 1,
   },
   sessionText: {
     color: '#8a8f93',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1,
+    flexShrink: 1,
   },
   progressTrack: {
     backgroundColor: 'rgba(233, 193, 118, 0.1)',
@@ -895,20 +904,25 @@ const timerStyles = StyleSheet.create({
   },
   timeBlock: {
     alignItems: 'flex-end',
+    flexShrink: 1,
     justifyContent: 'center',
+    maxWidth: 112,
+    minWidth: 86,
   },
   timeText: {
     color: '#e9c176',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: 1,
     marginBottom: 4,
+    maxWidth: '100%',
   },
   untilClose: {
     color: '#8a8f93',
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 1,
+    maxWidth: '100%',
   },
 });
 

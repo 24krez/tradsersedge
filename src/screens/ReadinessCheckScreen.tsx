@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { addDoc, collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { useTranslation } from 'react-i18next';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { firebaseAuth, firestore } from '../services/firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,6 +43,7 @@ export function ReadinessCheckScreen() {
   const { t } = useTranslation('mission');
   const navigation = useNavigation<MissionStackNavigationProp>();
   const route = useRoute<RouteProp<RootStackParamList, 'ReadinessCheck'>>();
+  const insets = useSafeAreaInsets();
   
   const assessmentItems: Array<{
     key: AssessmentKey;
@@ -237,7 +239,15 @@ export function ReadinessCheckScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
+        <View
+          style={[
+            styles.topBar,
+            {
+              minHeight: 58 + insets.top,
+              paddingTop: Math.max(insets.top, 16),
+            },
+          ]}
+        >
           <View style={styles.topBarLeft}>
             <Text style={styles.shieldMark}>⬟</Text>
             <Text style={styles.topBarTitle}>{t('readinessCheck.topBarTitle')}</Text>
@@ -391,6 +401,10 @@ export function ReadinessCheckScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+      <View
+        pointerEvents="none"
+        style={[styles.statusBarScrim, { height: insets.top }]}
+      />
     </View>
   );
 }
@@ -399,6 +413,14 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#0f1415',
     flex: 1,
+  },
+  statusBarScrim: {
+    backgroundColor: '#0a0f10',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 10,
   },
   content: {
     paddingBottom: 34,
@@ -412,11 +434,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: 62,
     paddingHorizontal: 18,
+    paddingBottom: 10,
   },
   topBarLeft: {
     alignItems: 'center',
+    flex: 1,
     flexDirection: 'row',
     gap: 11,
+    paddingRight: 14,
   },
   shieldMark: {
     color: '#e9c176',
@@ -426,9 +451,10 @@ const styles = StyleSheet.create({
   },
   topBarTitle: {
     color: '#e9c176',
-    fontSize: 18,
+    flexShrink: 1,
+    fontSize: 16,
     fontWeight: '900',
-    letterSpacing: 3,
+    letterSpacing: 2.3,
     textTransform: 'uppercase',
   },
   operatorBadge: {

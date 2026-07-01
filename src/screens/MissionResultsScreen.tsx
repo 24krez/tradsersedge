@@ -1,6 +1,6 @@
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { collection, doc, limit, onSnapshot, query, where } from 'firebase/firestore';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Signal, Crosshair } from 'lucide-react-native';
 
@@ -8,6 +8,7 @@ import { MissionStackNavigationProp, RootStackParamList } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { getRandomCoachMessage } from '../features/coaching/coachEngine';
 import { gradeFromScore } from '../logic/disciplineScore';
+import { requestAppReviewIfEligible } from '../services/appReview';
 import { firestore } from '../services/firebase';
 import { getRankBadge } from '../utils/rankBadges';
 
@@ -61,9 +62,11 @@ export function MissionResultsScreen() {
   const [debrief, setDebrief] = useState<DebriefResultData | null>(null);
   const [userStats, setUserStats] = useState<UserStatsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hasRequestedReviewRef = useRef(false);
 
   const routeDebriefId = route.params?.debriefId;
   const routeMissionId = route.params?.missionId;
+  const discipline = debrief?.discipline;
 
   useEffect(() => {
     if (!user) return;
@@ -128,7 +131,21 @@ export function MissionResultsScreen() {
     return () => unsubscribe();
   }, [routeDebriefId, user]);
 
-  const discipline = debrief?.discipline;
+  useEffect(() => {
+    const missionIdForReview = routeMissionId || debrief?.missionId;
+    if (isLoading || !discipline || hasRequestedReviewRef.current) return;
+
+    hasRequestedReviewRef.current = true;
+    requestAppReviewIfEligible({
+      userId: user?.uid,
+      userProfile,
+      source: 'mission_completed',
+      missionId: missionIdForReview,
+    }).catch((error) => {
+      console.warn('[MissionResults] Unable to request app review:', error);
+    });
+  }, [debrief?.missionId, discipline, isLoading, routeMissionId, user?.uid, userProfile]);
+
   const score = typeof discipline?.score === 'number' ? discipline.score : undefined;
   const grade = discipline?.grade || (score !== undefined ? gradeFromScore(score) : undefined);
   const displayGrade = grade || 'Pending';

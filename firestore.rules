@@ -43,6 +43,11 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.userId);
     }
 
+    match /feedback/{document} {
+      allow read, update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+    }
+
     match /notification_preferences/{document} {
       // Assuming document ID is userId as per standard practice, but checking field too
       allow read, update, delete: if isOwner(resource.data.userId) || isOwner(document);

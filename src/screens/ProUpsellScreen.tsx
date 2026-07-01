@@ -1,8 +1,6 @@
-import { useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { MissionStackNavigationProp } from '../../App';
 import { useAuth } from '../contexts/AuthContext';
 import { TraderIcon, traderEdgeIcons } from '../components/TraderIcon';
 import { subscriptionPaywallCopy, subscriptionPlans, termsOfUseUrl } from '../services/subscriptionPlans';
@@ -35,8 +33,11 @@ const featureCards = [
   },
 ];
 
-export function ProUpsellScreen() {
-  const navigation = useNavigation<MissionStackNavigationProp>();
+type ProUpsellScreenProps = {
+  onClose?: () => void;
+};
+
+export function ProUpsellScreen({ onClose }: ProUpsellScreenProps) {
   const { user, userProfile } = useAuth();
   const [pendingProductId, setPendingProductId] = useState<string | null>(null);
   const [restoreInProgress, setRestoreInProgress] = useState(false);
@@ -176,13 +177,7 @@ export function ProUpsellScreen() {
         <View style={styles.topBar}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => {
-              if (navigation.canGoBack()) {
-                navigation.goBack();
-              } else {
-                navigation.replace('MissionActive');
-              }
-            }}
+            onPress={onClose}
             style={({ pressed }) => [styles.closeButton, pressed && styles.closeButtonPressed, { zIndex: 1 }]}
           >
             <Text style={styles.closeIcon}>×</Text>

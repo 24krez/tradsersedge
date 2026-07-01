@@ -12,6 +12,7 @@ import { calculateRankProgression } from '../logic/rankProgression';
 import { syncAlertSchedules } from '../services/alertScheduler';
 import { sendPasswordReset } from '../services/authService';
 import { deleteCurrentUserAccount } from '../services/accountDeletion';
+import { submitFeedback } from '../services/feedbackService';
 import { NotificationSettingsScreen } from './NotificationSettingsScreen';
 import { LockScreenBriefingScreen } from './LockScreenBriefingScreen';
 import { buildProgressModel, DebriefRecord, MissionRecord, UserStats } from './ProgressScreen';
@@ -36,6 +37,8 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [devNotificationStatus, setDevNotificationStatus] = useState('Notifications not checked');
+  const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [feedbackStatus, setFeedbackStatus] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   const hasChanges =
     callsign.trim() !== (userProfile?.callsign || '') ||
@@ -170,6 +173,35 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Could not send reset email.';
       Alert.alert('ERROR', message);
+    }
+  }
+
+  async function handleSubmitFeedback() {
+    if (!user || feedbackStatus === 'sending') return;
+
+    const trimmedFeedback = feedbackMessage.trim();
+    if (!trimmedFeedback) {
+      Alert.alert('FEEDBACK REQUIRED', 'Write a quick note before sending.');
+      return;
+    }
+
+    setFeedbackStatus('sending');
+    try {
+      await submitFeedback({
+        userId: user.uid,
+        email: user.email,
+        callsign: activeCallsign || callsign,
+        message: trimmedFeedback,
+        source: 'profile',
+      });
+      setFeedbackMessage('');
+      setFeedbackStatus('sent');
+      Alert.alert('FEEDBACK RECEIVED', 'Thanks. Your note was sent to the Trader\'s Edge team.');
+      setTimeout(() => setFeedbackStatus('idle'), 2500);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Could not send feedback right now.';
+      setFeedbackStatus('idle');
+      Alert.alert('FEEDBACK FAILED', message);
     }
   }
 
@@ -539,6 +571,39 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
           </View>
         </View>
 
+        {/* Mission Intelligence Protocols */}
+        <View style={styles.section}>
+          <Text style={styles.statsSectionTitle}>MISSION INTELLIGENCE PROTOCOLS</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setIsShowingNotifications(true)}
+            style={({ pressed }) => [styles.alertsCard, pressed && styles.buttonPressed]}
+          >
+            <View style={styles.alertsContent}>
+              <Text style={styles.alertsEyebrow}>ALERTS & AUTOMATION</Text>
+              <Text style={styles.alertsTitle}>ACTIVE PROTOCOLS</Text>
+            </View>
+            <View style={styles.alertsActionColumn}>
+              <Text style={styles.alertsActionText}>MANAGE</Text>
+              <Text style={styles.alertsActionText}>ALERTS</Text>
+            </View>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setIsShowingBriefing(true)}
+            style={({ pressed }) => [styles.alertsCard, pressed && styles.buttonPressed, { marginTop: 12 }]}
+          >
+            <View style={styles.alertsContent}>
+              <Text style={styles.alertsEyebrow}>LOCK SCREEN COACHING</Text>
+              <Text style={styles.alertsTitle}>BRIEFING PREVIEW</Text>
+            </View>
+            <View style={styles.alertsActionColumn}>
+              <Text style={styles.alertsActionText}>OPEN</Text>
+            </View>
+          </Pressable>
+        </View>
+
         {/* Operator Stats */}
         <View style={styles.statsSection}>
           <Text style={styles.statsSectionTitle}>CAREER STATISTICS</Text>
@@ -613,37 +678,37 @@ export function ProfileScreen({ onOpenPaywall }: ProfileScreenProps) {
           </View>
         </View>
 
-        {/* Mission Intelligence Protocols */}
         <View style={styles.section}>
-          <Text style={styles.statsSectionTitle}>MISSION INTELLIGENCE PROTOCOLS</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setIsShowingNotifications(true)}
-            style={({ pressed }) => [styles.alertsCard, pressed && styles.buttonPressed]}
-          >
-            <View style={styles.alertsContent}>
-              <Text style={styles.alertsEyebrow}>ALERTS & AUTOMATION</Text>
-              <Text style={styles.alertsTitle}>ACTIVE PROTOCOLS</Text>
-            </View>
-            <View style={styles.alertsActionColumn}>
-              <Text style={styles.alertsActionText}>MANAGE</Text>
-              <Text style={styles.alertsActionText}>ALERTS</Text>
-            </View>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setIsShowingBriefing(true)}
-            style={({ pressed }) => [styles.alertsCard, pressed && styles.buttonPressed, { marginTop: 12 }]}
-          >
-            <View style={styles.alertsContent}>
-              <Text style={styles.alertsEyebrow}>LOCK SCREEN COACHING</Text>
-              <Text style={styles.alertsTitle}>BRIEFING PREVIEW</Text>
-            </View>
-            <View style={styles.alertsActionColumn}>
-              <Text style={styles.alertsActionText}>OPEN</Text>
-            </View>
-          </Pressable>
+          <Text style={styles.statsSectionTitle}>FIELD FEEDBACK</Text>
+          <View style={styles.feedbackCard}>
+            <Text style={styles.feedbackTitle}>HELP SHAPE TRADER'S EDGE</Text>
+            <Text style={styles.feedbackHelper}>
+              Tell us what feels sharp, what feels confusing, or what would make your next mission cleaner.
+            </Text>
+            <TextInput
+              multiline
+              onChangeText={setFeedbackMessage}
+              placeholder="Leave product feedback, bug reports, or feature ideas..."
+              placeholderTextColor="#62696d"
+              style={styles.feedbackInput}
+              textAlignVertical="top"
+              value={feedbackMessage}
+            />
+            <Pressable
+              accessibilityRole="button"
+              disabled={feedbackStatus === 'sending'}
+              onPress={handleSubmitFeedback}
+              style={({ pressed }) => [
+                styles.feedbackButton,
+                feedbackStatus === 'sending' && styles.saveButtonDisabled,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <Text style={styles.feedbackButtonText}>
+                {feedbackStatus === 'sending' ? 'SENDING...' : feedbackStatus === 'sent' ? 'FEEDBACK RECEIVED' : 'SEND FEEDBACK'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <Pressable
@@ -982,6 +1047,52 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     fontSize: 12,
     fontWeight: '600',
+  },
+  feedbackCard: {
+    backgroundColor: '#14181a',
+    borderColor: '#2a3135',
+    borderLeftColor: '#e9c176',
+    borderLeftWidth: 2,
+    borderWidth: 1,
+    padding: 18,
+  },
+  feedbackTitle: {
+    color: '#e9c176',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  feedbackHelper: {
+    color: '#c7bfb5',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  feedbackInput: {
+    backgroundColor: '#0b0f10',
+    borderColor: '#2a3135',
+    borderWidth: 1,
+    color: '#f8fafc',
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    marginBottom: 14,
+    minHeight: 116,
+    padding: 14,
+  },
+  feedbackButton: {
+    alignItems: 'center',
+    backgroundColor: '#e9c176',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  feedbackButtonText: {
+    color: '#101415',
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.5,
   },
   section: {
     marginBottom: 32,

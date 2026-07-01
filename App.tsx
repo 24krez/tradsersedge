@@ -2,7 +2,7 @@ import { signOut } from 'firebase/auth';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator, NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -104,7 +104,9 @@ function MissionStackNavigator({ initialRouteName = 'MissionActive' }: { initial
       <Stack.Screen name="MissionDetail" component={MissionDetailRouteScreen} />
       <Stack.Screen name="LockScreenBriefing" component={LockScreenBriefingRouteScreen} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
-      <Stack.Screen name="ProUpsell" component={ProUpsellScreen} />
+      <Stack.Screen name="ProUpsell">
+        {({ navigation }) => <ProUpsellScreen onClose={() => navigation.replace('MissionActive')} />}
+      </Stack.Screen>
       <Stack.Screen name="Vault" component={VaultScreen} />
     </Stack.Navigator>
   );
@@ -126,7 +128,8 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<TabKey>('mission');
   const [missionInitialRoute, setMissionInitialRoute] = useState<keyof RootStackParamList>('MissionActive');
   const [hasSeenLaunchIntro, setHasSeenLaunchIntro] = useState(false);
-  const { user, userProfile, isLoading, isAnonymous, isPro, isTrialExpired } = useAuth();
+  const [isPaywallVisible, setIsPaywallVisible] = useState(false);
+  const { user, userProfile, isLoading, isAnonymous } = useAuth();
   const hasCompletedOnboarding =
     userProfile?.onboardingStatus === 'completed' ||
     Boolean(userProfile?.missionPreferences);
@@ -205,15 +208,8 @@ function AppContent() {
   ];
 
   function openProUpsell() {
-    setMissionInitialRoute('ProUpsell');
-    setActiveTab('mission');
+    setIsPaywallVisible(true);
   }
-
-  useEffect(() => {
-    if (isTrialExpired && !isPro && (activeTab === 'progress' || activeTab === 'vault')) {
-      openProUpsell();
-    }
-  }, [activeTab, isPro, isTrialExpired]);
 
   function handleTabPress(tab: TabKey) {
     if (tab === 'mission') {
@@ -291,6 +287,14 @@ function AppContent() {
       </View>
 
       <TrialPromoModal onOpenPaywall={openProUpsell} />
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setIsPaywallVisible(false)}
+        presentationStyle="fullScreen"
+        visible={isPaywallVisible}
+      >
+        <ProUpsellScreen onClose={() => setIsPaywallVisible(false)} />
+      </Modal>
       <StatusBar style="light" />
     </View>
   );

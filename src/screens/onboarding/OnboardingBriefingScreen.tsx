@@ -4,11 +4,12 @@ import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 import { RouteProp, useRoute } from '@react-navigation/native';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { requestAppReviewIfEligible } from '../../services/appReview';
 import { updateUserProfile } from '../../services/userProfile';
 import { OnboardingStackParamList } from './OnboardingNavigator';
 
 export function OnboardingBriefingScreen() {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const route = useRoute<RouteProp<OnboardingStackParamList, 'OnboardingBriefing'>>();
   const [isInitializing, setIsInitializing] = useState(false);
 
@@ -64,6 +65,13 @@ export function OnboardingBriefingScreen() {
           threats: [threat],
           coreFocus: focus,
         },
+      });
+      requestAppReviewIfEligible({
+        userId: user.uid,
+        userProfile,
+        source: 'onboarding_completed',
+      }).catch((reviewError) => {
+        console.warn('[Onboarding] Unable to request app review:', reviewError);
       });
       // The auth context will detect the change and App.tsx will switch navigators.
     } catch (error) {
