@@ -3,7 +3,7 @@
     "name": "Trader's Edge",
     "slug": "traders-edge",
     "scheme": "tradersedge",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/TradersEdge_ASappicon_noborder_padded.png",
     "userInterfaceStyle": "dark",
